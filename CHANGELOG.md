@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.5 (29 Sep 2026)
+
+- Understanding, What we do differently: removed the Sensory support photo card; the seven cards are now the same
+  size in a 4 + 3 layout with the second row centred (2 per row on tablet with the last card centred, 1 per row on
+  mobile), and the descriptions line up across each row.
+- Hover effect on every card sitewide: cards lift slightly with a soft shadow and taupe border; the icon circle turns
+  tan on the What we do differently cards. Hover only on devices with a mouse; no lift when reduced motion is on.
+- Fixed pathway card hovers that were slowed by the scroll reveal animation.
+- Header stays on one line between tablet and desktop widths (the practice name beside the logo hides below 1100px).
+- Caching: site.css and site.js links now carry a version number and are always rechecked, so layout changes show
+  straight away. Fonts stay cached for a year, images for a day. (1.0.4 cached site.css for a year, which is why the
+  photo card showed in the wrong place.)
+- Removed images/understanding-sensory-support.webp.
+
 ## 1.0.4 (29 Sep 2026)
 
 - All page photos replaced with the supplied set (The Anxious Patient Images): Home hero, The heart of the experience,

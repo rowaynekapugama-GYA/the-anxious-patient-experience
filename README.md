@@ -17,7 +17,7 @@ and a 404 page. All copy is word for word from the approved copy doc (29 Sep 202
    - Output Directory: leave empty (the repo root)
    - Install Command: leave empty
 4. Deploy. No environment variables are needed.
-5. Check the file count in GitHub after uploading: there should be 34 files (see "What is in here").
+5. Check the file count in GitHub after uploading: there should be 33 files (see "What is in here").
 
 Any `*.vercel.app` address is sent `X-Robots-Tag: noindex` (set in `vercel.json`), so the staging link never
 competes with the live site in Google.
@@ -77,7 +77,6 @@ will add an `api` folder to this repo.
 | `images/home-heart-of-the-experience.webp` | Home, The heart of the experience |
 | `images/understanding-hero.webp` | Understanding the Experience hero |
 | `images/understanding-our-approach.webp` | Understanding, "We work with it" |
-| `images/understanding-sensory-support.webp` | Understanding, in the card grid beside Sensory support |
 | `images/meet-the-team-hero.webp` | Meet the Team hero |
 | `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin |
 | `images/book-now-hero.webp` | Book Now hero |
@@ -86,8 +85,11 @@ will add an `api` folder to this repo.
 | `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, and the logo in the search schema |
 | `apple-touch-icon.png` | Home screen icon on phones |
 
-To swap a photo later, keep the same file name, or update the `src` in the page's `index.html`. Images are cached
-for a year, so a new photo is best uploaded under a new file name.
+To swap a photo later, keep the same file name, or update the `src` in the page's `index.html`. Browsers keep
+images for a day, so a new photo under the same name can take up to a day to show for returning visitors.
+
+When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on their links in every page
+(for example `site.css?v=1.0.5` to `site.css?v=1.0.6`) so returning visitors get the new version straight away.
 
 ## Placeholders (square brackets, highlighted yellow on the site)
 
