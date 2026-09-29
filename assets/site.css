@@ -291,3 +291,15 @@ body.plain-page main{padding-top:var(--logo-zone)}
 
 /* ---------- Footer logo: larger ---------- */
 .site-footer .logo-tile{width:clamp(80px,7vw,104px);height:clamp(80px,7vw,104px);border-radius:clamp(16px,1.4vw,21px)}
+
+/* ---------- Phones and tablets: each screen is its own snap target, one screen per swipe ----------
+   Screens snap by their own top edge, so a screen taller than the window (cards, booking flow, FAQs) can still
+   be scrolled through freely, and the next swipe after it lands on the next screen. */
+html{scroll-padding:0}
+html.snap .snap-point{scroll-snap-align:none}
+html.snap main .screen{scroll-snap-align:start;scroll-snap-stop:always}
+/* Reading stops inside screens taller than the window (added by site.js), so no content is skipped */
+.snap-page{position:absolute;left:0;width:1px;height:1px;pointer-events:none}
+html.snap .snap-page{scroll-snap-align:start;scroll-snap-stop:always}
+/* The booking panel is a stop of its own, so "Choose a time" and each booking step land exactly on it */
+html.snap #booking{scroll-snap-align:start}

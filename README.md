@@ -57,10 +57,12 @@ Every page is a series of full-screen "screens", one after another, and the page
   content. The first element inside it is `<span class="snap-point" aria-hidden="true"></span>`, which is what the
   page snaps to.
 - **Snapping** is native CSS only (`scroll-snap-type` on the page, switched on by `site.js` with the `snap` class).
-  It is mandatory by default and switches to proximity on Book Now and FAQs (`data-snap="proximity"` on `<body>`),
-  and on any page where a screen has grown taller than the window (for example the card grid on phones), so nobody
-  is ever trapped. No wheel or touch events are intercepted. With reduced motion or without JavaScript there is no
-  snapping and the page scrolls normally.
+  It is mandatory on every page, one screen per swipe (`scroll-snap-stop: always`), and each screen is its own snap
+  target. Screens taller than the window get extra reading stops about 80% of a window apart (added by `site.js`), so
+  no content is skipped. On touch screens, a short swipe that would settle back on the same screen glides on to the
+  next stop; this uses passive listeners only and never blocks scrolling. Snapping relaxes while a form field is in
+  use. A page can opt into gentler snapping with `data-snap="proximity"` on `<body>`. With reduced motion or without
+  JavaScript there is no snapping and the page scrolls normally.
 - **Screens that grow** carry `screen--grow`: the Understanding card grid, the Book Now booking flow and the FAQ list.
   On small phones (iPhone SE size) the Home "heart" screen and Lorna's profile also grow, because their copy is longer
   than the screen.

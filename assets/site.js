@@ -22,18 +22,96 @@
   measure();
 
   /* ---------- Scroll snapping: one screen at a time ----------
-     Native CSS snapping only (html.snap). Mandatory by default; proximity on pages that ask for it
-     (data-snap on body) and whenever a screen has grown taller than the viewport, so nobody is trapped. */
+     Native CSS snapping only (html.snap), mandatory, one screen per swipe. Each screen is its own snap target, so a
+     screen taller than the window can still be scrolled through. A page can opt into gentler proximity snapping
+     with data-snap="proximity" on <body>. */
   var snapOn = screens.length > 0 && !reduce;
   function snapMode() {
     if (!snapOn) { doc.classList.remove('snap', 'snap-soft'); return; }
     doc.classList.add('snap');
-    var soft = document.body.getAttribute('data-snap') === 'proximity';
-    for (var i = 0; i < screens.length && !soft; i++) {
-      var min = parseFloat(getComputedStyle(screens[i]).minHeight) || window.innerHeight;
-      if (screens[i].offsetHeight > min + 2) soft = true;
-    }
-    doc.classList.toggle('snap-soft', soft);
+    doc.classList.toggle('snap-soft', document.body.getAttribute('data-snap') === 'proximity' || formFocus);
+  }
+  /* While someone is typing in a form (the booking details), snapping relaxes so the keyboard never pushes the
+     field out of view; it firms up again when they leave the form. */
+  var formFocus = false;
+  document.addEventListener('focusin', function (ev) {
+    if (ev.target.matches && ev.target.matches('input, textarea, select')) { formFocus = true; snapMode(); }
+  });
+  document.addEventListener('focusout', function () {
+    setTimeout(function () {
+      var a = document.activeElement;
+      var still = !!(a && a.matches && a.matches('input, textarea, select'));
+      if (formFocus && !still) { formFocus = false; snapMode(); }
+    }, 250);
+  });
+
+  /* A screen taller than the window gets extra snap stops about 80% of a window apart, ending with its bottom edge,
+     so a swipe reads on through it instead of jumping to the next screen. */
+  function readingStops() {
+    var mandatory = doc.classList.contains('snap') && !doc.classList.contains('snap-soft');
+    var vh = window.innerHeight, step = Math.round(vh * 0.8);
+    screens.forEach(function (s) {
+      [].forEach.call(s.querySelectorAll('.snap-page'), function (n) { n.parentNode.removeChild(n); });
+      var h = s.offsetHeight;
+      if (!mandatory || h <= vh + 2) return;
+      var stops = [];
+      for (var y = step; y < h - vh - 40; y += step) stops.push(y);
+      stops.push(h - vh);
+      stops.forEach(function (y) {
+        var n = document.createElement('span');
+        n.className = 'snap-page';
+        n.setAttribute('aria-hidden', 'true');
+        n.style.top = y + 'px';
+        s.appendChild(n);
+      });
+    });
+  }
+
+  /* ---------- Touch assist ----------
+     Snapping is native. A short, slow swipe can leave the page settling back on the same screen, which feels stuck.
+     If a clear vertical swipe ends and the page has not moved, glide to the next (or previous) stop in that
+     direction. Listeners are passive: touch and scrolling are never blocked or taken over. */
+  function snapStops() {
+    var y0 = window.pageYOffset, list = [];
+    screens.forEach(function (s) {
+      var top = s.getBoundingClientRect().top + y0;
+      list.push(Math.round(top));
+      [].forEach.call(s.querySelectorAll('.snap-page'), function (n) { list.push(Math.round(top + parseFloat(n.style.top))); });
+    });
+    list.push(document.documentElement.scrollHeight - window.innerHeight);
+    return list.sort(function (a, b) { return a - b; });
+  }
+  function whenSettled(done) {
+    var last = -1, still = 0, tries = 0;
+    (function poll() {
+      var y = window.pageYOffset;
+      still = Math.abs(y - last) < 1 ? still + 1 : 0;
+      last = y;
+      if (still >= 2 || ++tries > 20) done(); else setTimeout(poll, 90);
+    })();
+  }
+  var touch = null;
+  if (snapOn) {
+    document.addEventListener('touchstart', function (ev) {
+      touch = ev.touches.length === 1 ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY, scroll: window.pageYOffset } : null;
+    }, { passive: true });
+    document.addEventListener('touchend', function (ev) {
+      var t0 = touch; touch = null;
+      if (!t0 || !doc.classList.contains('snap') || doc.classList.contains('snap-soft')) return;
+      if (ev.target.closest && ev.target.closest('.journey-bar, input, textarea, select')) return;
+      var t = ev.changedTouches[0], dy = t0.y - t.clientY, dx = t0.x - t.clientX;
+      if (Math.abs(dy) < 30 || Math.abs(dx) > Math.abs(dy)) return;
+      var dir = dy > 0 ? 1 : -1;
+      whenSettled(function () {
+        if (Math.abs(window.pageYOffset - t0.scroll) > 2) return; /* the page moved by itself: nothing to do */
+        var stops = snapStops(), target = null;
+        for (var i = 0; i < stops.length; i++) {
+          if (dir > 0 && stops[i] > t0.scroll + 2) { target = stops[i]; break; }
+          if (dir < 0 && stops[i] < t0.scroll - 2) target = stops[i];
+        }
+        if (target !== null) window.scrollTo({ top: target, behavior: SCROLL });
+      });
+    }, { passive: true });
   }
 
   /* ---------- Gentle reveals ----------
@@ -116,16 +194,18 @@
   function progress() {
     ticking = false;
     if (!segs.length) return;
-    var y = window.pageYOffset, vh = window.innerHeight, current = 0;
+    var y = window.pageYOffset, vh = window.innerHeight, current = 0, tops = [];
+    screens.forEach(function (s, i) {
+      tops[i] = s.getBoundingClientRect().top + y;
+      if (tops[i] <= y + vh * 0.4) current = i;
+    });
     screens.forEach(function (s, i) {
       if (!segs[i]) return;
-      var top = s.getBoundingClientRect().top + y;
-      var p = Math.min(1, Math.max(0, (y + vh - top) / s.offsetHeight));
+      var p = i < current ? 1 : i > current ? 0 : 1;
+      /* a screen taller than the window fills its segment as you read through it */
+      if (i === current && s.offsetHeight > vh + 2) p = Math.min(1, Math.max(0, (y + vh - tops[i]) / s.offsetHeight));
       segs[i].style.setProperty('--p', p.toFixed(3));
-      if (top <= y + vh * 0.5) current = i;
-    });
-    segs.forEach(function (a, i) {
-      if (i === current) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
+      if (i === current) segs[i].setAttribute('aria-current', 'step'); else segs[i].removeAttribute('aria-current');
     });
   }
   function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(progress); } }
@@ -156,7 +236,7 @@
 
   /* ---------- Keep everything in step with the window ---------- */
   var resizeTimer;
-  function refresh() { measure(); snapMode(); progress(); }
+  function refresh() { measure(); snapMode(); readingStops(); progress(); }
   window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('load', refresh);

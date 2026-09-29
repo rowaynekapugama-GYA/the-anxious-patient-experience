@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.7 (29 Sep 2026)
+
+- Phones: a swipe now always moves on to the next screen. Snapping is firm on every page (no more resting halfway
+  between two screens), each screen is its own snap stop, and a short or slow swipe that would have settled back on
+  the same screen glides on to the next one (passive touch listeners only, nothing is blocked).
+- Screens taller than the window (Understanding cards, booking flow, FAQs, and the text-heavy screens on small phones)
+  get reading stops about 80% of a window apart, ending with the screen's bottom edge, so swiping reads through them
+  without skipping content.
+- Progress bar shows whole segments: every screen you have reached is filled, the rest are empty. Only a screen taller
+  than the window fills gradually while you read it.
+- Booking: "Choose a time" and every booking step land on the booking panel, and snapping relaxes while a form field
+  is in use so the keyboard never hides the field.
+- site.css and site.js links bumped to ?v=1.0.7.
+
 ## 1.0.6 (29 Sep 2026)
 
 - Every page is now a calm, screen by screen journey: each section fills the screen, and the page snaps to the next
