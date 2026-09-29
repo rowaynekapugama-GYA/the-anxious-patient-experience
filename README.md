@@ -17,7 +17,7 @@ and a 404 page. All copy is word for word from the approved copy doc (29 Sep 202
    - Output Directory: leave empty (the repo root)
    - Install Command: leave empty
 4. Deploy. No environment variables are needed.
-5. Check the file count in GitHub after uploading: there should be 27 files (see "What is in here").
+5. Check the file count in GitHub after uploading: there should be 34 files (see "What is in here").
 
 Any `*.vercel.app` address is sent `X-Robots-Tag: noindex` (set in `vercel.json`), so the staging link never
 competes with the live site in Google.
@@ -35,8 +35,8 @@ privacy-policy/index.html               Placeholder page (noindex) so the footer
 assets/site.css                         Full design system
 assets/site.js                          Mobile menu, scroll reveals, FAQ accordion, booking flow
 assets/fonts/                           Playfair Display and Figtree, self-hosted (SIL OFL)
-images/                                 Six WebP images
-icon.svg, robots.txt, sitemap.xml
+images/                                 Page photos (WebP), logo, social share image (JPG)
+icon.svg, apple-touch-icon.png, robots.txt, sitemap.xml
 vercel.json                             Clean URLs, trailing slashes, security and caching headers
 README.md, CHANGELOG.md
 ```
@@ -69,6 +69,26 @@ The integration point is the `getSlots()` function and the payment step in `asse
 A live payment needs a small serverless function (Vercel supports this alongside static files), so connecting it
 will add an `api` folder to this repo.
 
+## Images
+
+| File | Where |
+|---|---|
+| `images/home-hero.webp` | Home hero |
+| `images/home-heart-of-the-experience.webp` | Home, The heart of the experience |
+| `images/understanding-hero.webp` | Understanding the Experience hero |
+| `images/understanding-our-approach.webp` | Understanding, "We work with it" |
+| `images/understanding-sensory-support.webp` | Understanding, in the card grid beside Sensory support |
+| `images/meet-the-team-hero.webp` | Meet the Team hero |
+| `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin |
+| `images/book-now-hero.webp` | Book Now hero |
+| `images/faqs-hero.webp` | FAQs hero |
+| `images/social-share.jpg` | Share image (og:image) on every page, 1200 x 630 |
+| `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, and the logo in the search schema |
+| `apple-touch-icon.png` | Home screen icon on phones |
+
+To swap a photo later, keep the same file name, or update the `src` in the page's `index.html`. Images are cached
+for a year, so a new photo is best uploaded under a new file name.
+
 ## Placeholders (square brackets, highlighted yellow on the site)
 
 | Placeholder | Where |
@@ -79,7 +99,6 @@ will add an `api` folder to this repo.
 | Privacy policy text | `/privacy-policy/` |
 | Talk to Alex | Every "Talk to Alex" button goes to the footer contact block until Alex's contact method is confirmed |
 | Alex's portrait | Labelled placeholder on Meet the Team (needs real photography) |
-| Logo | The navy tile in the header is a CSS stand-in until the logo file is supplied |
 
 ## UI labels not in the copy doc (for sign-off)
 
@@ -95,7 +114,7 @@ content", "Open menu" / "Close menu", and "Page not found" / "Home" on the 404 p
 - [ ] `https://example.com` replaced with the live domain everywhere
 - [ ] Booking connected and tested end to end in test mode, then live
 - [ ] Deposit and cancellation policy wording re-checked with Lorna on the live flow
-- [ ] Alex's portrait and the real logo in place
+- [ ] Alex's portrait in place
 - [ ] Name on Lorna's scrubs in her portrait reads "Godwin": confirm the spelling with Lorna (the site uses Gladwin)
 - [ ] Lorna's profile never uses the word "specialist" (general dentist with a special interest)
 - [ ] Privacy policy supplied (Australian Privacy Principles, covers booking and deposit data)

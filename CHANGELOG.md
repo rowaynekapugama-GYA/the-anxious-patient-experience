@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.4 (29 Sep 2026)
+
+- All page photos replaced with the supplied set (The Anxious Patient Images): Home hero, The heart of the experience,
+  Understanding hero, Our approach, Book Now hero.
+- New photos added: Meet the Team hero, FAQs hero, and a Sensory support photo in the Understanding card grid.
+- Understanding hero frame changed to landscape (same as Book Now) to suit the new photo.
+- Real logo file replaces the CSS logo tile in the header and footer; logo added to the organisation schema and as a
+  phone home screen icon.
+- Social share image (1200 x 630 JPG) used on every page, with width, height and alt tags.
+- Removed the old images: home-hero-lamp, home-heart-sofa, understanding-hero-curtains, understanding-approach-mug,
+  book-now-nook.
+
 ## 1.0.3 (29 Sep 2026)
 
 - Delivered as a plain HTML, CSS and JavaScript site with no build step, so it deploys to Vercel without Node or
