@@ -33,7 +33,8 @@ faqs/index.html
 privacy-policy/index.html               Placeholder page (noindex) so the footer link works
 404.html
 assets/site.css                         Full design system
-assets/site.js                          Mobile menu, scroll reveals, FAQ accordion, booking flow
+assets/site.js                          Screen by screen journey (snapping, reveals, progress bar,
+                                        Explore sheet), FAQ accordion, booking flow
 assets/fonts/                           Playfair Display and Figtree, self-hosted (SIL OFL)
 images/                                 Page photos (WebP), logo, social share image (JPG)
 icon.svg, apple-touch-icon.png, robots.txt, sitemap.xml
@@ -46,6 +47,31 @@ README.md, CHANGELOG.md
 The canonical tags, share (OG) links and sitemap use `https://example.com` until the domain is confirmed. Once it
 is, find and replace `https://example.com` with the live domain (for example `https://anxiouspatientexperience.com.au`)
 in every `.html` file, `sitemap.xml` and `robots.txt`.
+
+## Screen by screen layout (v1.0.6)
+
+Every page is a series of full-screen "screens", one after another, and the page links live in the bottom bar.
+
+- **A screen** is a `<section class="screen">` inside `<main>`. It is at least one screen tall (`100svh`, with
+  `100vh` for older browsers), keeps clear of the header and bottom bar with its own padding, and centres its
+  content. The first element inside it is `<span class="snap-point" aria-hidden="true"></span>`, which is what the
+  page snaps to.
+- **Snapping** is native CSS only (`scroll-snap-type` on the page, switched on by `site.js` with the `snap` class).
+  It is mandatory by default and switches to proximity on Book Now and FAQs (`data-snap="proximity"` on `<body>`),
+  and on any page where a screen has grown taller than the window (for example the card grid on phones), so nobody
+  is ever trapped. No wheel or touch events are intercepted. With reduced motion or without JavaScript there is no
+  snapping and the page scrolls normally.
+- **Screens that grow** carry `screen--grow`: the Understanding card grid, the Book Now booking flow and the FAQ list.
+  On small phones (iPhone SE size) the Home "heart" screen and Lorna's profile also grow, because their copy is longer
+  than the screen.
+- **Reveals**: anything with `reveal` fades up when its screen is half in view. Add `seq` to make items appear one by
+  one (0.7 seconds apart); `d1` to `d3` give a small stagger to the main content. Reveals play once, and anything that
+  receives keyboard focus is shown at once.
+- **Progress bar**: one link per screen in the bottom bar (`.journey-progress`), in the same order as the screens.
+  If you add or remove a screen, add or remove its segment and update the "Go to section X of Y" labels.
+- **Bottom bar**: Understanding the Experience, Meet the Team, FAQs and the Book Now pill. The current page's link has
+  `aria-current="page"`. On phones the three links sit behind the "Explore" button (a `<details>` element, so it
+  works without JavaScript too).
 
 ## Booking (test mode)
 
@@ -106,11 +132,15 @@ When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on the
 
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
 you like support with? (optional)"), "Continue", "Back", the two form error messages, the test-mode note, "Skip to
-content", "Open menu" / "Close menu", and "Page not found" / "Home" on the 404 page.
+content", "Explore" (the button that opens the page links on phones), "Go to section 1 of 5" and so on (screen
+reader labels on the progress bar segments), and "Page not found" / "Home" on the 404 page. "Open menu" / "Close
+menu" are gone with the old top menu.
 
 ## Go-live checklist
 
 - [ ] Repo is private
+- [ ] iPhone check on the staging link (Safari): swipe through every page, open Explore, run a test booking, open
+      an FAQ answer, tap Talk to Alex
 - [ ] Every yellow placeholder replaced (search the files for `[`)
 - [ ] Phone, email, address and APE location confirmed against the brief
 - [ ] `https://example.com` replaced with the live domain everywhere

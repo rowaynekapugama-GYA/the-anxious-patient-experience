@@ -46,3 +46,248 @@
 /* v1.0.5: header stays on one line between tablet and desktop widths */
 .nav-links a,.nav-book{white-space:nowrap}
 @media (max-width:1100px){.logo-name{display:none}}
+
+/* ==========================================================================
+   v1.0.6 Journey layout: one full-screen section at a time
+   ========================================================================== */
+:root{
+  --vh:100vh;
+  --hdr-h:76px;
+  --bar-h:78px;
+  --sp:clamp(14px,3.2vh,44px);
+  --ease-calm:cubic-bezier(.25,.46,.3,1);
+  --avail:calc(var(--vh) - var(--hdr-h) - var(--bar-h) - 2 * var(--sp));
+}
+@supports (height:100svh){:root{--vh:100svh}}
+@media (max-width:760px){:root{--hdr-h:64px;--bar-h:70px;--sp:clamp(10px,2vh,24px)}}
+
+html{scroll-padding-top:var(--hdr-h);scroll-padding-bottom:var(--bar-h)}
+html.snap{scroll-snap-type:y mandatory}
+html.snap.snap-soft{scroll-snap-type:y proximity}
+html.snap .snap-point{scroll-snap-align:start}
+html.snap .site-footer{scroll-snap-align:end}
+html.snap #contact{scroll-snap-align:start}
+#booking,#contact{scroll-margin-top:16px}
+@media (prefers-reduced-motion:reduce){html,html.snap{scroll-snap-type:none;scroll-behavior:auto}}
+
+/* Header: logo only */
+.site-header{position:fixed;top:0;left:0;right:0;z-index:60;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:0;pointer-events:none}
+.site-header .logo{pointer-events:auto}
+body.plain-page .site-header{background:rgba(247,244,239,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.site-header .nav{height:var(--hdr-h);display:flex;align-items:center;justify-content:flex-start}
+.site-header .logo-tile{width:52px;height:52px}
+@media (max-width:760px){.site-header .logo-tile{width:44px;height:44px;border-radius:10px}}
+body.plain-page main{padding-top:var(--hdr-h)}
+
+/* Screens */
+main .screen{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:var(--vh);margin:0;
+  padding:calc(var(--hdr-h) + var(--sp)) 0 calc(var(--bar-h) + var(--sp))}
+main .screen>.wrap{width:100%}
+/* A screen must never become its own scroll container, or its snap point stops counting */
+main .screen{overflow:visible;overflow:clip}
+.snap-point{position:absolute;top:var(--hdr-h);left:0;width:1px;height:1px;pointer-events:none}
+.screen h1{margin-bottom:clamp(14px,2.4vh,24px)}
+.screen .hero .sub,.screen.hero .sub{margin-bottom:clamp(18px,3.4vh,34px)}
+.screen p.eyebrow{margin-bottom:clamp(12px,2.2vh,22px)}
+
+/* Images never push text off the screen */
+.screen .frame img{object-fit:cover}
+.screen.hero .hero-media .frame{max-height:var(--avail)}
+.screen .two-col .frame{max-height:var(--avail)}
+.screen .member-photo .frame{max-height:var(--avail)}
+.screen .heart-photo{min-height:0}
+
+/* Short desktop and laptop screens: slightly tighter type so every screen fits */
+@media (min-width:761px) and (max-height:860px){
+  .screen h1{font-size:clamp(34px,3.9vw,50px)}
+  .screen h2{font-size:clamp(26px,2.6vw,36px)}
+  .screen .approach-head{font-size:clamp(28px,3vw,40px)}
+  .screen .two-tone .l1{font-size:clamp(26px,2.9vw,40px)}
+  .screen .two-tone .l2{font-size:clamp(24px,2.6vw,34px)}
+  .screen .quote-stack p{font-size:clamp(18px,1.35vw,21px);margin-bottom:14px}
+  .screen .member .bio{font-size:16px;line-height:1.6;margin-bottom:12px}
+  .screen .member blockquote{font-size:clamp(18px,1.45vw,21px);margin-top:18px}
+  .screen .member .role{margin-bottom:16px}
+}
+
+/* Home: intro stands on its own, so it can be a little larger */
+.screen.intro-band h2{font-size:clamp(32px,4.4vw,60px);max-width:none}
+.screen.intro-band p:not(.eyebrow){font-size:clamp(18px,1.6vw,22px)}
+
+/* Home: heart of the experience */
+.screen .heart{align-items:stretch}
+.screen .heart-intro h2{margin-bottom:clamp(18px,3vh,32px)}
+.screen .heart-card{align-self:center}
+
+/* Two-tone quote screens */
+.screen.quote-band .two-tone-lines{margin:0}
+
+/* Understanding: the body, triggers one by one */
+.screen .body-grid{align-items:center}
+.screen .body-grid .soft-list{margin-top:0}
+.screen .body-grid .lead{margin-bottom:0}
+
+/* Understanding: what it can feel like */
+.feel-screen .feel-card{max-width:860px;margin:0 auto}
+
+/* Understanding: cards */
+.screen .section-head{margin-bottom:clamp(18px,3.2vh,44px)}
+.screen .card{position:relative;padding:20px 20px 22px}
+.screen .card .icon{position:absolute;top:16px;right:16px;width:38px;height:38px;margin:0}
+.screen .card .icon svg{width:18px;height:18px}
+.screen .card h3{font-size:clamp(18px,1.4vw,21px);margin-bottom:8px;padding-right:44px}
+@supports (grid-template-rows:subgrid){.screen .card-grid>.card{grid-row:span 2}}
+.screen .card p{font-size:15.5px;line-height:1.55}
+
+/* Understanding: one note per screen */
+.note-screen .note{max-width:820px;margin:0 auto;padding:clamp(30px,5vw,60px)}
+.note-screen .note h2{font-size:clamp(28px,3vw,40px);margin-bottom:20px}
+.note-screen .note p{font-size:clamp(17px,1.3vw,19px)}
+
+/* Meet the Team: one person per screen; alternate sides */
+.member-screen .team-list{display:block}
+@media (min-width:901px){
+  .member.flip{grid-template-columns:1.2fr .8fr}
+  .member.flip .member-photo{order:2}
+  .screen .member{grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr)}
+  .screen .member.flip{grid-template-columns:minmax(0,1.28fr) minmax(0,.72fr)}
+}
+
+/* Wide hero banners (Meet the Team, FAQs) take whatever height is left */
+main .screen.hero-simple>.wrap{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+.screen .hero-banner{flex:1 1 0;min-height:120px;max-height:min(505px,42vw);aspect-ratio:auto;width:100%;margin-top:clamp(18px,3.4vh,48px)}
+@media (max-width:760px){.screen .hero-banner{max-height:62vw}}
+
+/* Book Now and FAQs: screens that grow with their content */
+.screen--grow{justify-content:center}
+.screen .appt-card h2{max-width:none}
+
+/* Closing card */
+.screen.ready .ready-card{padding-top:clamp(40px,7vh,96px);padding-bottom:clamp(40px,7vh,96px)}
+
+/* Stacked layouts (tablet and phone): images fill the space that is left, text stays whole */
+@media (max-width:900px){
+  main .screen.hero>.wrap{flex:1 1 auto;display:flex;flex-direction:column}
+  .screen.hero .grid{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:clamp(16px,3vh,28px)}
+  .screen.hero .grid{align-items:stretch}
+  .screen.hero .hero-media{flex:1 1 0;min-height:120px;max-height:46vh;display:flex;flex-direction:column;width:100%}
+  .screen.hero .hero-media .frame{flex:1 1 auto;width:100%;min-height:0;max-height:none;aspect-ratio:auto}
+  .screen .two-col{gap:clamp(20px,3.4vh,40px)}
+  .screen .two-col .frame{aspect-ratio:auto;height:clamp(140px,30vh,360px)}
+  .screen .member{gap:clamp(18px,3vh,36px)}
+  .screen .member-photo{max-width:none}
+  .screen .member-photo .frame{aspect-ratio:auto;height:clamp(150px,30vh,380px);border-radius:var(--r-img)}
+  .screen .member-photo img{object-position:50% 28%!important}
+  .screen .heart{gap:clamp(18px,3vh,36px)}
+  .screen .heart-photo{aspect-ratio:auto;height:clamp(110px,22vh,300px);flex:none}
+}
+@media (max-width:760px){
+  .screen h1{font-size:clamp(28px,8.2vw,36px)}
+  .screen h2{font-size:clamp(24px,6.6vw,30px)}
+  .screen .approach-head{font-size:clamp(24px,6.8vw,30px)}
+  .screen .hero .sub,.screen.hero .sub{font-size:19px}
+  .screen.hero .actions{flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px 18px}
+  .screen.hero .actions .btn{justify-content:center}
+  .screen .quote-stack p{font-size:17px;margin-bottom:12px}
+  .screen .quote-stack .outcome{margin-top:16px;padding-top:14px}
+  .screen .heart-card{padding:22px 20px}
+  .screen .two-tone .l1{font-size:clamp(24px,7vw,30px)}
+  .screen .two-tone .l2{font-size:clamp(22px,6.2vw,28px)}
+  .screen .two-tone .rule{margin:20px auto}
+  .screen .soft-list li{padding:7px 14px;font-size:15px}
+  .screen .feel-card{padding:24px 20px}
+  .screen .dot-list{gap:8px 16px;margin-top:14px}
+  .screen .dot-list li{font-size:15.5px}
+  .screen .closing-line{font-size:18px;margin-top:18px;padding-top:16px}
+  .screen .member .bio{font-size:15.5px;line-height:1.6;margin-bottom:10px}
+  .screen .member .role{margin-bottom:12px;font-size:12px}
+  .screen .member blockquote{font-size:18px;margin-top:14px}
+  .screen .ready-card{padding:36px 22px}
+  .screen .lead{font-size:16.5px}
+  .note-screen .note p{font-size:16.5px}
+  .screen .card-grid{gap:12px}
+  .screen .card{padding:18px 18px 20px}
+  .screen .heart-photo{height:clamp(90px,14vh,200px)}
+  .screen .member-photo .frame{height:clamp(120px,18vh,220px)}
+  .screen .dot-list{grid-template-columns:1fr 1fr}
+  .screen .quote-stack p{font-size:16.5px}
+  .screen .heart{gap:16px}
+  .screen .heart-intro h2{margin-bottom:14px}
+  .screen .member h2{font-size:26px}
+  .screen .member blockquote{font-size:17px}
+}
+@media (max-width:760px) and (max-height:700px){
+  .screen h1{font-size:28px}
+  .screen .hero-media{min-height:90px}
+  .screen .heart-photo{height:clamp(70px,12vh,120px)}
+  .screen .two-col .frame{height:clamp(110px,22vh,200px)}
+  .screen .member-photo .frame{height:clamp(96px,15vh,140px)}
+}
+
+/* Footer sits after the last screen and clears the bottom bar */
+.site-footer{padding-bottom:calc(36px + var(--bar-h))}
+
+/* ---------- Bottom bar ---------- */
+.journey-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(247,244,239,.86);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid rgba(231,223,212,.9);
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+.journey-progress{display:flex;gap:3px}
+.journey-progress .seg{position:relative;display:block;flex:1 1 0;height:12px;margin-top:-1px}
+.journey-progress .seg:before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:rgba(143,116,85,.2);transition:background-color .3s ease}
+.journey-progress .seg:hover:before{background:rgba(143,116,85,.34)}
+.journey-progress .seg-fill{position:absolute;left:0;top:0;width:100%;height:3px;background:var(--taupe-deep);transform-origin:left center;transform:scaleX(var(--p,0));transition:transform .45s var(--ease-calm)}
+.journey-progress .seg:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+.journey-row{display:flex;align-items:center;gap:24px;min-height:58px;padding-top:2px;padding-bottom:8px}
+.journey-bar.no-progress .journey-row{padding-top:8px}
+.journey-links{display:flex;flex-wrap:wrap;gap:4px 30px;list-style:none;margin:0 auto 0 0;padding:0}
+.journey-links a,.explore-sheet a{color:var(--ink-soft);font-size:14.5px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;transition:color .3s ease}
+.journey-links a:hover,.explore-sheet a:hover{color:var(--navy)}
+.journey-links a[aria-current=page],.explore-sheet a[aria-current=page]{color:var(--navy);text-decoration:underline;text-decoration-color:var(--taupe);text-decoration-thickness:1px;text-underline-offset:7px}
+.journey-links a:focus-visible,.explore-sheet a:focus-visible,.explore-btn:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:6px}
+.journey-book.btn{min-height:42px;padding:9px 24px;font-size:14.5px;margin-left:auto}
+.journey-book[aria-current=page]{box-shadow:inset 0 0 0 1px var(--taupe-deep)}
+.explore{display:none;position:relative}
+.explore-btn{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:8px 18px;border:1px solid var(--line);border-radius:999px;background:var(--offwhite);color:var(--navy);font-size:14.5px;font-weight:600}
+.explore-btn::-webkit-details-marker{display:none}
+.explore-btn:after{content:"";width:7px;height:7px;border-right:1.5px solid var(--taupe-ink);border-top:1.5px solid var(--taupe-ink);transform:rotate(-45deg);margin-top:3px;transition:transform .3s ease}
+.explore[open] .explore-btn:after{transform:rotate(135deg);margin-top:-3px}
+.explore-sheet{position:absolute;left:0;bottom:calc(100% + 12px);min-width:250px;list-style:none;margin:0;padding:8px 6px;background:var(--offwhite);border:1px solid var(--line);border-radius:20px;box-shadow:0 18px 40px -28px rgba(40,72,88,.45)}
+.explore-sheet li a{display:flex;padding:4px 16px;font-size:15.5px;white-space:nowrap}
+@media (max-width:760px){
+  .journey-links{display:none}
+  .explore{display:block}
+  .journey-row{justify-content:space-between;min-height:56px;gap:12px}
+}
+@media (prefers-reduced-motion:reduce){.journey-progress .seg-fill,.explore-btn:after{transition:none}}
+
+/* ---------- Gentle reveals (calm, about one second, 12px) ---------- */
+.js .reveal{opacity:0;transform:translateY(12px);transition:opacity 1s var(--ease-calm) var(--d,0s),transform 1s var(--ease-calm) var(--d,0s)}
+.js .reveal.in{opacity:1;transform:none}
+.reveal.d1{--d:.15s}.reveal.d2{--d:.3s}.reveal.d3{--d:.45s}
+.js .card.reveal,.js .appt-card.reveal,.js .feel-card.reveal,.js .heart-card.reveal,.js .ready-card.reveal{
+  transition:opacity 1s var(--ease-calm) var(--d,0s),transform 1s var(--ease-calm) var(--d,0s),translate .35s ease,box-shadow .35s ease,border-color .35s ease,background-color .35s ease}
+@media (prefers-reduced-motion:reduce){
+  .js .reveal,.js .card.reveal,.js .appt-card.reveal,.js .feel-card.reveal,.js .heart-card.reveal,.js .ready-card.reveal{opacity:1;transform:none;transition:none}
+}
+
+/* ---------- Logo: larger, on the first screen only; it scrolls away with the page (no sticky bar) ---------- */
+:root{--hdr-h:0px;--logo-h:clamp(64px,6.6vw,100px);--logo-pad:clamp(14px,2.6vh,30px);--logo-zone:calc(var(--logo-h) + 2 * var(--logo-pad))}
+.site-header{position:absolute;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.plain-page .site-header{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.site-header .nav{height:var(--logo-zone)}
+.site-header .logo-tile{width:var(--logo-h);height:var(--logo-h);border-radius:calc(var(--logo-h) * .2)}
+main>.screen:first-child{padding-top:var(--logo-zone)}
+@media (max-height:700px){:root{--logo-h:56px;--logo-pad:12px}}
+body.plain-page main{padding-top:var(--logo-zone)}
+
+/* ---------- Bottom menu: underline slides in on hover; stays on the current page ---------- */
+.journey-links a,.explore-sheet a{position:relative;text-decoration:none}
+.journey-links a[aria-current=page],.explore-sheet a[aria-current=page]{text-decoration:none}
+.journey-links a:after,.explore-sheet a:after{content:"";position:absolute;left:0;right:0;bottom:9px;height:1px;background:var(--taupe);transform:scaleX(0);transform-origin:left center;transition:transform .35s var(--ease-calm)}
+.explore-sheet a:after{left:16px;right:16px;bottom:8px}
+.journey-links a:hover:after,.journey-links a:focus-visible:after,.journey-links a[aria-current=page]:after,
+.explore-sheet a:hover:after,.explore-sheet a[aria-current=page]:after{transform:scaleX(1)}
+@media (prefers-reduced-motion:reduce){.journey-links a:after,.explore-sheet a:after{transition:none}}
+
+/* ---------- Footer logo: larger ---------- */
+.site-footer .logo-tile{width:clamp(80px,7vw,104px);height:clamp(80px,7vw,104px);border-radius:clamp(16px,1.4vw,21px)}

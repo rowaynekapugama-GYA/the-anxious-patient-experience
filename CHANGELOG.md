@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.6 (29 Sep 2026)
+
+- Every page is now a calm, screen by screen journey: each section fills the screen, and the page snaps to the next
+  one with native CSS scroll snapping (no scroll-jacking; wheel, trackpad, touch and keyboard all work as normal).
+- Screen map as briefed: Home 5 screens, Understanding 8, Meet the Team 4, Book Now 3, FAQs 3. Copy regrouped only,
+  never reworded. The Home "Explore at your own pace" pathway cards are removed; their links now live in the bottom bar.
+- Gentle reveals: each screen fades up when half in view; key points appear one by one about 0.7 seconds apart with a
+  slow one second ease. Reveals play once, and anything reached with the keyboard shows at once.
+- Header is the logo only, shown larger on the first screen and scrolling away with it (no sticky bar). The top menu,
+  burger and mobile menu are gone.
+- New bottom bar on every page: a progress bar with one clickable segment per screen, then Understanding the
+  Experience, Meet the Team, FAQs and the Book Now pill. An underline slides in on hover and stays on the current
+  page. On phones the three links sit behind an "Explore" button.
+- Footer logo is larger. images/ape-logo.webp re-exported at 256px so the bigger logos stay sharp on high-resolution
+  screens.
+- Screens that can be taller than the window (Understanding cards, Book Now booking flow, FAQs, and the text-heavy
+  screens on small phones) grow and scroll naturally, and the page switches to gentle proximity snapping.
+- Reduced motion: no animation, no smooth scrolling, no snapping. Without JavaScript all content shows and the page
+  scrolls normally.
+- site.css and site.js links bumped to ?v=1.0.6.
+
 ## 1.0.5 (29 Sep 2026)
 
 - Understanding, What we do differently: removed the Sensory support photo card; the seven cards are now the same

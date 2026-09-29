@@ -1,32 +1,173 @@
 /* The Anxious Patient Experience: site script.
-   Menu, gentle scroll reveal, FAQ accordion and the Book Now flow.
+   Screen by screen journey (snapping, gentle reveals, progress bar, Explore sheet), FAQ accordion and the Book Now flow.
    The booking flow runs in test mode: sample APE sessions, no payment taken.
    BOOKING INTEGRATION POINT: replace getSlots() and the pay step with the live booking system and payment gateway. */
 (function () {
   'use strict';
 
-  /* ---------- Mobile menu ---------- */
-  var header = document.querySelector('.site-header');
-  var burger = document.querySelector('.burger');
-  if (burger && header) {
-    burger.addEventListener('click', function () {
-      var open = header.classList.toggle('open');
-      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-      burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  var doc = document.documentElement;
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var reduce = reduceMQ.matches;
+  var hasIO = 'IntersectionObserver' in window;
+  var screens = [].slice.call(document.querySelectorAll('main .screen'));
+  var SCROLL = reduce ? 'auto' : 'smooth';
+  var GAP = 700;          /* ms between items that appear one by one */
+  var AFTER_MAIN = 550;   /* ms before the first one-by-one item, so the main content settles first */
+
+  /* ---------- Bottom bar height (it grows with the safe area on phones) ---------- */
+  var bar = document.querySelector('.journey-bar');
+  function measure() {
+    if (bar) doc.style.setProperty('--bar-h', bar.offsetHeight + 'px');
+  }
+  measure();
+
+  /* ---------- Scroll snapping: one screen at a time ----------
+     Native CSS snapping only (html.snap). Mandatory by default; proximity on pages that ask for it
+     (data-snap on body) and whenever a screen has grown taller than the viewport, so nobody is trapped. */
+  var snapOn = screens.length > 0 && !reduce;
+  function snapMode() {
+    if (!snapOn) { doc.classList.remove('snap', 'snap-soft'); return; }
+    doc.classList.add('snap');
+    var soft = document.body.getAttribute('data-snap') === 'proximity';
+    for (var i = 0; i < screens.length && !soft; i++) {
+      var min = parseFloat(getComputedStyle(screens[i]).minHeight) || window.innerHeight;
+      if (screens[i].offsetHeight > min + 2) soft = true;
+    }
+    doc.classList.toggle('snap-soft', soft);
+  }
+
+  /* ---------- Gentle reveals ----------
+     A screen's content fades up once the screen is at least half in view. Items marked .seq follow one by one.
+     Reveals play once. Anything that receives keyboard focus is shown at once. */
+  function showNow(el) { el.style.setProperty('--d', '0s'); el.classList.add('in'); }
+  var reveals = [].slice.call(document.querySelectorAll('.reveal'));
+
+  if (!hasIO || reduce) {
+    reveals.forEach(function (el) { el.classList.add('in'); });
+    if (!hasIO) doc.classList.remove('js');
+  } else {
+    var nextAt = 0;
+    var queue = function (el) {
+      var now = performance.now();
+      var at = Math.max(now, nextAt);
+      nextAt = at + GAP;
+      el.style.setProperty('--d', ((at - now) / 1000).toFixed(2) + 's');
+      el.classList.add('in');
+    };
+    var itemIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { itemIO.unobserve(en.target); queue(en.target); }
+      });
+    }, { threshold: 0.2, rootMargin: '0px 0px -6% 0px' });
+
+    var activate = function (screen) {
+      if (screen.getAttribute('data-shown')) return;
+      screen.setAttribute('data-shown', '1');
+      var items = [].slice.call(screen.querySelectorAll('.reveal:not(.in)'));
+      var vh = window.innerHeight;
+      items.forEach(function (el) { if (!el.classList.contains('seq')) el.classList.add('in'); });
+      nextAt = Math.max(nextAt, performance.now() + AFTER_MAIN);
+      items.forEach(function (el) {
+        if (!el.classList.contains('seq')) return;
+        var r = el.getBoundingClientRect();
+        if (r.top < vh * 0.94 && r.bottom > 0) queue(el);
+        else itemIO.observe(el); /* further down a tall screen: appears when it scrolls into view */
+      });
+    };
+
+    var steps = [];
+    for (var k = 0; k <= 20; k++) steps.push(k / 20);
+    var screenIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        var half = window.innerHeight * 0.5;
+        if (en.isIntersecting && (en.intersectionRatio >= 0.5 || en.intersectionRect.height >= half)) {
+          screenIO.unobserve(en.target);
+          activate(en.target);
+        }
+      });
+    }, { threshold: steps });
+    screens.forEach(function (s) { screenIO.observe(s); });
+
+    /* Reveals outside screens (footer, plain pages) work as before */
+    var looseIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); looseIO.unobserve(en.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    reveals.forEach(function (el) { if (!el.closest('.screen')) looseIO.observe(el); });
+
+    document.addEventListener('focusin', function (ev) {
+      var target = ev.target;
+      if (!target || !target.closest) return;
+      var s = target.closest('.screen');
+      if (s && !s.getAttribute('data-shown')) {
+        s.setAttribute('data-shown', '1');
+        screenIO.unobserve(s);
+      }
+      if (s) [].forEach.call(s.querySelectorAll('.reveal:not(.in)'), showNow);
+      var r = target.closest('.reveal:not(.in)');
+      while (r) { showNow(r); r = r.parentElement ? r.parentElement.closest('.reveal:not(.in)') : null; }
     });
   }
 
-  /* ---------- Gentle reveal on scroll ---------- */
-  var reveals = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.documentElement.classList.add('js');
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
-    reveals.forEach(function (el) { io.observe(el); });
+  /* ---------- Progress bar: one segment per screen ---------- */
+  var segs = [].slice.call(document.querySelectorAll('.journey-progress .seg'));
+  var ticking = false;
+  function progress() {
+    ticking = false;
+    if (!segs.length) return;
+    var y = window.pageYOffset, vh = window.innerHeight, current = 0;
+    screens.forEach(function (s, i) {
+      if (!segs[i]) return;
+      var top = s.getBoundingClientRect().top + y;
+      var p = Math.min(1, Math.max(0, (y + vh - top) / s.offsetHeight));
+      segs[i].style.setProperty('--p', p.toFixed(3));
+      if (top <= y + vh * 0.5) current = i;
+    });
+    segs.forEach(function (a, i) {
+      if (i === current) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
+    });
   }
+  function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(progress); } }
+  segs.forEach(function (a, i) {
+    a.addEventListener('click', function (ev) {
+      var s = screens[i];
+      if (!s) return;
+      ev.preventDefault();
+      window.scrollTo({ top: s.getBoundingClientRect().top + window.pageYOffset, behavior: SCROLL });
+      if (ev.detail === 0) { /* keyboard: carry focus to the screen */
+        s.setAttribute('tabindex', '-1');
+        s.focus({ preventScroll: true });
+      }
+    });
+  });
+
+  /* ---------- Explore sheet (mobile) ---------- */
+  var explore = document.querySelector('.journey-bar .explore');
+  if (explore) {
+    var summary = explore.querySelector('summary');
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && explore.open) { explore.open = false; summary.focus(); }
+    });
+    document.addEventListener('click', function (ev) {
+      if (explore.open && !explore.contains(ev.target)) explore.open = false;
+    });
+  }
+
+  /* ---------- Keep everything in step with the window ---------- */
+  var resizeTimer;
+  function refresh() { measure(); snapMode(); progress(); }
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('load', refresh);
+  if ('ResizeObserver' in window) {
+    var ro = new ResizeObserver(function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
+    if (bar) ro.observe(bar);
+    screens.forEach(function (s) { ro.observe(s); });
+  }
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function () { window.location.reload(); });
+  refresh();
+  doc.classList.add('js-ready');
 
   /* ---------- FAQ accordion: one answer open at a time ---------- */
   document.querySelectorAll('.faq-list').forEach(function (list) {
@@ -179,7 +320,7 @@
     var panel = document.getElementById('booking');
     if (focus) {
       panel.focus({ preventScroll: true });
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel.scrollIntoView({ behavior: SCROLL, block: 'start' });
     }
   }
   function go(step) { state.step = step; render(true); }
@@ -230,7 +371,7 @@
       ev.preventDefault();
       var panel = document.getElementById('booking');
       panel.focus({ preventScroll: true });
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel.scrollIntoView({ behavior: SCROLL, block: 'start' });
     });
   });
 
