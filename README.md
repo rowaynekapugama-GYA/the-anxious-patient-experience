@@ -56,13 +56,12 @@ Every page is a series of full-screen "screens", one after another, and the page
   `100vh` for older browsers), keeps clear of the header and bottom bar with its own padding, and centres its
   content. The first element inside it is `<span class="snap-point" aria-hidden="true"></span>`, which is what the
   page snaps to.
-- **Snapping** is native CSS only (`scroll-snap-type` on the page, switched on by `site.js` with the `snap` class).
-  It is mandatory on every page, one screen per swipe (`scroll-snap-stop: always`), and each screen is its own snap
-  target. Screens taller than the window get extra reading stops about 80% of a window apart (added by `site.js`), so
-  no content is skipped. On touch screens, a short swipe that would settle back on the same screen glides on to the
-  next stop; this uses passive listeners only and never blocks scrolling. Snapping relaxes while a form field is in
-  use. A page can opt into gentler snapping with `data-snap="proximity"` on `<body>`. With reduced motion or without
-  JavaScript there is no snapping and the page scrolls normally.
+- **Page turns (patient journey)**: with JavaScript, `site.js` adds the `page-turn` class and shows one screen at a
+  time. Continue / Back in the bottom bar, the progress segments, a sideways swipe, the left and right arrow keys, or
+  scrolling on past the end of a screen turn to the next or previous screen with a soft sideways slide. A screen longer
+  than the window scrolls normally first. Continue on the last screen links to the next page (Home, Understanding the
+  Experience, Meet the Team, FAQs, Book Now). The footer shows after the last screen. With reduced motion or without
+  JavaScript the page is one ordinary scrolling page. There is no scroll snapping.
 - **Screens that grow** carry `screen--grow`: the Understanding card grid, the Book Now booking flow and the FAQ list.
   On small phones (iPhone SE size) the Home "heart" screen and Lorna's profile also grow, because their copy is longer
   than the screen.
@@ -137,7 +136,7 @@ When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on the
 
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
 you like support with? (optional)"), "Continue", "Back", the two form error messages, the test-mode note, "Skip to
-content", "Explore" (the button that opens the page links on phones), "Previous question" / "Next question" and the "1 / 10" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Go to section 1 of 5" and so on (screen
+content", "Explore" (the button that opens the page links on phones), "Continue" and "Back" in the bottom bar, "Section 2 of 5" and so on (announced to screen readers when the page turns), "Previous question" / "Next question" and the "1 / 10" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Go to section 1 of 5" and so on (screen
 reader labels on the progress bar segments), and "Page not found" / "Home" on the 404 page. "Open menu" / "Close
 menu" are gone with the old top menu.
 

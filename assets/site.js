@@ -1,5 +1,5 @@
 /* The Anxious Patient Experience: site script.
-   Screen by screen journey (snapping, gentle reveals, progress bar, Explore sheet), FAQ accordion and the Book Now flow.
+   Patient journey (sections that turn like pages, gentle reveals, progress bar, Explore sheet), FAQs and the Book Now flow.
    The booking flow runs in test mode: sample APE sessions, no payment taken.
    BOOKING INTEGRATION POINT: replace getSlots() and the pay step with the live booking system and payment gateway. */
 (function () {
@@ -20,99 +20,6 @@
     if (bar) doc.style.setProperty('--bar-h', bar.offsetHeight + 'px');
   }
   measure();
-
-  /* ---------- Scroll snapping: one screen at a time ----------
-     Native CSS snapping only (html.snap), mandatory, one screen per swipe. Each screen is its own snap target, so a
-     screen taller than the window can still be scrolled through. A page can opt into gentler proximity snapping
-     with data-snap="proximity" on <body>. */
-  var snapOn = screens.length > 0 && !reduce;
-  function snapMode() {
-    if (!snapOn) { doc.classList.remove('snap', 'snap-soft'); return; }
-    doc.classList.add('snap');
-    doc.classList.toggle('snap-soft', document.body.getAttribute('data-snap') === 'proximity' || formFocus);
-  }
-  /* While someone is typing in a form (the booking details), snapping relaxes so the keyboard never pushes the
-     field out of view; it firms up again when they leave the form. */
-  var formFocus = false;
-  document.addEventListener('focusin', function (ev) {
-    if (ev.target.matches && ev.target.matches('input, textarea, select')) { formFocus = true; snapMode(); }
-  });
-  document.addEventListener('focusout', function () {
-    setTimeout(function () {
-      var a = document.activeElement;
-      var still = !!(a && a.matches && a.matches('input, textarea, select'));
-      if (formFocus && !still) { formFocus = false; snapMode(); }
-    }, 250);
-  });
-
-  /* A screen taller than the window gets extra snap stops about 80% of a window apart, ending with its bottom edge,
-     so a swipe reads on through it instead of jumping to the next screen. */
-  function readingStops() {
-    var mandatory = doc.classList.contains('snap') && !doc.classList.contains('snap-soft');
-    var vh = window.innerHeight, step = Math.round(vh * 0.8);
-    screens.forEach(function (s) {
-      [].forEach.call(s.querySelectorAll('.snap-page'), function (n) { n.parentNode.removeChild(n); });
-      var h = s.offsetHeight;
-      if (!mandatory || h <= vh + 2) return;
-      var stops = [];
-      for (var y = step; y < h - vh - 40; y += step) stops.push(y);
-      stops.push(h - vh);
-      stops.forEach(function (y) {
-        var n = document.createElement('span');
-        n.className = 'snap-page';
-        n.setAttribute('aria-hidden', 'true');
-        n.style.top = y + 'px';
-        s.appendChild(n);
-      });
-    });
-  }
-
-  /* ---------- Touch assist ----------
-     Snapping is native. A short, slow swipe can leave the page settling back on the same screen, which feels stuck.
-     If a clear vertical swipe ends and the page has not moved, glide to the next (or previous) stop in that
-     direction. Listeners are passive: touch and scrolling are never blocked or taken over. */
-  function snapStops() {
-    var y0 = window.pageYOffset, list = [];
-    screens.forEach(function (s) {
-      var top = s.getBoundingClientRect().top + y0;
-      list.push(Math.round(top));
-      [].forEach.call(s.querySelectorAll('.snap-page'), function (n) { list.push(Math.round(top + parseFloat(n.style.top))); });
-    });
-    list.push(document.documentElement.scrollHeight - window.innerHeight);
-    return list.sort(function (a, b) { return a - b; });
-  }
-  function whenSettled(done) {
-    var last = -1, still = 0, tries = 0;
-    (function poll() {
-      var y = window.pageYOffset;
-      still = Math.abs(y - last) < 1 ? still + 1 : 0;
-      last = y;
-      if (still >= 2 || ++tries > 20) done(); else setTimeout(poll, 90);
-    })();
-  }
-  var touch = null;
-  if (snapOn) {
-    document.addEventListener('touchstart', function (ev) {
-      touch = ev.touches.length === 1 ? { x: ev.touches[0].clientX, y: ev.touches[0].clientY, scroll: window.pageYOffset } : null;
-    }, { passive: true });
-    document.addEventListener('touchend', function (ev) {
-      var t0 = touch; touch = null;
-      if (!t0 || !doc.classList.contains('snap') || doc.classList.contains('snap-soft')) return;
-      if (ev.target.closest && ev.target.closest('.journey-bar, input, textarea, select')) return;
-      var t = ev.changedTouches[0], dy = t0.y - t.clientY, dx = t0.x - t.clientX;
-      if (Math.abs(dy) < 30 || Math.abs(dx) > Math.abs(dy)) return;
-      var dir = dy > 0 ? 1 : -1;
-      whenSettled(function () {
-        if (Math.abs(window.pageYOffset - t0.scroll) > 2) return; /* the page moved by itself: nothing to do */
-        var stops = snapStops(), target = null;
-        for (var i = 0; i < stops.length; i++) {
-          if (dir > 0 && stops[i] > t0.scroll + 2) { target = stops[i]; break; }
-          if (dir < 0 && stops[i] < t0.scroll - 2) target = stops[i];
-        }
-        if (target !== null) window.scrollTo({ top: target, behavior: SCROLL });
-      });
-    }, { passive: true });
-  }
 
   /* ---------- Gentle reveals ----------
      A screen's content fades up once the screen is at least half in view. Items marked .seq follow one by one.
@@ -188,39 +95,179 @@
     });
   }
 
-  /* ---------- Progress bar: one segment per screen ---------- */
+  /* ---------- Patient journey: each page turns like a book, one section at a time ----------
+     Sections sit side by side in time rather than down the page. Continue, the progress bar, a sideways swipe, the
+     arrow keys, or scrolling on past the end of a section turns to the next one with a slow, soft slide. Nothing
+     moves unless the visitor asks it to, and a section longer than the window simply scrolls as normal.
+     With reduced motion (or without JavaScript) the page is one ordinary scrolling page. */
+  var stepsOn = screens.length > 1 && !reduce;
   var segs = [].slice.call(document.querySelectorAll('.journey-progress .seg'));
+  var prevBtn = document.querySelector('.step-prev');
+  var nextBtn = document.querySelector('.step-next');
+  var nextPage = document.querySelector('.step-nextpage');
+  var live = document.querySelector('.step-live');
+  var LEAVE_MS = 380, ENTER_MS = 760;
+  var cur = 0, busy = false;
+
+  function stepOf(el) {
+    var s = el && el.closest ? el.closest('main .screen') : null;
+    if (s) return screens.indexOf(s);
+    return el && el.closest && el.closest('.site-footer') ? screens.length - 1 : -1;
+  }
+  function paint() {
+    segs.forEach(function (a, i) {
+      a.style.setProperty('--p', i <= cur ? '1' : '0');
+      if (i === cur) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
+    });
+    var last = cur === screens.length - 1;
+    doc.classList.toggle('on-first', cur === 0);
+    doc.classList.toggle('on-last', last);
+    if (prevBtn) prevBtn.hidden = cur === 0;
+    if (nextBtn) nextBtn.hidden = last;
+    if (nextPage) nextPage.hidden = !last;
+  }
+  function settle(to) {
+    var id = to.id && cur > 0 ? '#' + to.id : window.location.pathname;
+    try { history.replaceState(null, '', id); } catch (e) { /* file previews */ }
+    if (live) live.textContent = 'Section ' + (cur + 1) + ' of ' + screens.length;
+  }
+  function turnTo(i, opts) {
+    opts = opts || {};
+    if (!stepsOn || busy || i === cur || i < 0 || i >= screens.length) return false;
+    busy = true;
+    var from = screens[cur], to = screens[i], dir = i > cur ? 1 : -1;
+    from.classList.add(dir > 0 ? 'leave-left' : 'leave-right');
+    setTimeout(function () {
+      from.classList.remove('is-current', 'leave-left', 'leave-right');
+      to.classList.add('is-current', dir > 0 ? 'enter-right' : 'enter-left');
+      window.scrollTo(0, 0);
+      cur = i;
+      paint();
+      settle(to);
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () { to.classList.remove('enter-right', 'enter-left'); });
+      });
+      if (opts.focus) { to.setAttribute('tabindex', '-1'); to.focus({ preventScroll: true }); }
+      setTimeout(function () {
+        busy = false;
+        if (opts.then) opts.then();
+      }, ENTER_MS);
+    }, LEAVE_MS);
+    return true;
+  }
+  function turnNext(o) { return turnTo(cur + 1, o); }
+  function turnPrev(o) { return turnTo(cur - 1, o); }
+  function atBottom() { return window.innerHeight + window.pageYOffset >= doc.scrollHeight - 4; }
+  function atTop() { return window.pageYOffset <= 4; }
+  function typing(el) {
+    return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"], .faq-track'));
+  }
+
+  if (stepsOn) {
+    doc.classList.add('page-turn');
+    doc.style.scrollBehavior = 'auto';
+    /* start on the section the address points to, if any */
+    var target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
+    var start = Math.max(0, stepOf(target));
+    cur = start;
+    screens.forEach(function (s, i) { s.classList.toggle('is-current', i === start); });
+    paint();
+    if (target && start > 0 && !target.classList.contains('screen')) {
+      setTimeout(function () { target.scrollIntoView({ block: 'start' }); }, 60);
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', function (ev) { turnPrev({ focus: ev.detail === 0 }); });
+    if (nextBtn) nextBtn.addEventListener('click', function (ev) { turnNext({ focus: ev.detail === 0 }); });
+    segs.forEach(function (a, i) {
+      a.addEventListener('click', function (ev) { ev.preventDefault(); turnTo(i, { focus: ev.detail === 0 }); });
+    });
+
+    /* in-page links such as Talk to Alex: turn to the section that holds the target, then bring it into view */
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a[href^="#"]');
+      if (!a || a.classList.contains('seg') || a.getAttribute('href') === '#booking') return;
+      var el = document.getElementById(a.getAttribute('href').slice(1));
+      var i = stepOf(el);
+      if (!el || i < 0) return;
+      ev.preventDefault();
+      var show = function () { el.scrollIntoView({ behavior: SCROLL, block: 'start' }); };
+      if (i === cur) show(); else turnTo(i, { then: show });
+    });
+
+    /* scrolling on past the end (or the start) of a section turns the page, once per gesture.
+       After a turn, the rest of that same gesture (trackpad momentum) is ignored, but scrolling the other way is
+       never blocked, so going back always works. */
+    var acc = 0, lastWheel = 0, lastDir = 0, turnedAt = 0;
+    window.addEventListener('wheel', function (ev) {
+      if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY) || ev.ctrlKey) return;
+      var now = performance.now(), dir = ev.deltaY > 0 ? 1 : -1, gap = now - lastWheel;
+      lastWheel = now;
+      if (busy) { acc = 0; return; }
+      /* momentum from the gesture that just turned the page: same direction, events still streaming in */
+      if (dir === lastDir && now - turnedAt < 1600 && gap < 90) { acc = 0; return; }
+      if ((dir > 0 && !atBottom()) || (dir < 0 && !atTop())) { acc = 0; return; }
+      if (gap > 400) acc = 0;
+      acc += Math.abs(ev.deltaY) * (ev.deltaMode === 1 ? 32 : 1);
+      if (acc >= 70) {
+        acc = 0;
+        if (dir > 0 ? turnNext() : turnPrev()) { lastDir = dir; turnedAt = now; }
+      }
+    }, { passive: true });
+
+    /* touch: swipe left for the next section, right to go back; or keep swiping up past the end of a section */
+    var t0 = null;
+    document.addEventListener('touchstart', function (ev) {
+      var el = ev.target.closest ? ev.target : null;
+      if (ev.touches.length !== 1 || !el || el.closest('input, textarea, select, .journey-bar')) { t0 = null; return; }
+      t0 = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, bottom: atBottom(), top: atTop(), cards: !!el.closest('.faq-track') };
+    }, { passive: true });
+    document.addEventListener('touchend', function (ev) {
+      var s = t0; t0 = null;
+      if (!s || busy) return;
+      var t = ev.changedTouches[0], dx = s.x - t.clientX, dy = s.y - t.clientY;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        if (!s.cards) { if (dx > 0) turnNext(); else turnPrev(); } /* sideways on the FAQ cards changes the card */
+        return;
+      }
+      if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
+        if (dy > 0 && s.bottom && atBottom()) turnNext();
+        else if (dy < 0 && s.top && atTop()) turnPrev();
+      }
+    }, { passive: true });
+
+    /* keys: left and right turn the page; Page Down, Space and the down arrow do too once a section is read */
+    document.addEventListener('keydown', function (ev) {
+      if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey || typing(ev.target)) return;
+      var onControl = ev.target.closest && ev.target.closest('a, button, summary, [role="group"]');
+      var k = ev.key;
+      if (k === 'ArrowRight') turnNext({ focus: true });
+      else if (k === 'ArrowLeft') turnPrev({ focus: true });
+      else if ((k === 'PageDown' || k === 'ArrowDown' || (k === ' ' && !onControl)) && atBottom()) turnNext({ focus: true });
+      else if ((k === 'PageUp' || k === 'ArrowUp') && atTop()) turnPrev({ focus: true });
+    });
+  } else {
+    /* one ordinary page: segments fill as you scroll and jump to their section */
+    segs.forEach(function (a, i) {
+      a.addEventListener('click', function (ev) {
+        var s = screens[i];
+        if (!s) return;
+        ev.preventDefault();
+        window.scrollTo({ top: s.getBoundingClientRect().top + window.pageYOffset, behavior: SCROLL });
+      });
+    });
+  }
   var ticking = false;
   function progress() {
     ticking = false;
-    if (!segs.length) return;
-    var y = window.pageYOffset, vh = window.innerHeight, current = 0, tops = [];
-    screens.forEach(function (s, i) {
-      tops[i] = s.getBoundingClientRect().top + y;
-      if (tops[i] <= y + vh * 0.4) current = i;
-    });
-    screens.forEach(function (s, i) {
-      if (!segs[i]) return;
-      var p = i < current ? 1 : i > current ? 0 : 1;
-      /* a screen taller than the window fills its segment as you read through it */
-      if (i === current && s.offsetHeight > vh + 2) p = Math.min(1, Math.max(0, (y + vh - tops[i]) / s.offsetHeight));
-      segs[i].style.setProperty('--p', p.toFixed(3));
-      if (i === current) segs[i].setAttribute('aria-current', 'step'); else segs[i].removeAttribute('aria-current');
+    if (stepsOn || !segs.length) return;
+    var y = window.pageYOffset, vh = window.innerHeight, current = 0;
+    screens.forEach(function (s, i) { if (s.getBoundingClientRect().top + y <= y + vh * 0.4) current = i; });
+    segs.forEach(function (a, i) {
+      a.style.setProperty('--p', i <= current ? '1' : '0');
+      if (i === current) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
     });
   }
   function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(progress); } }
-  segs.forEach(function (a, i) {
-    a.addEventListener('click', function (ev) {
-      var s = screens[i];
-      if (!s) return;
-      ev.preventDefault();
-      window.scrollTo({ top: s.getBoundingClientRect().top + window.pageYOffset, behavior: SCROLL });
-      if (ev.detail === 0) { /* keyboard: carry focus to the screen */
-        s.setAttribute('tabindex', '-1');
-        s.focus({ preventScroll: true });
-      }
-    });
-  });
 
   /* ---------- Explore sheet (mobile) ---------- */
   var explore = document.querySelector('.journey-bar .explore');
@@ -236,7 +283,7 @@
 
   /* ---------- Keep everything in step with the window ---------- */
   var resizeTimer;
-  function refresh() { measure(); snapMode(); readingStops(); progress(); }
+  function refresh() { measure(); progress(); }
   window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('load', refresh);

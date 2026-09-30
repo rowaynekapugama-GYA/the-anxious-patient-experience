@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.9 (30 Sep 2026)
+
+- Patient journey: scroll snapping is gone. Each page now turns like a book, one section at a time, with a slow, soft
+  sideways slide (about one second). The visitor sets the pace: Continue and Back in the bottom bar, the progress bar,
+  a sideways swipe on phones, the left and right arrow keys, or simply scrolling on past the end of a section. Nothing
+  moves unless the visitor asks, and each scroll or swipe turns one section only.
+- Going back is never blocked: scrolling or swiping the other way turns back straight away (only the leftover
+  momentum of the gesture that just turned the page is ignored). Back is labelled in the bottom bar on larger screens,
+  and the bounce at the top of the page is switched off on phones so a pull down always goes back.
+- Sections longer than the window (Understanding cards, booking flow, text-heavy screens on small phones) scroll as
+  normal first, then turn when you carry on past the end.
+- Continue on the last section of a page leads to the next page in the journey: Home, Understanding the Experience,
+  Meet the Team, FAQs, Book Now.
+- The logo shows on the first section of each page; the footer shows after the last section.
+- "Talk to Alex" turns to the last section and brings the contact details into view. Links to a section (for example
+  /understanding-the-experience/#screen-4) open on that section.
+- Reduced motion, or no JavaScript: one ordinary scrolling page with every section and the footer showing.
+- site.css and site.js links bumped to ?v=1.0.9.
+
 ## 1.0.8 (30 Sep 2026)
 
 - FAQs redesigned so the questions and answers fit one calm screen instead of a long accordion list. On desktop a

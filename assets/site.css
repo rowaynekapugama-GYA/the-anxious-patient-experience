@@ -344,3 +344,49 @@ html:not(.js-ready) .faq-deck{display:block}
 html:not(.js-ready) .faq-index,html:not(.js-ready) .faq-nav{display:none}
 html:not(.js-ready) .faq-track{display:grid;gap:16px;overflow:visible;margin:0;padding:0}
 @media (prefers-reduced-motion:reduce){.faq-track{scroll-behavior:auto}.faq-jump:after,.faq-arrow{transition:none}}
+
+/* ==========================================================================
+   v1.0.9 Patient journey: sections turn like pages (no scroll snapping)
+   ========================================================================== */
+:root{--ease-page:cubic-bezier(.22,.61,.36,1)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+html.page-turn main{overflow-x:hidden;overflow-x:clip}
+html.page-turn main>.screen:not(.is-current){display:none}
+html.page-turn main>.screen{transition:opacity .76s var(--ease-page),transform .76s var(--ease-page)}
+html.page-turn main>.screen:focus{outline:none}
+html.page-turn main>.screen.leave-left,html.page-turn main>.screen.leave-right{opacity:0;transition-duration:.38s;transition-timing-function:ease-in}
+html.page-turn main>.screen.leave-left{transform:translateX(-3%)}
+html.page-turn main>.screen.leave-right{transform:translateX(3%)}
+html.page-turn main>.screen.enter-right,html.page-turn main>.screen.enter-left{opacity:0;transition:none}
+html.page-turn main>.screen.enter-right{transform:translateX(4.5%)}
+html.page-turn main>.screen.enter-left{transform:translateX(-4.5%)}
+html.page-turn .site-footer{display:none}
+html.page-turn.on-last .site-footer{display:block}
+.site-header{transition:opacity .4s ease,visibility .4s}
+html.page-turn:not(.on-first) .site-header{opacity:0;visibility:hidden}
+
+/* Back and Continue in the bottom bar */
+.journey-steps{display:none;align-items:center;gap:10px}
+html.page-turn .journey-steps{display:flex}
+.journey-steps+.journey-book.btn{margin-left:0}
+.step-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;min-width:42px;padding:0 20px;border-radius:999px;
+  border:1px solid var(--taupe);background:var(--offwhite);color:var(--navy);font-family:var(--sans);font-size:14.5px;font-weight:600;cursor:pointer;
+  text-decoration:none;transition:background-color .3s ease,border-color .3s ease}
+.step-btn svg{width:16px;height:16px;flex:none;transition:transform .35s var(--ease-calm)}
+.step-prev{width:42px;padding:0}
+.step-btn:hover{background:var(--blush)}
+.step-next:hover svg{transform:translateX(3px)}
+.step-prev:hover svg{transform:translateX(-3px)}
+.step-btn[hidden]{display:none}
+.step-btn:focus-visible{outline:2px solid var(--navy);outline-offset:3px}
+@media (max-width:900px){
+  .step-label{display:none}
+  .step-next{width:42px;padding:0}
+  .journey-steps{gap:8px}
+}
+@media (prefers-reduced-motion:reduce){html.page-turn main>.screen,.step-btn svg{transition:none}}
+/* no bounce or pull-to-refresh while pages are turning, so a pull down at the top always goes back */
+html.page-turn,html.page-turn body{overscroll-behavior-y:none}
+/* Back shows its label on larger screens so it is easy to find */
+.step-prev .step-label{margin-left:2px}
+@media (min-width:901px){.step-prev{width:auto;padding:0 20px 0 16px}}
