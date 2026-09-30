@@ -249,6 +249,46 @@
   refresh();
   doc.classList.add('js-ready');
 
+  /* ---------- FAQs: question index and swipeable answer cards ----------
+     The cards sit in a native horizontal scroll-snap track (swipe, trackpad or arrow keys all work).
+     The index, the arrows and the counter just move that track and follow where it is. */
+  [].forEach.call(document.querySelectorAll('.faq-deck'), function (deck) {
+    var track = deck.querySelector('.faq-track');
+    var cards = [].slice.call(deck.querySelectorAll('.faq-card'));
+    var jumps = [].slice.call(deck.querySelectorAll('.faq-jump'));
+    var prev = deck.querySelector('.faq-prev'), next = deck.querySelector('.faq-next');
+    var now = deck.querySelector('.faq-now');
+    var current = 0;
+    function show(i) {
+      current = i;
+      jumps.forEach(function (b, k) { if (k === i) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+      if (now) now.textContent = String(i + 1);
+      if (prev) prev.disabled = i === 0;
+      if (next) next.disabled = i === cards.length - 1;
+    }
+    function go(i) {
+      i = Math.max(0, Math.min(cards.length - 1, i));
+      track.scrollTo({ left: cards[i].offsetLeft - cards[0].offsetLeft, behavior: SCROLL });
+      show(i);
+    }
+    jumps.forEach(function (b, k) { b.addEventListener('click', function () { go(k); }); });
+    if (prev) prev.addEventListener('click', function () { go(current - 1); });
+    if (next) next.addEventListener('click', function () { go(current + 1); });
+    var t;
+    track.addEventListener('scroll', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        var best = 0, dist = Infinity, left = track.scrollLeft;
+        cards.forEach(function (c, k) {
+          var d = Math.abs(c.offsetLeft - cards[0].offsetLeft - left);
+          if (d < dist) { dist = d; best = k; }
+        });
+        if (best !== current) show(best);
+      }, 90);
+    }, { passive: true });
+    show(0);
+  });
+
   /* ---------- FAQ accordion: one answer open at a time ---------- */
   document.querySelectorAll('.faq-list').forEach(function (list) {
     var buttons = list.querySelectorAll('.acc-btn');

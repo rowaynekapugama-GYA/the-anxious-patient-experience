@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.8 (30 Sep 2026)
+
+- FAQs redesigned so the questions and answers fit one calm screen instead of a long accordion list. On desktop a
+  numbered question index sits beside a large answer card; choose a question, or use the arrows, to change the card.
+  On phones and tablets the answers are a deck of cards you swipe left and right (the next card peeks in), with
+  Previous and Next arrows and a "1 / 10" counter. Swiping up or down still moves between screens.
+- The cards use a native horizontal scroll-snap track, so swipe, trackpad and the arrow keys all work. Without
+  JavaScript every question and answer shows as a plain list. Copy is unchanged, word for word, and the FAQ schema is
+  untouched.
+- site.css and site.js links bumped to ?v=1.0.8.
+
 ## 1.0.7 (29 Sep 2026)
 
 - Phones: a swipe now always moves on to the next screen. Snapping is firm on every page (no more resting halfway

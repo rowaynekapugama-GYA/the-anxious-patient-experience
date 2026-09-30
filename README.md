@@ -71,6 +71,9 @@ Every page is a series of full-screen "screens", one after another, and the page
   receives keyboard focus is shown at once.
 - **Progress bar**: one link per screen in the bottom bar (`.journey-progress`), in the same order as the screens.
   If you add or remove a screen, add or remove its segment and update the "Go to section X of Y" labels.
+- **FAQs** are one screen: a numbered question index beside an answer card on desktop, and swipeable answer cards
+  on phones (`.faq-deck` in `faqs/index.html`). To add a question, add a button to `.faq-index`, a matching
+  `.faq-card` to `.faq-track`, update the "/ 10" total, and add it to the FAQ schema in the page head.
 - **Bottom bar**: Understanding the Experience, Meet the Team, FAQs and the Book Now pill. The current page's link has
   `aria-current="page"`. On phones the three links sit behind the "Explore" button (a `<details>` element, so it
   works without JavaScript too).
@@ -134,7 +137,7 @@ When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on the
 
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
 you like support with? (optional)"), "Continue", "Back", the two form error messages, the test-mode note, "Skip to
-content", "Explore" (the button that opens the page links on phones), "Go to section 1 of 5" and so on (screen
+content", "Explore" (the button that opens the page links on phones), "Previous question" / "Next question" and the "1 / 10" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Go to section 1 of 5" and so on (screen
 reader labels on the progress bar segments), and "Page not found" / "Home" on the 404 page. "Open menu" / "Close
 menu" are gone with the old top menu.
 

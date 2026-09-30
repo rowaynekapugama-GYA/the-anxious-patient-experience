@@ -303,3 +303,44 @@ html.snap main .screen{scroll-snap-align:start;scroll-snap-stop:always}
 html.snap .snap-page{scroll-snap-align:start;scroll-snap-stop:always}
 /* The booking panel is a stop of its own, so "Choose a time" and each booking step land exactly on it */
 html.snap #booking{scroll-snap-align:start}
+
+/* ---------- FAQs: one calm screen. Question index beside an answer card (desktop), swipeable answer cards (phones) ---------- */
+.faq-deck{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:clamp(28px,4.5vw,72px);align-items:center;max-width:1120px;margin:0 auto}
+.faq-index{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);counter-reset:faq}
+.faq-index li{border-bottom:1px solid var(--line);counter-increment:faq}
+.faq-jump{position:relative;display:flex;align-items:baseline;gap:14px;width:100%;min-height:44px;padding:clamp(8px,1.3vh,13px) 8px clamp(8px,1.3vh,13px) 4px;background:none;border:0;cursor:pointer;text-align:left;
+  font-family:var(--serif);font-size:clamp(16px,1.2vw,18px);line-height:1.35;color:var(--ink-soft);transition:color .3s ease}
+.faq-jump:before{content:counter(faq,decimal-leading-zero);flex:none;font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--taupe-ink);width:22px}
+.faq-jump:after{content:"";position:absolute;left:0;bottom:-1px;height:1px;width:100%;background:var(--taupe-deep);transform:scaleX(0);transform-origin:left center;transition:transform .45s var(--ease-calm)}
+.faq-jump:hover{color:var(--navy)}
+.faq-jump[aria-current=true]{color:var(--navy)}
+.faq-jump[aria-current=true]:after{transform:scaleX(1)}
+.faq-jump:focus-visible,.faq-arrow:focus-visible,.faq-track:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:8px}
+.faq-stage{min-width:0}
+.faq-track{display:flex;gap:16px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;padding:6px 2px 18px}
+.faq-track::-webkit-scrollbar{display:none}
+.faq-card{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;background:var(--offwhite);border:1px solid var(--line);border-radius:var(--r-card);
+  padding:clamp(28px,4.2vw,56px);box-shadow:0 30px 56px -46px rgba(40,72,88,.4)}
+.faq-card h2{font-size:clamp(24px,2.3vw,34px);line-height:1.25;margin:0 0 18px;max-width:22ch}
+.faq-card p{color:var(--ink-soft);font-size:clamp(16.5px,1.25vw,18.5px);line-height:1.7;margin:0;max-width:52ch}
+.faq-nav{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:clamp(10px,2vh,20px)}
+.faq-arrow{width:46px;height:46px;border-radius:50%;border:1px solid var(--taupe);background:var(--offwhite);color:var(--navy);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .3s ease,border-color .3s ease,opacity .3s ease}
+.faq-arrow svg{width:18px;height:18px}
+.faq-arrow:hover:not(:disabled){background:var(--btn);border-color:var(--btn)}
+.faq-arrow:disabled{opacity:.35;cursor:default}
+.faq-count{min-width:64px;text-align:center;font-size:14px;font-weight:600;letter-spacing:.08em;color:var(--taupe-ink)}
+.faq-screen .wrap{width:100%}
+/* phones and tablets: swipe through the cards, with the next one peeking in */
+@media (max-width:900px){
+  .faq-deck{grid-template-columns:minmax(0,1fr)}
+  .faq-index{display:none}
+  .faq-track{gap:12px;margin:0 calc(-1 * var(--gutter));padding:6px var(--gutter) 16px;scroll-padding-inline:var(--gutter)}
+  .faq-card{flex-basis:86%;padding:26px 22px}
+  .faq-card h2{font-size:clamp(22px,6vw,28px);margin-bottom:14px}
+  .faq-card p{font-size:16.5px}
+}
+/* without JavaScript: every question and answer as a plain list */
+html:not(.js-ready) .faq-deck{display:block}
+html:not(.js-ready) .faq-index,html:not(.js-ready) .faq-nav{display:none}
+html:not(.js-ready) .faq-track{display:grid;gap:16px;overflow:visible;margin:0;padding:0}
+@media (prefers-reduced-motion:reduce){.faq-track{scroll-behavior:auto}.faq-jump:after,.faq-arrow{transition:none}}
