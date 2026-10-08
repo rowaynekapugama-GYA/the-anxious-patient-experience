@@ -3,8 +3,9 @@
 GYA build for Dr Lorna Gladwin. Plain HTML, CSS and JavaScript. There is no build step, no Node, no TypeScript
 and no framework: what is in this folder is exactly what Vercel serves.
 
-Pages: Home, Understanding the Experience, Meet the Team, Book Now, FAQs, plus a placeholder Privacy Policy page
-and a 404 page. All copy is word for word from the approved copy doc (29 Sep 2026).
+Pages: one continuous homepage (Understanding the Experience, Meet the Team and FAQs are sections of it), Book Now,
+a placeholder Privacy Policy page and a 404 page. All copy is word for word from the approved copy doc (29 Sep 2026)
+and Lorna's follow-up email (7 Oct 2026).
 
 ## Deploy (new GitHub repo, new Vercel project)
 
@@ -25,16 +26,16 @@ competes with the live site in Google.
 ## What is in here
 
 ```
-index.html                              Home
-understanding-the-experience/index.html
-meet-the-team/index.html
+index.html                              Home: the whole continuous page
+understanding-the-experience/index.html Forwards to /#understanding
+meet-the-team/index.html                Forwards to /#meet-the-team
 book-now/index.html
-faqs/index.html
+faqs/index.html                         Forwards to /#faqs
 privacy-policy/index.html               Placeholder page (noindex) so the footer link works
 404.html
 assets/site.css                         Full design system
-assets/site.js                          Screen by screen journey (snapping, reveals, progress bar,
-                                        Explore sheet), FAQ accordion, booking flow
+assets/site.js                          Header, scroll-triggered motion, scroll progress, FAQ cards,
+                                        booking flow
 assets/fonts/                           Playfair Display and Figtree, self-hosted (SIL OFL)
 images/                                 Page photos (WebP), logo, social share image (JPG)
 icon.svg, apple-touch-icon.png, robots.txt, sitemap.xml
@@ -48,34 +49,25 @@ The canonical tags, share (OG) links and sitemap use `https://example.com` until
 is, find and replace `https://example.com` with the live domain (for example `https://anxiouspatientexperience.com.au`)
 in every `.html` file, `sitemap.xml` and `robots.txt`.
 
-## Screen by screen layout (v1.0.6)
+## Continuous scroll layout (v1.1.0)
 
-Every page is a series of full-screen "screens", one after another, and the page links live in the bottom bar.
+The site is one homepage read from top to bottom, plus Book Now, Privacy Policy and 404.
 
-- **A screen** is a `<section class="screen">` inside `<main>`. It is at least one screen tall (`100svh`, with
-  `100vh` for older browsers), keeps clear of the header and bottom bar with its own padding, and centres its
-  content. The first element inside it is `<span class="snap-point" aria-hidden="true"></span>`, which is what the
-  page snaps to.
-- **Page turns (patient journey)**: with JavaScript, `site.js` adds the `page-turn` class and shows one screen at a
-  time. Continue / Back in the bottom bar, the progress segments, a sideways swipe, the left and right arrow keys, or
-  scrolling on past the end of a screen turn to the next or previous screen with a soft sideways slide. A screen longer
-  than the window scrolls normally first. Continue on the last screen links to the next page (Home, Understanding the
-  Experience, Meet the Team, FAQs, Book Now). The footer shows after the last screen. With reduced motion or without
-  JavaScript the page is one ordinary scrolling page. There is no scroll snapping.
-- **Screens that grow** carry `screen--grow`: the Understanding card grid, the Book Now booking flow and the FAQ list.
-  On small phones (iPhone SE size) the Home "heart" screen and Lorna's profile also grow, because their copy is longer
-  than the screen.
-- **Reveals**: anything with `reveal` fades up when its screen is half in view. Add `seq` to make items appear one by
-  one (0.7 seconds apart); `d1` to `d3` give a small stagger to the main content. Reveals play once, and anything that
-  receives keyboard focus is shown at once.
-- **Progress bar**: one link per screen in the bottom bar (`.journey-progress`), in the same order as the screens.
-  If you add or remove a screen, add or remove its segment and update the "Go to section X of Y" labels.
-- **FAQs** are one screen: a numbered question index beside an answer card on desktop, and swipeable answer cards
-  on phones (`.faq-deck` in `faqs/index.html`). To add a question, add a button to `.faq-index`, a matching
-  `.faq-card` to `.faq-track`, update the "/ 10" total, and add it to the FAQ schema in the page head.
-- **Bottom bar**: Understanding the Experience, Meet the Team, FAQs and the Book Now pill. The current page's link has
-  `aria-current="page"`. On phones the three links sit behind the "Explore" button (a `<details>` element, so it
-  works without JavaScript too).
+- **Sections and anchors**: the header links go to `#understanding`, `#meet-the-team` and `#faqs` on the homepage
+  (`/#understanding` and so on from other pages). Other useful anchors: `#nervous-system`, `#what-we-do-differently`,
+  `#who-is-it-for`, `#lorna-gladwin`, `#alex`, `#book`, `#contact` (footer contact block).
+- **Old addresses**: `understanding-the-experience/`, `meet-the-team/` and `faqs/` are small forwarding pages that
+  send visitors (and any old links or bookmarks) to the matching homepage section. They are noindex with the
+  canonical set to the homepage. Keep them so old links never break.
+- **Header**: sits on the page at the top, hides while reading down, returns (frosted) on scroll up, and stays put
+  while the phone menu is open or a header link has keyboard focus. The current section is underlined.
+- **Motion**: anything with `reveal` animates once as it scrolls into view. Add `from-left`, `from-right`, `pop` or
+  `fade` for the style (default is a gentle fade up), and `seq` to make neighbouring items follow one another.
+  `d1` to `d3` add a small delay. With reduced motion nothing animates; without JavaScript everything shows.
+- **Scroll progress**: the hairline at the top of the homepage (`.scroll-progress`).
+- **FAQs**: a numbered question index beside an answer card on desktop, swipeable answer cards on phones
+  (`.faq-deck` in `index.html`). To add a question, add a button to `.faq-index`, a matching `.faq-card` to
+  `.faq-track`, update the "/ 10" total, and add it to the FAQ schema at the bottom of `index.html`.
 
 ## Booking (test mode)
 
@@ -103,19 +95,26 @@ will add an `api` folder to this repo.
 
 | File | Where |
 |---|---|
-| `images/home-hero.webp` | Home hero |
-| `images/home-heart-of-the-experience.webp` | Home, The heart of the experience |
-| `images/understanding-hero.webp` | Understanding the Experience hero |
-| `images/understanding-our-approach.webp` | Understanding, "We work with it" |
-| `images/meet-the-team-hero.webp` | Meet the Team hero |
+| `images/home-hero.webp` | Hero |
+| `images/home-heart-of-the-experience.webp` | The heart of the experience |
+| `images/understanding-hero.webp` | "What if your dental care started with understanding your anxiety first?" |
+| `images/understanding-our-approach.webp` | Our approach, "We work with it" |
+| `images/faqs-hero.webp` | Who is The Anxious Patient Experience™ for? |
+| `images/meet-the-team-hero.webp` | Meet the Team banner |
 | `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin |
 | `images/book-now-hero.webp` | Book Now hero |
-| `images/faqs-hero.webp` | FAQs hero |
 | `images/social-share.jpg` | Share image (og:image) on every page, 1200 x 630 |
 | `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, and the logo in the search schema |
 | `apple-touch-icon.png` | Home screen icon on phones |
 
-To swap a photo later, keep the same file name, or update the `src` in the page's `index.html`. Browsers keep
+**New team photos.** Lorna: save the new photo over `images/team-lorna-gladwin.webp` (WebP, about 1600 px wide,
+face roughly centred; the phone crop centres on the face). Alex: save the photo as `images/team-alex.webp`, then in
+`index.html` replace the placeholder `<div class="frame ph arch portrait" ...>...</div>` inside `#alex` with
+`<div class="frame arch portrait"><img src="/images/team-alex.webp" width="1600" height="1073" alt="Alex, APE Lead"
+sizes="(max-width: 900px) 30vw, 40vw" loading="lazy" decoding="async"/></div>` (use the photo's real width and
+height).
+
+To swap any other photo later, keep the same file name, or update the `src` in the page's `index.html`. Browsers keep
 images for a day, so a new photo under the same name can take up to a day to show for returning visitors.
 
 When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on their links in every page
@@ -126,6 +125,9 @@ When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on the
 | Placeholder | Where |
 |---|---|
 | `[Surname]` | Meet the Team, Alex's name |
+| Alex's bio | Current approved text is in place; Lorna is sending updated details |
+| New softer photos of Lorna and Alex | Meet the Team (see "New team photos" above) |
+| APE days and practice details | Booking sample times (Tuesdays and Thursdays) until the real days are confirmed |
 | `[Phone]`, `[Email]`, `[Practice address]` | Footer contact block, every page |
 | Domain | `https://example.com` in canonical, OG and sitemap links |
 | Privacy policy text | `/privacy-policy/` |
@@ -136,15 +138,15 @@ When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on the
 
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
 you like support with? (optional)"), "Continue", "Back", the two form error messages, the test-mode note, "Skip to
-content", "Explore" (the button that opens the page links on phones), "Continue" and "Back" in the bottom bar, "Section 2 of 5" and so on (announced to screen readers when the page turns), "Previous question" / "Next question" and the "1 / 10" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Go to section 1 of 5" and so on (screen
-reader labels on the progress bar segments), and "Page not found" / "Home" on the 404 page. "Open menu" / "Close
-menu" are gone with the old top menu.
+content", "Open menu" / "Close menu", "Previous question" / "Next question" and the "1 / 10" counter on the FAQ
+cards, "Questions" (screen reader label on the FAQ question index), "Photo to come" on Alex's placeholder, the
+link text on the forwarding pages, and "Page not found" / "Home" on the 404 page.
 
 ## Go-live checklist
 
 - [ ] Repo is private
-- [ ] iPhone check on the staging link (Safari): swipe through every page, open Explore, run a test booking, open
-      an FAQ answer, tap Talk to Alex
+- [ ] iPhone check on the staging link (Safari): scroll the homepage top to bottom, open the menu and try each link,
+      swipe the FAQ cards, tap Talk to Alex, run a test booking
 - [ ] Every yellow placeholder replaced (search the files for `[`)
 - [ ] Phone, email, address and APE location confirmed against the brief
 - [ ] `https://example.com` replaced with the live domain everywhere

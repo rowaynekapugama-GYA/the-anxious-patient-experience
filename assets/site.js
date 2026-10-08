@@ -1,5 +1,6 @@
 /* The Anxious Patient Experience: site script.
-   Patient journey (sections that turn like pages, gentle reveals, progress bar, Explore sheet), FAQs and the Book Now flow.
+   Continuous scroll (light header with section links, gentle scroll-triggered motion, a hairline scroll progress),
+   FAQ cards and the Book Now flow.
    The booking flow runs in test mode: sample APE sessions, no payment taken.
    BOOKING INTEGRATION POINT: replace getSlots() and the pay step with the live booking system and payment gateway. */
 (function () {
@@ -9,291 +10,105 @@
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   var reduce = reduceMQ.matches;
   var hasIO = 'IntersectionObserver' in window;
-  var screens = [].slice.call(document.querySelectorAll('main .screen'));
   var SCROLL = reduce ? 'auto' : 'smooth';
-  var GAP = 700;          /* ms between items that appear one by one */
-  var AFTER_MAIN = 550;   /* ms before the first one-by-one item, so the main content settles first */
-
-  /* ---------- Bottom bar height (it grows with the safe area on phones) ---------- */
-  var bar = document.querySelector('.journey-bar');
-  function measure() {
-    if (bar) doc.style.setProperty('--bar-h', bar.offsetHeight + 'px');
-  }
-  measure();
+  var STAGGER = 0.14;     /* seconds between items that appear one by one */
 
   /* ---------- Gentle reveals ----------
-     A screen's content fades up once the screen is at least half in view. Items marked .seq follow one by one.
-     Reveals play once. Anything that receives keyboard focus is shown at once. */
-  function showNow(el) { el.style.setProperty('--d', '0s'); el.classList.add('in'); }
+     Each piece fades, slides or settles in once as it scrolls into view. Pieces marked .seq that arrive together
+     follow one another. Anything that receives keyboard focus is shown at once. */
   var reveals = [].slice.call(document.querySelectorAll('.reveal'));
+  function showNow(el) { el.style.setProperty('--d', '0s'); el.classList.add('in'); }
 
   if (!hasIO || reduce) {
     reveals.forEach(function (el) { el.classList.add('in'); });
-    if (!hasIO) doc.classList.remove('js');
   } else {
-    var nextAt = 0;
-    var queue = function (el) {
-      var now = performance.now();
-      var at = Math.max(now, nextAt);
-      nextAt = at + GAP;
-      el.style.setProperty('--d', ((at - now) / 1000).toFixed(2) + 's');
-      el.classList.add('in');
-    };
-    var itemIO = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) { itemIO.unobserve(en.target); queue(en.target); }
-      });
-    }, { threshold: 0.2, rootMargin: '0px 0px -6% 0px' });
-
-    var activate = function (screen) {
-      if (screen.getAttribute('data-shown')) return;
-      screen.setAttribute('data-shown', '1');
-      var items = [].slice.call(screen.querySelectorAll('.reveal:not(.in)'));
-      var vh = window.innerHeight;
-      items.forEach(function (el) { if (!el.classList.contains('seq')) el.classList.add('in'); });
-      nextAt = Math.max(nextAt, performance.now() + AFTER_MAIN);
-      items.forEach(function (el) {
-        if (!el.classList.contains('seq')) return;
-        var r = el.getBoundingClientRect();
-        if (r.top < vh * 0.94 && r.bottom > 0) queue(el);
-        else itemIO.observe(el); /* further down a tall screen: appears when it scrolls into view */
-      });
-    };
-
-    var steps = [];
-    for (var k = 0; k <= 20; k++) steps.push(k / 20);
-    var screenIO = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        var half = window.innerHeight * 0.5;
-        if (en.isIntersecting && (en.intersectionRatio >= 0.5 || en.intersectionRect.height >= half)) {
-          screenIO.unobserve(en.target);
-          activate(en.target);
+    var revealIO = new IntersectionObserver(function (entries) {
+      var arriving = entries.filter(function (e) { return e.isIntersecting; }).map(function (e) { return e.target; });
+      arriving.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1; });
+      var counts = [];
+      arriving.forEach(function (el) {
+        if (el.classList.contains('seq')) {
+          var parent = el.parentNode, n = 0;
+          for (var i = 0; i < counts.length; i++) if (counts[i].p === parent) { n = ++counts[i].n; break; }
+          if (i === counts.length) counts.push({ p: parent, n: 0 });
+          el.style.setProperty('--d', Math.min(0.15 + n * STAGGER, 1.2).toFixed(2) + 's');
         }
+        el.classList.add('in');
+        revealIO.unobserve(el);
       });
-    }, { threshold: steps });
-    screens.forEach(function (s) { screenIO.observe(s); });
-
-    /* Reveals outside screens (footer, plain pages) work as before */
-    var looseIO = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) { en.target.classList.add('in'); looseIO.unobserve(en.target); }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
-    reveals.forEach(function (el) { if (!el.closest('.screen')) looseIO.observe(el); });
-
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+    reveals.forEach(function (el) { revealIO.observe(el); });
     document.addEventListener('focusin', function (ev) {
-      var target = ev.target;
-      if (!target || !target.closest) return;
-      var s = target.closest('.screen');
-      if (s && !s.getAttribute('data-shown')) {
-        s.setAttribute('data-shown', '1');
-        screenIO.unobserve(s);
+      var el = ev.target.closest ? ev.target.closest('.reveal') : null;
+      while (el) {
+        if (!el.classList.contains('in')) { showNow(el); revealIO.unobserve(el); }
+        el = el.parentNode && el.parentNode.closest ? el.parentNode.closest('.reveal') : null;
       }
-      if (s) [].forEach.call(s.querySelectorAll('.reveal:not(.in)'), showNow);
-      var r = target.closest('.reveal:not(.in)');
-      while (r) { showNow(r); r = r.parentElement ? r.parentElement.closest('.reveal:not(.in)') : null; }
+      [].forEach.call(ev.target.querySelectorAll ? ev.target.querySelectorAll('.reveal:not(.in)') : [], showNow);
     });
   }
 
-  /* ---------- Patient journey: each page turns like a book, one section at a time ----------
-     Sections sit side by side in time rather than down the page. Continue, the progress bar, a sideways swipe, the
-     arrow keys, or scrolling on past the end of a section turns to the next one with a slow, soft slide. Nothing
-     moves unless the visitor asks it to, and a section longer than the window simply scrolls as normal.
-     With reduced motion (or without JavaScript) the page is one ordinary scrolling page. */
-  var stepsOn = screens.length > 1 && !reduce;
-  var segs = [].slice.call(document.querySelectorAll('.journey-progress .seg'));
-  var prevBtn = document.querySelector('.step-prev');
-  var nextBtn = document.querySelector('.step-next');
-  var nextPage = document.querySelector('.step-nextpage');
-  var live = document.querySelector('.step-live');
-  var LEAVE_MS = 380, ENTER_MS = 760;
-  var cur = 0, busy = false;
+  /* ---------- Header: steps away while you read down, comes back when you scroll up ---------- */
+  var header = document.querySelector('.site-header');
+  var burger = header && header.querySelector('.burger');
+  var menu = document.getElementById('mobile-menu');
+  var lastY = window.pageYOffset;
 
-  function stepOf(el) {
-    var s = el && el.closest ? el.closest('main .screen') : null;
-    if (s) return screens.indexOf(s);
-    return el && el.closest && el.closest('.site-footer') ? screens.length - 1 : -1;
+  function setMenu(open) {
+    if (!header || !burger) return;
+    header.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }
-  function paint() {
-    segs.forEach(function (a, i) {
-      a.style.setProperty('--p', i <= cur ? '1' : '0');
-      if (i === cur) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
-    });
-    var last = cur === screens.length - 1;
-    doc.classList.toggle('on-first', cur === 0);
-    doc.classList.toggle('on-last', last);
-    if (prevBtn) prevBtn.hidden = cur === 0;
-    if (nextBtn) nextBtn.hidden = last;
-    if (nextPage) nextPage.hidden = !last;
-  }
-  function settle(to) {
-    var id = to.id && cur > 0 ? '#' + to.id : window.location.pathname;
-    try { history.replaceState(null, '', id); } catch (e) { /* file previews */ }
-    if (live) live.textContent = 'Section ' + (cur + 1) + ' of ' + screens.length;
-  }
-  function turnTo(i, opts) {
-    opts = opts || {};
-    if (!stepsOn || busy || i === cur || i < 0 || i >= screens.length) return false;
-    busy = true;
-    var from = screens[cur], to = screens[i], dir = i > cur ? 1 : -1;
-    from.classList.add(dir > 0 ? 'leave-left' : 'leave-right');
-    setTimeout(function () {
-      from.classList.remove('is-current', 'leave-left', 'leave-right');
-      to.classList.add('is-current', dir > 0 ? 'enter-right' : 'enter-left');
-      window.scrollTo(0, 0);
-      cur = i;
-      paint();
-      settle(to);
-      window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () { to.classList.remove('enter-right', 'enter-left'); });
-      });
-      if (opts.focus) { to.setAttribute('tabindex', '-1'); to.focus({ preventScroll: true }); }
-      setTimeout(function () {
-        busy = false;
-        if (opts.then) opts.then();
-      }, ENTER_MS);
-    }, LEAVE_MS);
-    return true;
-  }
-  function turnNext(o) { return turnTo(cur + 1, o); }
-  function turnPrev(o) { return turnTo(cur - 1, o); }
-  function atBottom() { return window.innerHeight + window.pageYOffset >= doc.scrollHeight - 4; }
-  function atTop() { return window.pageYOffset <= 4; }
-  function typing(el) {
-    return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"], .faq-track'));
-  }
-
-  if (stepsOn) {
-    doc.classList.add('page-turn');
-    doc.style.scrollBehavior = 'auto';
-    /* start on the section the address points to, if any */
-    var target = window.location.hash ? document.getElementById(window.location.hash.slice(1)) : null;
-    var start = Math.max(0, stepOf(target));
-    cur = start;
-    screens.forEach(function (s, i) { s.classList.toggle('is-current', i === start); });
-    paint();
-    if (target && start > 0 && !target.classList.contains('screen')) {
-      setTimeout(function () { target.scrollIntoView({ block: 'start' }); }, 60);
-    }
-
-    if (prevBtn) prevBtn.addEventListener('click', function (ev) { turnPrev({ focus: ev.detail === 0 }); });
-    if (nextBtn) nextBtn.addEventListener('click', function (ev) { turnNext({ focus: ev.detail === 0 }); });
-    segs.forEach(function (a, i) {
-      a.addEventListener('click', function (ev) { ev.preventDefault(); turnTo(i, { focus: ev.detail === 0 }); });
-    });
-
-    /* in-page links such as Talk to Alex: turn to the section that holds the target, then bring it into view */
-    document.addEventListener('click', function (ev) {
-      var a = ev.target.closest && ev.target.closest('a[href^="#"]');
-      if (!a || a.classList.contains('seg') || a.getAttribute('href') === '#booking') return;
-      var el = document.getElementById(a.getAttribute('href').slice(1));
-      var i = stepOf(el);
-      if (!el || i < 0) return;
-      ev.preventDefault();
-      var show = function () { el.scrollIntoView({ behavior: SCROLL, block: 'start' }); };
-      if (i === cur) show(); else turnTo(i, { then: show });
-    });
-
-    /* scrolling on past the end (or the start) of a section turns the page, once per gesture.
-       After a turn, the rest of that same gesture (trackpad momentum) is ignored, but scrolling the other way is
-       never blocked, so going back always works. */
-    var acc = 0, lastWheel = 0, lastDir = 0, turnedAt = 0;
-    window.addEventListener('wheel', function (ev) {
-      if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY) || ev.ctrlKey) return;
-      var now = performance.now(), dir = ev.deltaY > 0 ? 1 : -1, gap = now - lastWheel;
-      lastWheel = now;
-      if (busy) { acc = 0; return; }
-      /* momentum from the gesture that just turned the page: same direction, events still streaming in */
-      if (dir === lastDir && now - turnedAt < 1600 && gap < 90) { acc = 0; return; }
-      if ((dir > 0 && !atBottom()) || (dir < 0 && !atTop())) { acc = 0; return; }
-      if (gap > 400) acc = 0;
-      acc += Math.abs(ev.deltaY) * (ev.deltaMode === 1 ? 32 : 1);
-      if (acc >= 70) {
-        acc = 0;
-        if (dir > 0 ? turnNext() : turnPrev()) { lastDir = dir; turnedAt = now; }
-      }
-    }, { passive: true });
-
-    /* touch: swipe left for the next section, right to go back; or keep swiping up past the end of a section */
-    var t0 = null;
-    document.addEventListener('touchstart', function (ev) {
-      var el = ev.target.closest ? ev.target : null;
-      if (ev.touches.length !== 1 || !el || el.closest('input, textarea, select, .journey-bar')) { t0 = null; return; }
-      t0 = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, bottom: atBottom(), top: atTop(), cards: !!el.closest('.faq-track') };
-    }, { passive: true });
-    document.addEventListener('touchend', function (ev) {
-      var s = t0; t0 = null;
-      if (!s || busy) return;
-      var t = ev.changedTouches[0], dx = s.x - t.clientX, dy = s.y - t.clientY;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-        if (!s.cards) { if (dx > 0) turnNext(); else turnPrev(); } /* sideways on the FAQ cards changes the card */
-        return;
-      }
-      if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
-        if (dy > 0 && s.bottom && atBottom()) turnNext();
-        else if (dy < 0 && s.top && atTop()) turnPrev();
-      }
-    }, { passive: true });
-
-    /* keys: left and right turn the page; Page Down, Space and the down arrow do too once a section is read */
+  if (burger) {
+    burger.addEventListener('click', function () { setMenu(!header.classList.contains('open')); });
     document.addEventListener('keydown', function (ev) {
-      if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey || typing(ev.target)) return;
-      var onControl = ev.target.closest && ev.target.closest('a, button, summary, [role="group"]');
-      var k = ev.key;
-      if (k === 'ArrowRight') turnNext({ focus: true });
-      else if (k === 'ArrowLeft') turnPrev({ focus: true });
-      else if ((k === 'PageDown' || k === 'ArrowDown' || (k === ' ' && !onControl)) && atBottom()) turnNext({ focus: true });
-      else if ((k === 'PageUp' || k === 'ArrowUp') && atTop()) turnPrev({ focus: true });
+      if (ev.key === 'Escape' && header.classList.contains('open')) { setMenu(false); burger.focus(); }
     });
-  } else {
-    /* one ordinary page: segments fill as you scroll and jump to their section */
-    segs.forEach(function (a, i) {
-      a.addEventListener('click', function (ev) {
-        var s = screens[i];
-        if (!s) return;
-        ev.preventDefault();
-        window.scrollTo({ top: s.getBoundingClientRect().top + window.pageYOffset, behavior: SCROLL });
-      });
+    document.addEventListener('click', function (ev) {
+      if (header.classList.contains('open') && !header.contains(ev.target)) setMenu(false);
     });
+    if (menu) menu.addEventListener('click', function (ev) { if (ev.target.closest('a')) setMenu(false); });
   }
+  if (header) header.addEventListener('focusin', function () { header.classList.remove('is-hidden'); });
+
+  /* ---------- Section links: the current section is underlined in the header ---------- */
+  var navLinks = [].slice.call(document.querySelectorAll('.nav-links a[data-section]'));
+  var anchors = navLinks.length ? ['understanding', 'meet-the-team', 'faqs'].map(function (id) { return document.getElementById(id); }) : [];
+  anchors = anchors.filter(Boolean);
+  var bar = document.querySelector('.scroll-progress span');
+
   var ticking = false;
-  function progress() {
+  function onFrame() {
     ticking = false;
-    if (stepsOn || !segs.length) return;
-    var y = window.pageYOffset, vh = window.innerHeight, current = 0;
-    screens.forEach(function (s, i) { if (s.getBoundingClientRect().top + y <= y + vh * 0.4) current = i; });
-    segs.forEach(function (a, i) {
-      a.style.setProperty('--p', i <= current ? '1' : '0');
-      if (i === current) a.setAttribute('aria-current', 'step'); else a.removeAttribute('aria-current');
-    });
+    var y = window.pageYOffset, vh = window.innerHeight;
+    if (header) {
+      header.classList.toggle('is-scrolled', y > 8);
+      var open = header.classList.contains('open');
+      var focused = false;
+      try { focused = !!header.querySelector(':focus-visible'); } catch (e) { focused = false; }
+      if (!open && !focused) {
+        if (y > lastY + 6 && y > header.offsetHeight * 1.5) header.classList.add('is-hidden');
+        else if (y < lastY - 6 || y <= header.offsetHeight) header.classList.remove('is-hidden');
+      }
+    }
+    if (Math.abs(y - lastY) > 6 || y <= 8) lastY = y;
+    if (anchors.length) {
+      var here = '';
+      anchors.forEach(function (sec) { if (sec.getBoundingClientRect().top <= vh * 0.4) here = sec.id; });
+      navLinks.forEach(function (a) { a.classList.toggle('is-here', a.getAttribute('data-section') === here); });
+    }
+    if (bar) {
+      var max = doc.scrollHeight - vh;
+      bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, y / max) : 0).toFixed(4) + ')';
+    }
   }
-  function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(progress); } }
-
-  /* ---------- Explore sheet (mobile) ---------- */
-  var explore = document.querySelector('.journey-bar .explore');
-  if (explore) {
-    var summary = explore.querySelector('summary');
-    document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape' && explore.open) { explore.open = false; summary.focus(); }
-    });
-    document.addEventListener('click', function (ev) {
-      if (explore.open && !explore.contains(ev.target)) explore.open = false;
-    });
-  }
-
-  /* ---------- Keep everything in step with the window ---------- */
-  var resizeTimer;
-  function refresh() { measure(); progress(); }
-  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
+  function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(onFrame); } }
   window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('load', refresh);
-  if ('ResizeObserver' in window) {
-    var ro = new ResizeObserver(function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(refresh, 120); });
-    if (bar) ro.observe(bar);
-    screens.forEach(function (s) { ro.observe(s); });
-  }
+  window.addEventListener('resize', onScroll);
+  onFrame();
+
   if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function () { window.location.reload(); });
-  refresh();
   doc.classList.add('js-ready');
 
   /* ---------- FAQs: question index and swipeable answer cards ----------
@@ -334,26 +149,6 @@
       }, 90);
     }, { passive: true });
     show(0);
-  });
-
-  /* ---------- FAQ accordion: one answer open at a time ---------- */
-  document.querySelectorAll('.faq-list').forEach(function (list) {
-    var buttons = list.querySelectorAll('.acc-btn');
-    buttons.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var wasOpen = btn.getAttribute('aria-expanded') === 'true';
-        buttons.forEach(function (b) {
-          b.setAttribute('aria-expanded', 'false');
-          var p = document.getElementById(b.getAttribute('aria-controls'));
-          if (p) p.setAttribute('data-open', 'false');
-        });
-        if (!wasOpen) {
-          btn.setAttribute('aria-expanded', 'true');
-          var panel = document.getElementById(btn.getAttribute('aria-controls'));
-          if (panel) panel.setAttribute('data-open', 'true');
-        }
-      });
-    });
   });
 
   /* ---------- Book Now ---------- */

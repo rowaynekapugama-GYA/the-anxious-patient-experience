@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.1.0 (8 Oct 2026)
+
+Follow-up changes from Dr Lorna Gladwin's feedback of 7 Oct 2026. Visual design unchanged.
+
+- Continuous scroll: the site is now one homepage you read top to bottom. The page turns, Continue and Back, the
+  bottom bar and the per-page progress bar are gone. Order: Hero, intro, The heart of the experience, quote,
+  Understanding the experience, the nervous system, Our approach, What we do differently, Who is The Anxious Patient
+  Experience™ for?, closing quote, Meet the Team, FAQs, Book Now.
+- Gentle motion, triggered by scrolling only: sections fade up, photos and cards slide in from the side, and cards,
+  trigger chips and key panels settle in with a soft pop, one after another. Each plays once. The hero fades in
+  without moving. Reduced motion: no animation at all. Without JavaScript everything shows.
+- Header: logo, Understanding the Experience, Meet the Team, FAQs and a quiet Book Now. It sits on the page at the
+  top, steps out of the way while you read down and comes back, softly frosted, when you scroll up. The section
+  you are in is underlined. Phones: Book Now plus a menu button. A hairline scroll progress line runs across the top
+  of the homepage.
+- Hero: the main button is now "Understand the experience" and leads down into Understanding. Book Now stays beside
+  it as a quieter link.
+- Understanding opens with the new "What is The Anxious Patient Experience™?" copy, word for word, with
+  "70-minute Anxious New Patient Experience" in bold. The old Understanding headline ("What if your dental care
+  started with understanding your anxiety first?") now leads into the nervous system section.
+- Sedation removed from Understanding: the "Additional support where clinically appropriate" card and the two notes
+  ("Sedation is one option, not the whole plan." and "Is this approach enough on its own?") are gone. What we do
+  differently is now six cards, three and three.
+- New "Who is The Anxious Patient Experience™ for?" section after What we do differently, word for word.
+- Meet the Team: Lorna's new role and bio, word for word. On phones her photo is now a small, soft portrait beside
+  her name so the words lead. Alex's photo placeholder matches.
+- FAQs: new answers for "Can I use headphones or choose what I watch or listen to?" and "Is sedation available?",
+  word for word (FAQ schema updated and moved to the homepage). The swipeable FAQ cards are kept. "Still have a
+  question?" is now a light strip under the cards.
+- Old page addresses (/understanding-the-experience/, /meet-the-team/, /faqs/) now forward to the matching section
+  of the homepage (noindex, canonical to the homepage). sitemap.xml lists the homepage and Book Now only.
+- Book Now: booking flow unchanged (four steps, $100 deposit, policy tick-box, test mode). New header, bottom bar
+  removed.
+- site.css and site.js links bumped to ?v=1.1.0.
+
 ## 1.0.9 (30 Sep 2026)
 
 - Patient journey: scroll snapping is gone. Each page now turns like a book, one section at a time, with a slow, soft
