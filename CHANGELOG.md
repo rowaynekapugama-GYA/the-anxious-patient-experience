@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1 (9 Oct 2026)
+
+- Phones and tablets: photos, headings and cards that slide in from the side now finish exactly in place. Before
+  this fix they stopped 20px short on screens 900px wide and under, so some sat against the screen edge or were
+  pushed off the right side (Lorna's and Alex's photos, the Understanding headline, several photos and cards).
+- Phones: the small portraits in Meet the Team keep their soft rounded bottom corners.
+- Header links have a larger tap area on touch screens. The underline position is unchanged.
+- Checked on every page at 320, 360, 375, 390, 414, 768 and 1024 px wide with motion on: nothing off the edge,
+  no sideways scrolling, every section finishes its animation.
+- site.css and site.js links bumped to ?v=1.1.1.
+
 ## 1.1.0 (8 Oct 2026)
 
 Follow-up changes from Dr Lorna Gladwin's feedback of 7 Oct 2026. Visual design unchanged.
