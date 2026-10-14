@@ -93,12 +93,14 @@ html:not(.js-ready) .faq-track{display:grid;gap:16px;overflow:visible;margin:0;p
 :root{--ease-calm:cubic-bezier(.25,.46,.3,1);--hdr-h:104px;--logo-h:clamp(64px,6vw,84px);--logo-sm:48px;--hdr-sm:72px}
 @media (max-width:900px){:root{--hdr-h:84px;--logo-h:60px;--logo-sm:44px;--hdr-sm:64px}}
 html{scroll-padding-top:0}
-#booking,#contact{scroll-margin-top:84px}
+/* Every section a link can land on clears the fixed header, so its heading is never hidden underneath */
+main section[id],main article[id]{scroll-margin-top:calc(var(--hdr-sm) + 1px)}
+#booking,#contact{scroll-margin-top:calc(var(--hdr-sm) + 16px)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 main{overflow-x:hidden;overflow-x:clip}
 
-/* ---------- Header: light and quiet. Sits on the page at the top, steps out of the way while you read down,
-   and comes back (softly frosted) as soon as you scroll up ---------- */
+/* ---------- Header: fixed and always visible (13 Oct 2026). Light at the top of the page, then softly frosted and a
+   little smaller once you scroll ---------- */
 body{padding-top:var(--hdr-h)}
 .site-header{position:fixed;top:0;left:0;right:0;z-index:60;background:transparent;border-bottom:1px solid transparent;
   -webkit-backdrop-filter:none;backdrop-filter:none;transform:translate3d(0,0,0);
@@ -108,17 +110,18 @@ body{padding-top:var(--hdr-h)}
 .site-header.is-scrolled{background:rgba(247,244,239,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom-color:rgba(231,223,212,.8)}
 .site-header.is-scrolled .nav{height:var(--hdr-sm)}
 .site-header.is-scrolled .logo-tile{width:var(--logo-sm);height:var(--logo-sm);border-radius:10px}
-.site-header.is-hidden{transform:translate3d(0,-110%,0)}
 .site-header.open{background:var(--cream);transform:none}
 .nav-main{margin-left:auto}
 .nav-links a{text-decoration:none;display:inline-block;padding:12px 0}
 .nav-links a:after{bottom:8px}
 .nav-links a.is-here{color:var(--navy)}
 .nav-links a.is-here:after{width:100%}
-.nav-book.btn{background:transparent;border-color:var(--taupe);color:var(--navy);min-height:42px;padding:10px 22px;font-size:14.5px}
-.nav-book.btn:hover{background:var(--btn);border-color:var(--btn);transform:none;box-shadow:none}
-.nav-book[aria-current=page]{background:var(--btn);border-color:var(--btn)}
+.nav-links{gap:clamp(20px,2.4vw,34px)}
+.nav-book.btn{min-height:42px;padding:10px 22px;font-size:14.5px;margin-left:clamp(18px,2.4vw,34px)}
+.nav-book.btn:hover{transform:none}
+.nav-book[aria-current=page]{box-shadow:inset 0 0 0 1px var(--taupe-deep)}
 .mobile-menu li a{text-decoration:none}
+.mobile-menu li.menu-book a.btn{display:flex;margin:18px 0 4px;padding:14px 22px;font-family:var(--sans);font-size:16px;color:var(--navy);border-bottom:0}
 @media (max-width:900px){
   .nav-main{display:none}
   .nav-book.btn{margin-left:auto;padding:9px 18px;min-height:40px;font-size:14px}
@@ -213,6 +216,25 @@ html:not(.js-ready) .scroll-progress{display:none}
 .member-text .bio{margin:0 0 16px}
 .member .member-name{font-size:clamp(28px,3.2vw,42px);line-height:1.2;margin-bottom:8px}
 @media (min-width:901px){.member .member-photo{max-width:440px}}
+
+/* Three team members (13 Oct 2026): even columns on desktop, stacked on phones and tablets */
+.team-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(28px,3.6vw,60px);align-items:start}
+@media (min-width:901px){
+  .team-grid .member{display:block}
+  .team-grid .member .member-photo,.team-grid .member:nth-child(2n) .member-photo{max-width:none;order:0;margin-bottom:26px}
+  .team-grid .member-photo .frame{aspect-ratio:4/4.4}
+  .team-grid .member .member-name{font-size:clamp(25px,2.2vw,32px)}
+  .team-grid .member .role{margin-bottom:18px;font-size:12px;letter-spacing:.14em;line-height:1.6}
+  .team-grid .member .bio{font-size:16px;line-height:1.7}
+  .team-grid .member blockquote{font-size:clamp(18px,1.45vw,21px)}
+  .team-grid .member .actions{margin-top:22px}
+}
+.frame.ph .initials{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40%;aspect-ratio:1/1;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:rgba(252,252,246,.72);border:1px solid rgba(143,116,85,.35);
+  font-family:var(--serif);font-size:clamp(22px,2.4vw,36px);letter-spacing:.04em;color:var(--navy)}
+.bio-soon{display:inline-flex;align-items:center;gap:8px;margin:2px 0 0;padding:7px 16px;border:1px dashed var(--taupe);border-radius:999px;
+  background:var(--offwhite);font-size:14px;font-weight:500;letter-spacing:.02em;color:var(--taupe-ink)}
+.bio-soon:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--taupe)}
 /* Phones and tablets: a small, soft portrait beside the name, so the words lead */
 @media (max-width:900px){
   .member{grid-template-columns:clamp(104px,30vw,150px) minmax(0,1fr);gap:4px 18px;align-items:center}
@@ -227,7 +249,24 @@ html:not(.js-ready) .scroll-progress{display:none}
   .member .role+.bio{margin-top:22px}
   .member blockquote{margin-top:12px}
   .member .ph-label{font-size:10px;letter-spacing:.06em;padding:6px 8px;max-width:88%;width:auto}
+  .team-grid{grid-template-columns:minmax(0,1fr);gap:clamp(44px,8vw,64px)}
+  .frame.ph .initials{width:62%;font-size:clamp(18px,5vw,24px)}
+  .member .role+.bio-soon{margin-top:20px;justify-self:start}
+  .member .member-text>.actions{margin-top:18px}
 }
+
+/* ---------- Book Now: clinic, 24 hour notice, booking messages ---------- */
+.appt-card .clinic{margin:10px 0 0;color:var(--ink-soft);font-size:15.5px}
+.appt-card .clinic .clinic-name{font-weight:600;color:var(--navy)}
+.notice-24h{margin:18px 0 0;padding:14px 20px;border-radius:18px;background:var(--offwhite);border:1px solid var(--line);
+  color:var(--ink-soft);font-size:15.5px;line-height:1.6}
+.notice-24h a{color:var(--navy);text-decoration:underline;text-decoration-color:var(--taupe);text-underline-offset:3px}
+.chosen-clinic{display:block;font-size:14.5px;color:var(--ink-soft);margin-top:2px}
+.confirm .summary .chosen-clinic{margin-top:4px}
+.slot-err{margin:-6px 0 18px;padding:12px 16px;border-radius:14px;background:#FBEFEA;color:#8A3B2E;font-size:15px}
+
+/* ---------- Footer disclaimer: two short paragraphs ---------- */
+.disclaimer+.disclaimer{margin-top:10px;padding-top:0;border-top:0}
 
 /* ---------- FAQs ---------- */
 .faqs-head{text-align:center;margin-left:auto;margin-right:auto}

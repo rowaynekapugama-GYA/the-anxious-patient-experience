@@ -1,6 +1,7 @@
 /* The Anxious Patient Experience: site script.
-   Continuous scroll (light header with section links, gentle scroll-triggered motion, a hairline scroll progress),
-   FAQ cards and the Book Now flow.
+   Continuous scroll (fixed header with section links, gentle scroll-triggered motion, a hairline scroll progress),
+   FAQ cards and the Book Now flow. Clinic details, appointment times and booking rules come from
+   assets/site-config.js (window.APE_CONFIG).
    The booking flow runs in test mode: sample APE sessions, no payment taken.
    BOOKING INTEGRATION POINT: replace getSlots() and the pay step with the live booking system and payment gateway. */
 (function () {
@@ -48,11 +49,10 @@
     });
   }
 
-  /* ---------- Header: steps away while you read down, comes back when you scroll up ---------- */
+  /* ---------- Header: fixed, always visible; it turns softly frosted and a little smaller once you scroll ---------- */
   var header = document.querySelector('.site-header');
   var burger = header && header.querySelector('.burger');
   var menu = document.getElementById('mobile-menu');
-  var lastY = window.pageYOffset;
 
   function setMenu(open) {
     if (!header || !burger) return;
@@ -70,11 +70,10 @@
     });
     if (menu) menu.addEventListener('click', function (ev) { if (ev.target.closest('a')) setMenu(false); });
   }
-  if (header) header.addEventListener('focusin', function () { header.classList.remove('is-hidden'); });
 
   /* ---------- Section links: the current section is underlined in the header ---------- */
   var navLinks = [].slice.call(document.querySelectorAll('.nav-links a[data-section]'));
-  var anchors = navLinks.length ? ['understanding', 'meet-the-team', 'faqs'].map(function (id) { return document.getElementById(id); }) : [];
+  var anchors = navLinks.length ? ['understanding', 'who-is-it-for', 'meet-the-team', 'faqs'].map(function (id) { return document.getElementById(id); }) : [];
   anchors = anchors.filter(Boolean);
   var bar = document.querySelector('.scroll-progress span');
 
@@ -82,17 +81,7 @@
   function onFrame() {
     ticking = false;
     var y = window.pageYOffset, vh = window.innerHeight;
-    if (header) {
-      header.classList.toggle('is-scrolled', y > 8);
-      var open = header.classList.contains('open');
-      var focused = false;
-      try { focused = !!header.querySelector(':focus-visible'); } catch (e) { focused = false; }
-      if (!open && !focused) {
-        if (y > lastY + 6 && y > header.offsetHeight * 1.5) header.classList.add('is-hidden');
-        else if (y < lastY - 6 || y <= header.offsetHeight) header.classList.remove('is-hidden');
-      }
-    }
-    if (Math.abs(y - lastY) > 6 || y <= 8) lastY = y;
+    if (header) header.classList.toggle('is-scrolled', y > 8);
     if (anchors.length) {
       var here = '';
       anchors.forEach(function (sec) { if (sec.getBoundingClientRect().top <= vh * 0.4) here = sec.id; });
@@ -157,13 +146,17 @@
   var flowBox = bookingEl.parentNode;
 
   var COPY = {"steps": ["Choose your appointment", "Enter your details", "Pay your $100 deposit", "Booking confirmed"], "policy": {"items": [{"lead": "48 hours' notice or more:", "text": "your deposit can be transferred to a new appointment or refunded."}, {"lead": "Less than 48 hours' notice or non-attendance:", "text": "your deposit may be retained."}, {"lead": "If anxiety is making it hard to attend:", "text": "please contact us. We would much rather hear from you than have you simply not come."}], "checkbox": "I have read and understand the deposit and cancellation policy.", "paymentButton": "Pay $100 deposit"}, "confirmation": {"heading": "You're booked in.", "body": "Your appointment details have been sent to your email. Before your visit, we'll be in touch to learn a little more about you and what will help you feel comfortable.", "accent": "You've already taken the hardest step."}};
-  var SESSIONS = {"days": [2, 4], "startTimes": ["09:00", "11:00", "14:00"], "weeksAhead": 6, "minNoticeHours": 48, "timeZone": "Australia/Sydney"};
+  /* Booking settings live in assets/site-config.js. The values here are only a fallback if that file fails to load. */
+  var CONFIG = window.APE_CONFIG || {};
+  var SESSIONS = CONFIG.booking || {"days": [3], "startTimes": ["09:00", "10:20", "11:40"], "weeksAhead": 6, "minNoticeHours": 24, "timeZone": "Australia/Sydney"};
+  var CLINIC = CONFIG.clinic || null;
   var UI = {
     cont: 'Continue', back: 'Back', none: 'No appointments are available right now.',
     name: 'Your name', email: 'Email address', phone: 'Phone number (optional)',
     notes: 'What would you like support with? (optional)',
     errName: 'Please enter your name.', errEmail: 'Please enter a valid email address.',
-    mockNote: 'Test mode: no payment is taken. The live booking and payment integration connects here.'
+    mockNote: 'Test mode: no payment is taken. The live booking and payment integration connects here.',
+    tooSoon: 'That time is now less than 24 hours away, so it can no longer be booked online. Please choose another time, or contact the clinic directly.'
   };
 
   function typeset(s) {
@@ -201,8 +194,13 @@
   }
 
   /* APE-only sample sessions. INTEGRATION POINT: replace with the booking system's APE availability. */
+  /* Minimum notice (24 hours, Sydney time): a time is bookable only if it starts at least this far from now.
+     Checked when the times are listed and again before each step, in case the page has been left open.
+     A live booking system must enforce the same rule on its server; this site has no server step yet. */
+  function earliestStart() { return Date.now() + SESSIONS.minNoticeHours * 3600000; }
+  function bookable(slot) { return !!slot && new Date(slot.start).getTime() >= earliestStart(); }
   function getSlots() {
-    var now = Date.now(), earliest = now + SESSIONS.minNoticeHours * 3600000, out = [];
+    var now = Date.now(), earliest = earliestStart(), out = [];
     for (var i = 0; i < SESSIONS.weeksAhead * 7; i++) {
       var p = localParts(new Date(now + i * 86400000), SESSIONS.timeZone);
       if (SESSIONS.days.indexOf(p.weekday) === -1) continue;
@@ -227,13 +225,18 @@
       return '<li data-state="' + st + '"' + (n === state.step ? ' aria-current="step"' : '') + '>' + t(label) + '</li>';
     }).join('') + '</ol>';
   }
+  function clinicLine() {
+    return CLINIC ? esc(CLINIC.name + ', ' + CLINIC.street + ', ' + CLINIC.suburb) : '';
+  }
   function chosenHtml(extraStyle) {
-    return state.slot ? '<p class="chosen"' + (extraStyle || '') + '>' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start)) + '</p>' : '';
+    return state.slot ? '<p class="chosen"' + (extraStyle || '') + '>' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start)) +
+      (CLINIC ? '<span class="chosen-clinic">' + clinicLine() + '</span>' : '') + '</p>' : '';
   }
   function panelHtml() {
     var s = state.step, h = '';
     if (s === 1) {
       h += '<div><h3>' + t(COPY.steps[0]) + '</h3>';
+      if (state.errors.slot) h += '<p class="err slot-err" role="alert">' + esc(state.errors.slot) + '</p>';
       if (!state.slots.length) h += '<p>' + UI.none + '</p>';
       else {
         var groups = [];
@@ -271,7 +274,8 @@
     }
     if (s === 4) {
       h += '<div class="confirm"><h3>' + t(COPY.confirmation.heading) + '</h3>' +
-        (state.slot ? '<p class="summary">' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start) + (state.ref ? ' · ' + state.ref : '')) + '</p>' : '') +
+        (state.slot ? '<p class="summary">' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start) + (state.ref ? ' · ' + state.ref : '')) +
+          (CLINIC ? '<span class="chosen-clinic">' + clinicLine() + '</span>' : '') + '</p>' : '') +
         '<p>' + t(COPY.confirmation.body) + '</p><p class="accent">' + t(COPY.confirmation.accent) + '</p></div>';
     }
     return h;
@@ -285,7 +289,19 @@
       panel.scrollIntoView({ behavior: SCROLL, block: 'start' });
     }
   }
-  function go(step) { state.step = step; render(true); }
+  function go(step) {
+    if (step > 1 && step < 4 && !bookable(state.slot)) {
+      state.slots = getSlots();
+      state.slot = null;
+      state.errors = { slot: UI.tooSoon };
+      step = 1;
+    } else if (step === 1 && !state.errors.slot) {
+      state.slots = getSlots();
+    }
+    state.step = step;
+    render(true);
+    if (state.errors.slot && step === 1) state.errors = {};
+  }
 
   flowBox.addEventListener('click', function (ev) {
     var slotBtn = ev.target.closest('.slot');
@@ -301,6 +317,7 @@
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) go(2);
     if (a === 'pay' && state.ack) {
+      if (!bookable(state.slot)) { go(3); return; }
       state.ref = 'APE-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
       go(4);
     }

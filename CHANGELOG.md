@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.2.0 (13 Oct 2026)
+
+Lorna's revisions of 13 Oct 2026. Client copy used word for word.
+
+- Hero: the small line now reads "A GENTLER WAY TO BEGIN DENTAL CARE". The main button is now "Discover the
+  Experience" and moves down to the very next section only (the introduction), so the story reads from the start.
+  Book Now beside it is unchanged.
+- Navigation: The Experience, Who It's For, Meet the Team, FAQs and a filled Book Now button. The header is now fixed
+  and always visible, scrolling down or up (it no longer hides). Every section a link lands on clears the header.
+  The phone menu has the same five items and closes after a tap.
+- First mention of APE now reads "The Anxious Patient Experience™ (APE)" (opening line of What is The Anxious
+  Patient Experience™?).
+- Quote: "What if your dental care started with understanding your anxiety first? / Then built an experience around
+  what you need."
+- Our approach: new evidence-informed wording under "We don't ask you to ignore that response. We work with it."
+  (two paragraphs). Appointment paragraph in What is The Anxious Patient Experience™? replaced. No other copy on the
+  site repeated or contradicted the old wording (FAQs and meta descriptions checked).
+- Meet the Team: three people in this order: Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex
+  Loupos (APE Lead), Lauren Bright (Dental Assistant). Even columns on desktop, stacked on phones. Lorna's bio and
+  photo unchanged. Alex and Lauren show "Bio coming soon" and soft initials placeholders until their bios and photos
+  arrive.
+- Imagery: every image that looked like a dental clinic was replaced with non-dental lifestyle imagery: hero
+  (home-hero.webp to home-hero-lamp.webp), The heart of the experience (home-heart-of-the-experience.webp to
+  home-heart-sensory.webp), the quote section (understanding-hero.webp to understanding-window-seat.webp) and the
+  share image (social-share.jpg to social-share-lamp.jpg). The Meet the Team reception banner (meet-the-team-hero.webp)
+  is removed and marked as the spot for Cronulla clinic photos. Old files deleted.
+- Footer: the client's preferred disclaimer, with the existing invasive procedure line kept below it for now
+  (switch: SHOW_INVASIVE_RISK_DISCLAIMER in assets/site-config.js). Footer links match the new navigation.
+- Booking: The Cronulla Dentists, 11–13 Cronulla Street, Cronulla NSW 2230. Wednesdays at 9:00 am, 10:20 am and
+  11:40 am. 24-hour minimum notice (Sydney time), checked when times are listed, before each step and before
+  payment. New note near the booking button: "Need an appointment within the next 24 hours? Please contact the clinic
+  directly so we have time to properly prepare for your visit."
+- FAQs: new "What happens after I book?" (second, after "Am I suitable..."), added to the FAQ schema. 11 questions.
+- New settings file assets/site-config.js (contact details, disclaimer switch, clinic, booking times and notice) and
+  a build step (npm run build: scripts/build.mjs, no dependencies) that writes the settings into every page and checks
+  links, anchors, images, structured data and the FAQ count.
+- site.css and site.js links bumped to ?v=1.2.0.
+
 ## 1.1.1 (9 Oct 2026)
 
 - Phones and tablets: photos, headings and cards that slide in from the side now finish exactly in place. Before

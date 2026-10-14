@@ -1,24 +1,49 @@
 # The Anxious Patient Experience™: website (plain HTML)
 
-GYA build for Dr Lorna Gladwin. Plain HTML, CSS and JavaScript. There is no build step, no Node, no TypeScript
-and no framework: what is in this folder is exactly what Vercel serves.
+GYA build for Dr Lorna Gladwin. Plain HTML, CSS and JavaScript with no framework and no dependencies. A small build
+step (`npm run build`) writes the settings in `assets/site-config.js` into every page and checks the site.
 
-Pages: one continuous homepage (Understanding the Experience, Meet the Team and FAQs are sections of it), Book Now,
+Pages: one continuous homepage (The Experience, Who It's For, Meet the Team and FAQs are sections of it), Book Now,
 a placeholder Privacy Policy page and a 404 page. All copy is word for word from the approved copy doc (29 Sep 2026)
-and Lorna's follow-up email (7 Oct 2026).
+and Lorna's emails of 7 Oct and 13 Oct 2026.
 
-## Deploy (new GitHub repo, new Vercel project)
+## Settings: `assets/site-config.js`
 
-1. Create a new GitHub repo and set it to **Private** (GYA standard).
-2. Upload the **contents** of this folder so that `index.html` and `vercel.json` sit at the top of the repo, not
-   inside a subfolder. Drag the folders in as well as the files (`assets`, `images` and the five page folders).
-3. In Vercel: Add New Project, import the repo, then set:
-   - Framework Preset: **Other**
-   - Build Command: leave empty (or switch the override on and leave it blank)
-   - Output Directory: leave empty (the repo root)
-   - Install Command: leave empty
-4. Deploy. No environment variables are needed.
-5. Check the file count in GitHub after uploading: there should be 33 files (see "What is in here").
+One file for everything that is still changing. Edit it, then run `npm run build` (the deploy scripts do this for
+you) and commit.
+
+| Setting | What it controls |
+|---|---|
+| `contact.phone`, `contact.email`, `contact.address` | Footer contact block on every page. Empty (`''`) shows the yellow placeholder. |
+| `SHOW_INVASIVE_RISK_DISCLAIMER` | `true` shows the "Any invasive procedure carries risks..." line under the footer disclaimer. Set to `false` once GYA confirms it is not required. |
+| `disclaimer.general`, `disclaimer.invasiveRisk` | The two footer disclaimer lines. |
+| `clinic` | The APE clinic (The Cronulla Dentists, 11–13 Cronulla Street, Cronulla NSW 2230), shown on Book Now and in the booking summary. |
+| `booking.days`, `booking.startTimes` | Appointment days and times used by the booking flow (Wednesdays at 9:00 am, 10:20 am and 11:40 am, Sydney time). Not shown as fixed text anywhere. |
+| `booking.minNoticeHours` | Minimum notice (24 hours, Sydney time). |
+
+The build replaces whatever sits between the `<!-- config:contact -->`, `<!-- config:disclaimer -->` and
+`<!-- config:clinic -->` markers in the pages, so edit the config file, not those parts of the HTML.
+
+## Build and check
+
+```
+npm install      # nothing to download; it just records the project
+npm run build    # applies the settings, then checks every page
+```
+
+The check fails (with a plain-English list) if a link or #anchor points at nothing, an image or file is missing, the
+structured data is broken, the FAQ counter or FAQ schema does not match the questions, a settings marker is missing,
+or an em dash has crept in.
+
+## Deploy
+
+The repo is connected to Vercel through GitHub, so a push to `main` deploys. Use the scripts that come with each
+release (`deploy-ape.sh` on a Mac, `deploy-ape.ps1` on Windows): they back up the folder, copy the new build in,
+run the build, commit, push and print the link.
+
+Vercel project settings: Framework Preset **Other**; Build Command `npm run build` (or the default); Output
+Directory empty (the repo root); no environment variables. Vercel runs the same build and stops the deploy if the
+check fails.
 
 Any `*.vercel.app` address is sent `X-Robots-Tag: noindex` (set in `vercel.json`), so the staging link never
 competes with the live site in Google.
@@ -27,17 +52,19 @@ competes with the live site in Google.
 
 ```
 index.html                              Home: the whole continuous page
+book-now/index.html                     Booking flow (test mode)
 understanding-the-experience/index.html Forwards to /#understanding
 meet-the-team/index.html                Forwards to /#meet-the-team
-book-now/index.html
 faqs/index.html                         Forwards to /#faqs
 privacy-policy/index.html               Placeholder page (noindex) so the footer link works
 404.html
+assets/site-config.js                   Settings (see above)
 assets/site.css                         Full design system
-assets/site.js                          Header, scroll-triggered motion, scroll progress, FAQ cards,
-                                        booking flow
+assets/site.js                          Header, scroll-triggered motion, scroll progress, FAQ cards, booking flow
 assets/fonts/                           Playfair Display and Figtree, self-hosted (SIL OFL)
-images/                                 Page photos (WebP), logo, social share image (JPG)
+images/                                 Photos (WebP), logo, social share image (JPG)
+scripts/build.mjs                       The build and check
+package.json, package-lock.json         `npm run build` (no dependencies)
 icon.svg, apple-touch-icon.png, robots.txt, sitemap.xml
 vercel.json                             Clean URLs, trailing slashes, security and caching headers
 README.md, CHANGELOG.md
@@ -46,113 +73,120 @@ README.md, CHANGELOG.md
 ## Before go-live: set the domain
 
 The canonical tags, share (OG) links and sitemap use `https://example.com` until the domain is confirmed. Once it
-is, find and replace `https://example.com` with the live domain (for example `https://anxiouspatientexperience.com.au`)
-in every `.html` file, `sitemap.xml` and `robots.txt`.
+is, find and replace `https://example.com` with the live domain in every `.html` file, `sitemap.xml` and
+`robots.txt`.
 
-## Continuous scroll layout (v1.1.0)
+## Layout
 
-The site is one homepage read from top to bottom, plus Book Now, Privacy Policy and 404.
-
-- **Sections and anchors**: the header links go to `#understanding`, `#meet-the-team` and `#faqs` on the homepage
-  (`/#understanding` and so on from other pages). Other useful anchors: `#nervous-system`, `#what-we-do-differently`,
-  `#who-is-it-for`, `#lorna-gladwin`, `#alex`, `#book`, `#contact` (footer contact block).
-- **Old addresses**: `understanding-the-experience/`, `meet-the-team/` and `faqs/` are small forwarding pages that
-  send visitors (and any old links or bookmarks) to the matching homepage section. They are noindex with the
-  canonical set to the homepage. Keep them so old links never break.
-- **Header**: sits on the page at the top, hides while reading down, returns (frosted) on scroll up, and stays put
-  while the phone menu is open or a header link has keyboard focus. The current section is underlined.
+- **Navigation** (fixed, always visible): The Experience (`#understanding`), Who It's For (`#who-is-it-for`),
+  Meet the Team (`#meet-the-team`), FAQs (`#faqs`) and a filled Book Now button. From other pages the links are
+  `/#understanding` and so on. Phones show Book Now and a menu button; the menu has all five items and closes after a
+  tap. Every section a link can land on has `scroll-margin-top`, so its heading clears the fixed header.
+- **Hero**: "Discover the Experience" moves down to the very next section (`#intro`) so visitors read the story from
+  the beginning.
+- **Old addresses**: `understanding-the-experience/`, `meet-the-team/` and `faqs/` forward to the matching homepage
+  section (noindex, canonical to the homepage). Keep them so old links never break.
 - **Motion**: anything with `reveal` animates once as it scrolls into view. Add `from-left`, `from-right`, `pop` or
-  `fade` for the style (default is a gentle fade up), and `seq` to make neighbouring items follow one another.
-  `d1` to `d3` add a small delay. With reduced motion nothing animates; without JavaScript everything shows.
-- **Scroll progress**: the hairline at the top of the homepage (`.scroll-progress`).
-- **FAQs**: a numbered question index beside an answer card on desktop, swipeable answer cards on phones
-  (`.faq-deck` in `index.html`). To add a question, add a button to `.faq-index`, a matching `.faq-card` to
-  `.faq-track`, update the "/ 10" total, and add it to the FAQ schema at the bottom of `index.html`.
+  `fade` for the style, `seq` to make neighbouring items follow one another, `d1` to `d3` for a small delay.
+  With reduced motion nothing animates; without JavaScript everything shows.
+- **FAQs**: a numbered question index beside an answer card on desktop, swipeable cards on phones. To add a
+  question, add a button to `.faq-index`, a matching `.faq-card` to `.faq-track`, update the "/ 11" total, and add
+  it to the FAQ schema at the bottom of `index.html`. The build checks all three match.
 
-## Booking (test mode)
+## Team
 
-The full Book Now journey works: "Choose a time", the four steps as a progress indicator, APE sessions only
-(sample times: Tuesdays and Thursdays at 9am, 11am and 2pm Sydney time, 48 hours' minimum notice, six weeks ahead),
-the details form, the deposit and cancellation policy directly above the payment button with a required checkbox
-(the button stays disabled until it is ticked), and the confirmation screen. **No payment is taken** and a
-"Test mode" note shows under the payment button.
+Three people, in this order: Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex Loupos (APE Lead),
+Lauren Bright (Dental Assistant). Even columns on desktop; on phones and tablets each person stacks, with a small
+portrait beside the name.
 
-The integration point is the `getSlots()` function and the payment step in `assets/site.js` (marked
-`INTEGRATION POINT`). To connect it we need:
-
-1. Where APE availability comes from: the practice booking system (a dedicated APE appointment type exposed by API
-   or an online booking link) or sessions managed by GYA, with reception entering each booking.
-2. The real APE days, times, clinicians, capacity and location.
-3. The payment gateway for the $100 deposit (Stripe recommended) and the practice's account.
-4. Who is notified: SMTP2GO to reception, the SmileOx intake address and rowayne@gyaclients.com, plus the patient
-   confirmation email.
-5. Deposit accounting: whether the $100 comes off the $350 fee, and how transfers and refunds are handled.
-
-A live payment needs a small serverless function (Vercel supports this alongside static files), so connecting it
-will add an `api` folder to this repo.
+- **Bios**: Alex's and Lauren's show "Bio coming soon" (marked `<!-- TODO: client to supply bio -->` in
+  `index.html`). Replace the `<p class="bio-soon ...">` with one or more `<p class="bio reveal">...</p>`.
+- **Photos**: Alex and Lauren have initials placeholders (marked `<!-- TODO: client to supply photo -->`). To add a
+  photo, save it as WebP (about 1600 px wide) in `images/` (for example `images/team-alex-loupos.webp`) and replace
+  the `<div class="frame ph arch portrait" ...>...</div>` with
+  `<div class="frame arch portrait"><img src="/images/team-alex-loupos.webp" width="1600" height="1067" alt="Alex Loupos, APE Lead" sizes="(max-width: 900px) 30vw, 30vw" loading="lazy" decoding="async" style="object-position:50% 30%"/></div>`
+  (use the photo's real width and height). For Lorna's new photo, save it over `images/team-lorna-gladwin.webp`.
 
 ## Images
 
-| File | Where |
-|---|---|
-| `images/home-hero.webp` | Hero |
-| `images/home-heart-of-the-experience.webp` | The heart of the experience |
-| `images/understanding-hero.webp` | "What if your dental care started with understanding your anxiety first?" |
-| `images/understanding-our-approach.webp` | Our approach, "We work with it" |
-| `images/faqs-hero.webp` | Who is The Anxious Patient Experience™ for? |
-| `images/meet-the-team-hero.webp` | Meet the Team banner |
-| `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin |
-| `images/book-now-hero.webp` | Book Now hero |
-| `images/social-share.jpg` | Share image (og:image) on every page, 1200 x 630 |
-| `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, and the logo in the search schema |
-| `apple-touch-icon.png` | Home screen icon on phones |
+All clinic-looking images were replaced on 13 Oct 2026 at Lorna's request (they could give a false impression of
+the real clinic). Only non-dental lifestyle imagery is used until genuine photos of the Cronulla practice arrive.
 
-**New team photos.** Lorna: save the new photo over `images/team-lorna-gladwin.webp` (WebP, about 1600 px wide,
-face roughly centred; the phone crop centres on the face). Alex: save the photo as `images/team-alex.webp`, then in
-`index.html` replace the placeholder `<div class="frame ph arch portrait" ...>...</div>` inside `#alex` with
-`<div class="frame arch portrait"><img src="/images/team-alex.webp" width="1600" height="1073" alt="Alex, APE Lead"
-sizes="(max-width: 900px) 30vw, 40vw" loading="lazy" decoding="async"/></div>` (use the photo's real width and
-height).
+| File | Where | Source |
+|---|---|---|
+| `images/home-hero-lamp.webp` | Hero | Generated for GYA (Higgsfield), royalty-free |
+| `images/home-heart-sensory.webp` | The heart of the experience | GYA image set ("Sensory support") |
+| `images/understanding-window-seat.webp` | "What if your dental care started with understanding your anxiety first?" | Generated for GYA (Higgsfield), royalty-free |
+| `images/understanding-our-approach.webp` | Our approach, "We work with it" | GYA image set |
+| `images/faqs-hero.webp` | Who is The Anxious Patient Experience™ for? | GYA image set |
+| `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin | Lorna's own photo (studio background added) |
+| `images/book-now-hero.webp` | Book Now hero | GYA image set |
+| `images/social-share-lamp.jpg` | Share image (og:image) on every page, 1200 x 630 | From the hero image |
+| `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, logo in the search schema | Client |
 
-To swap any other photo later, keep the same file name, or update the `src` in the page's `index.html`. Browsers keep
-images for a day, so a new photo under the same name can take up to a day to show for returning visitors.
+**Cronulla clinic photos**: the Meet the Team section has a marked spot (`<!-- CRONULLA CLINIC PHOTOS ... -->` in
+`index.html`) for a wide photo of the real practice. Genuine photos of the practice could also replace the hero or
+Book Now images. Never use stock or AI images of clinics, dental chairs, equipment or treatment rooms.
 
-When `assets/site.css` or `assets/site.js` changes, bump the `?v=` number on their links in every page
-(for example `site.css?v=1.0.5` to `site.css?v=1.0.6`) so returning visitors get the new version straight away.
+Browsers keep images for a day, so a new photo under an existing name can take up to a day to show for returning
+visitors; a new file name shows straight away. When `assets/site.css`, `assets/site.js` or
+`assets/site-config.js` changes, bump the `?v=` number on their links in every page.
 
-## Placeholders (square brackets, highlighted yellow on the site)
+## Booking (test mode)
+
+The Book Now journey works end to end: "Choose a time", the four steps, the details form, the deposit and
+cancellation policy with a required checkbox directly above the payment button, and the confirmation screen.
+**No payment is taken** and a "Test mode" note shows under the payment button.
+
+- Times come from `assets/site-config.js`: Wednesdays at 9:00 am, 10:20 am and 11:40 am at The Cronulla Dentists,
+  six weeks ahead.
+- **24-hour minimum notice** (Sydney time): times less than 24 hours away are never offered, and the check runs
+  again before each step and before payment, so a page left open cannot book a time that has become too close.
+  This is enforced in the browser only, because this site has no server step yet. When the live booking system is
+  connected, it must enforce the same 24-hour rule on its side.
+- A note near the booking button asks anyone needing an appointment within 24 hours to contact the clinic directly
+  (it links to the footer contact details).
+
+The integration point is the `getSlots()` function and the payment step in `assets/site.js` (marked
+`INTEGRATION POINT`). To connect it we need: where APE availability comes from (practice booking system or GYA),
+the payment gateway for the $100 deposit (Stripe recommended), who is notified (SMTP2GO to reception, the SmileOx
+intake address and rowayne@gyaclients.com, plus the patient), and the deposit accounting. A live payment needs a
+small serverless function, so connecting it will add an `api` folder to this repo.
+
+## Placeholders (highlighted yellow or marked "coming soon")
 
 | Placeholder | Where |
 |---|---|
-| `[Surname]` | Meet the Team, Alex's name |
-| Alex's bio | Current approved text is in place; Lorna is sending updated details |
-| New softer photos of Lorna and Alex | Meet the Team (see "New team photos" above) |
-| APE days and practice details | Booking sample times (Tuesdays and Thursdays) until the real days are confirmed |
-| `[Phone]`, `[Email]`, `[Practice address]` | Footer contact block, every page |
+| `[Phone]`, `[Email]`, `[Practice address]` | Footer contact block, every page (fill in `assets/site-config.js`) |
+| Alex's and Lauren's bios | Meet the Team, "Bio coming soon" |
+| Photos of Alex and Lauren, new photo of Lorna | Meet the Team (initials placeholders; Lorna's current photo stays) |
+| Cronulla clinic photos | Meet the Team marked spot, optionally hero and Book Now |
+| Footer disclaimer | `SHOW_INVASIVE_RISK_DISCLAIMER` pending GYA's confirmation |
 | Domain | `https://example.com` in canonical, OG and sitemap links |
 | Privacy policy text | `/privacy-policy/` |
-| Talk to Alex | Every "Talk to Alex" button goes to the footer contact block until Alex's contact method is confirmed |
-| Alex's portrait | Labelled placeholder on Meet the Team (needs real photography) |
+| Talk to Alex | Goes to the footer contact block until Alex's contact method is confirmed |
 
 ## UI labels not in the copy doc (for sign-off)
 
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
-you like support with? (optional)"), "Continue", "Back", the two form error messages, the test-mode note, "Skip to
-content", "Open menu" / "Close menu", "Previous question" / "Next question" and the "1 / 10" counter on the FAQ
-cards, "Questions" (screen reader label on the FAQ question index), "Photo to come" on Alex's placeholder, the
-link text on the forwarding pages, and "Page not found" / "Home" on the 404 page.
+you like support with? (optional)"), "Continue", "Back", the form error messages, the "less than 24 hours away"
+message, the test-mode note, "Skip to content", "Open menu" / "Close menu", "Previous question" / "Next question"
+and the "1 / 11" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Bio coming
+soon", "Photo of ... coming soon" (screen reader label on the initials), the link text on the forwarding pages, and
+"Page not found" / "Home" on the 404 page.
 
 ## Go-live checklist
 
 - [ ] Repo is private
 - [ ] iPhone check on the staging link (Safari): scroll the homepage top to bottom, open the menu and try each link,
       swipe the FAQ cards, tap Talk to Alex, run a test booking
-- [ ] Every yellow placeholder replaced (search the files for `[`)
-- [ ] Phone, email, address and APE location confirmed against the brief
+- [ ] Every yellow placeholder and "coming soon" replaced (search the files for `[` and `TODO`)
+- [ ] Contact details filled in `assets/site-config.js` and confirmed against the brief
+- [ ] Footer disclaimer confirmed with Lorna; `SHOW_INVASIVE_RISK_DISCLAIMER` set accordingly
 - [ ] `https://example.com` replaced with the live domain everywhere
-- [ ] Booking connected and tested end to end in test mode, then live
+- [ ] Booking connected and tested end to end in test mode, then live (with the 24-hour rule enforced server side)
 - [ ] Deposit and cancellation policy wording re-checked with Lorna on the live flow
-- [ ] Alex's portrait in place
+- [ ] Team photos and bios in place
 - [ ] Name on Lorna's scrubs in her portrait reads "Godwin": confirm the spelling with Lorna (the site uses Gladwin)
 - [ ] Lorna's profile never uses the word "specialist" (general dentist with a special interest)
 - [ ] Privacy policy supplied (Australian Privacy Principles, covers booking and deposit data)
