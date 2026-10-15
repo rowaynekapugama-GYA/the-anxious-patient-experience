@@ -1,6 +1,6 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "The Anxious Patient Experience website: plain HTML, CSS and JavaScript. The build step applies assets/site-config.js to every page and checks links.",
   "scripts": {

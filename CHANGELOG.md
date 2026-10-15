@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 (14 Oct 2026)
+
+- Fixes the Vercel deploy of 1.2.0, which stopped with "No Output Directory named public found". Now that the site
+  has a build step, Vercel publishes the `public` folder, so `npm run build` copies the finished site there
+  (scripts, package files and notes are left out). `public/` is added to `.gitignore`. No change to any page.
+
 ## 1.2.0 (13 Oct 2026)
 
 Lorna's revisions of 13 Oct 2026. Client copy used word for word.

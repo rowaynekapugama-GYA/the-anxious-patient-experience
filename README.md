@@ -28,7 +28,7 @@ The build replaces whatever sits between the `<!-- config:contact -->`, `<!-- co
 
 ```
 npm install      # nothing to download; it just records the project
-npm run build    # applies the settings, then checks every page
+npm run build    # applies the settings, checks every page, then copies the finished site into public/
 ```
 
 The check fails (with a plain-English list) if a link or #anchor points at nothing, an image or file is missing, the
@@ -42,8 +42,10 @@ release (`deploy-ape.sh` on a Mac, `deploy-ape.ps1` on Windows): they back up th
 run the build, commit, push and print the link.
 
 Vercel project settings: Framework Preset **Other**; Build Command `npm run build` (or the default); Output
-Directory empty (the repo root); no environment variables. Vercel runs the same build and stops the deploy if the
-check fails.
+Directory `public` (or the default, which is `public`); no environment variables. The build copies the finished
+site into `public/` (scripts, package files and notes stay out of it) and Vercel publishes that folder. If the
+check fails, Vercel stops the deploy and the live site does not change. `public/` is created by the build and is
+not committed (see `.gitignore`).
 
 Any `*.vercel.app` address is sent `X-Robots-Tag: noindex` (set in `vercel.json`), so the staging link never
 competes with the live site in Google.

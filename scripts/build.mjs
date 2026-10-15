@@ -6,16 +6,21 @@
       page (between the <!-- config:... --> markers), so a change in that one file reaches the whole site.
    2. Checks the site: every internal link and #anchor points at something real, every image and file exists,
       the structured data is valid, the FAQ counter matches the number of questions, and there are no em dashes.
+   3. Copies the finished site into public/, which is the folder Vercel publishes. Build tools, notes and
+      settings for developers (scripts/, package.json, README.md and so on) are left out of it.
 
    Run with: npm run build   (exits with an error message if anything is wrong)
    ========================================================================== */
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, rmSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SKIP_DIRS = new Set(['node_modules', '.git', '.vercel', '.next', 'scripts']);
+const SKIP_DIRS = new Set(['node_modules', '.git', '.vercel', '.next', 'scripts', 'public']);
+const OUT_DIR = 'public';
+// files at the top of the repo that are for developers, not for visitors
+const NOT_PUBLISHED = new Set(['package.json', 'package-lock.json', 'vercel.json', 'README.md', 'CHANGELOG.md', '.gitignore']);
 const problems = [];
 const problem = (file, msg) => problems.push(`${file}: ${msg}`);
 
@@ -135,4 +140,21 @@ if (problems.length) {
   console.error('');
   process.exit(1);
 }
-console.log(`Build complete: settings applied (${changed} page(s) updated), ${pages.size} pages checked, no problems found.`);
+/* ---------- 3. The finished site into public/ (what Vercel publishes) ---------- */
+const out = join(ROOT, OUT_DIR);
+rmSync(out, { recursive: true, force: true });
+let copied = 0;
+for (const file of walk(ROOT)) {
+  const r = rel(file);
+  const name = r.split('/').pop();
+  if (NOT_PUBLISHED.has(r) || name === '.DS_Store' || name.startsWith('.env')) continue;
+  const target = join(out, r);
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(file, target);
+  copied++;
+}
+if (!existsSync(join(out, 'index.html'))) {
+  console.error(`\nBuild failed: ${OUT_DIR}/index.html was not created.\n`);
+  process.exit(1);
+}
+console.log(`Build complete: settings applied (${changed} page(s) updated), ${pages.size} pages checked, no problems found. ${copied} files ready in ${OUT_DIR}/.`);
