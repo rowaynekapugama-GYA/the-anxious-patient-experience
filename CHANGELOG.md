@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.4 (15 Oct 2026)
+
+Meet the Team, at Rowayne's request. No change to copy, images or booking.
+
+- Dr Lorna Gladwin's bio now shows its first paragraph with a "Read more" button underneath. It opens the rest of the
+  bio and her quote with a gentle slide, and changes to "Read less". Works the same on phones, tablets and desktop.
+- Keyboard and screen reader friendly (a real button with aria-expanded). With reduced motion it opens without
+  animation; without JavaScript the full bio shows.
+
 ## 1.2.3 (15 Oct 2026)
 
 Images only, at Rowayne's request. No change to copy, layout, styles or booking.

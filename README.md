@@ -108,6 +108,11 @@ portrait beside the name.
   the `<div class="frame ph arch portrait" ...>...</div>` with
   `<div class="frame arch portrait"><img src="/images/team-alex-loupos.webp" width="1600" height="1067" alt="Alex Loupos, APE Lead" sizes="(max-width: 900px) 30vw, 30vw" loading="lazy" decoding="async" style="object-position:50% 30%"/></div>`
   (use the photo's real width and height). For Lorna's new photo, save it over `images/team-lorna-gladwin.webp`.
+- **Read more**: Lorna's bio shows its first paragraph, then a "Read more" button that opens the rest of the bio and
+  her quote (the button then reads "Read less"). The extra paragraphs sit inside
+  `<div class="bio-more" id="lorna-gladwin-more">`. Without JavaScript the full bio shows and the button stays
+  hidden. To use it for Alex or Lauren once their bios arrive, copy the same pattern with a new id and matching
+  `aria-controls` on the button.
 
 ## Images
 
@@ -176,7 +181,7 @@ small serverless function, so connecting it will add an `api` folder to this rep
 Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
 you like support with? (optional)"), "Continue", "Back", the form error messages, the "less than 24 hours away"
 message, the test-mode note, "Skip to content", "Open menu" / "Close menu", "Previous question" / "Next question"
-and the "1 / 11" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Bio coming
+and the "1 / 11" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Read more" / "Read less" on Lorna's bio, "Bio coming
 soon", "Photo of ... coming soon" (screen reader label on the initials), the link text on the forwarding pages, and
 "Page not found" / "Home" on the 404 page.
 

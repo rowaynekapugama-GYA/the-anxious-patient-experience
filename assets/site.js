@@ -97,6 +97,33 @@
   window.addEventListener('resize', onScroll);
   onFrame();
 
+  /* ---------- "Read more" on long bios ----------
+     Starts closed; the button opens and closes the rest. Without JavaScript the button stays hidden and all of
+     the bio shows. */
+  [].forEach.call(document.querySelectorAll('.read-more[aria-controls]'), function (btn) {
+    var more = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!more) return;
+    var label = btn.querySelector('.read-more-label');
+    function setOpen(open) {
+      more.classList.toggle('is-collapsed', !open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (label) label.textContent = open ? 'Read less' : 'Read more';
+      if (open) [].forEach.call(more.querySelectorAll('.reveal'), function (el) { el.classList.add('in'); });
+    }
+    setOpen(false);
+    btn.hidden = false;
+    btn.addEventListener('click', function () {
+      var open = btn.getAttribute('aria-expanded') !== 'true';
+      setOpen(open);
+      if (!open) {
+        /* after closing, make sure the button is still on screen */
+        var hdr = header ? header.getBoundingClientRect().bottom : 0;
+        var r = btn.getBoundingClientRect();
+        if (r.top < hdr + 8) btn.scrollIntoView({ behavior: SCROLL, block: 'center' });
+      }
+    });
+  });
+
   if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function () { window.location.reload(); });
   doc.classList.add('js-ready');
 

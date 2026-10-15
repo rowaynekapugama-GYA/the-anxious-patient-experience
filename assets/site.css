@@ -282,3 +282,21 @@ html:not(.js-ready) .scroll-progress{display:none}
 
 /* ---------- Pages without a hero (Privacy Policy, 404) ---------- */
 .plain-page main{min-height:50vh}
+
+/* ---------- Meet the Team: "Read more" on Lorna's bio (15 Oct 2026) ----------
+   The first paragraph always shows; the rest opens smoothly underneath. Without JavaScript everything shows. */
+.bio-more{display:grid;grid-template-rows:1fr;transition:grid-template-rows .6s var(--ease-calm)}
+.bio-more-inner{min-height:0;overflow:hidden}
+.bio-more.is-collapsed{grid-template-rows:0fr}
+.bio-more.is-collapsed .bio-more-inner{visibility:hidden;transition:visibility 0s linear .6s}
+.bio-more .bio:first-child{margin-top:0}
+.read-more{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:2px 0 0;padding:0;border:0;background:none;cursor:pointer;
+  font-family:var(--sans);font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--taupe-ink);
+  text-decoration:underline;text-decoration-color:var(--taupe);text-decoration-thickness:1px;text-underline-offset:6px}
+.read-more[hidden]{display:none}
+.read-more:hover{color:var(--navy)}
+.read-more:focus-visible{outline:2px solid var(--navy);outline-offset:4px;border-radius:6px}
+.read-more svg{width:15px;height:15px;flex:none;transition:transform .4s var(--ease-calm)}
+.read-more[aria-expanded=true] svg{transform:rotate(180deg)}
+@media (max-width:900px){.member .member-text>.read-more{justify-self:start}}
+@media (prefers-reduced-motion:reduce){.bio-more,.bio-more.is-collapsed .bio-more-inner,.read-more svg{transition:none}}
