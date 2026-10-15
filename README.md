@@ -111,27 +111,30 @@ portrait beside the name.
 
 ## Images
 
-All clinic-looking images were replaced on 13 Oct 2026 at Lorna's request (they could give a false impression of
-the real clinic). Only non-dental lifestyle imagery is used until genuine photos of the Cronulla practice arrive.
+Lorna asked (13 Oct 2026) that nothing look like a specific dental clinic unless it is genuine photography of her
+practices. Since 15 Oct 2026 the site uses object and detail images only: no rooms, interiors or seating areas a
+patient could mistake for the practice.
 
-| File | Where | Source |
+| File | Where | Notes |
 |---|---|---|
-| `images/home-hero-lamp.webp` | Hero | Generated for GYA (Higgsfield), royalty-free |
-| `images/home-heart-sensory.webp` | The heart of the experience | GYA image set ("Sensory support") |
-| `images/understanding-window-seat.webp` | "What if your dental care started with understanding your anxiety first?" | Generated for GYA (Higgsfield), royalty-free |
-| `images/understanding-our-approach.webp` | Our approach, "We work with it" | GYA image set |
-| `images/faqs-hero.webp` | Who is The Anxious Patient Experience™ for? | GYA image set |
-| `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin | Lorna's own photo (studio background added) |
-| `images/book-now-hero.webp` | Book Now hero | GYA image set |
-| `images/social-share-lamp.jpg` | Share image (og:image) on every page, 1200 x 630 | From the hero image |
+| `images/home-hero-calm-smile.webp` | Hero | Stock model photo. Hero only: never near Meet the Team, and never presented as a patient, team member or testimonial |
+| `images/home-heart-aligner-smile.webp` | The heart of the experience | Stock photo: woman holding a clear aligner |
+| `images/toothpaste-smile.webp` | "What if your dental care started with understanding your anxiety first?" | |
+| `images/understanding-approach-braces-smile.webp` | Our approach, "We work with it" | Stock photo: girl with braces |
+| `images/brushing-demo.webp` | Who is The Anxious Patient Experience™ for? | |
+| `images/team-lorna-gladwin.webp` | Meet the Team, Dr Lorna Gladwin | Lorna's own photo |
+| `images/book-now-toothpaste-smile.webp` | Book Now hero | Tighter crop of the toothpaste smile |
+| `images/social-share-toothpaste-smile.jpg` | Share image (og:image, twitter:image) on every page, 1200 x 630 | |
 | `images/ape-logo.webp`, `images/ape-logo.png` | Header and footer logo, logo in the search schema | Client |
+
+All photos carry the same gentle warm grade so they sit with the cream page colour (#F7F4EF).
 
 **Cronulla clinic photos**: the Meet the Team section has a marked spot (`<!-- CRONULLA CLINIC PHOTOS ... -->` in
 `index.html`) for a wide photo of the real practice. Genuine photos of the practice could also replace the hero or
-Book Now images. Never use stock or AI images of clinics, dental chairs, equipment or treatment rooms.
+Book Now images. Never use stock or AI images of clinics, dental chairs, equipment, treatment rooms or waiting areas.
 
-Browsers keep images for a day, so a new photo under an existing name can take up to a day to show for returning
-visitors; a new file name shows straight away. When `assets/site.css`, `assets/site.js` or
+Use a new file name for a new photo (and update the `src`): browsers and Vercel keep images for a day, so a new
+photo under an existing name can take up to a day to show. When `assets/site.css`, `assets/site.js` or
 `assets/site-config.js` changes, bump the `?v=` number on their links in every page.
 
 ## Booking (test mode)

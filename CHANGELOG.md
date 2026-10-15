@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.3 (15 Oct 2026)
+
+Images only, at Rowayne's request. No change to copy, layout, styles or booking.
+
+- The heart of the experience: home-heart-sensory.webp to home-heart-aligner-smile.webp (a young woman smiling and
+  holding a clear aligner).
+- Our approach: understanding-our-approach.webp to understanding-approach-braces-smile.webp (a smiling girl with
+  braces).
+- Same gentle warm grade as the other photos; new alt text, width and height; old files deleted.
+
+## 1.2.2 (15 Oct 2026)
+
+Images only. Per Lorna's feedback, every image that showed a room or interior a patient could mistake for the practice
+is replaced with an object or detail image. No change to copy, layout, styles or booking.
+
+- Hero: home-hero-lamp.webp to home-hero-calm-smile.webp (a woman smiling at home).
+- "What if your dental care started...": understanding-window-seat.webp to toothpaste-smile.webp.
+- Who is The Anxious Patient Experience™ for?: faqs-hero.webp to brushing-demo.webp.
+- Book Now hero: book-now-hero.webp to book-now-toothpaste-smile.webp (tighter crop).
+- Share image: social-share-lamp.jpg to social-share-toothpaste-smile.jpg (og:image and twitter:image on every page).
+- Kept (objects or details, not places): home-heart-sensory.webp, understanding-our-approach.webp, Lorna's portrait.
+- New photos have a gentle warm grade, new alt text and correct width and height; replaced files deleted.
+
 ## 1.2.1 (14 Oct 2026)
 
 - Fixes the Vercel deploy of 1.2.0, which stopped with "No Output Directory named public found". Now that the site
