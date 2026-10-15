@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.5 (15 Oct 2026)
+
+Footer disclaimer only, per Lorna's 15 Oct email. No change to copy, images, layout or booking.
+
+- Removed the "Any invasive procedure carries risks..." line from the footer on every page
+  (SHOW_INVASIVE_RISK_DISCLAIMER is now false in assets/site-config.js). It is only needed if the site shows before
+  and after photos; the wording stays in the settings file so it can be switched back on.
+- The footer keeps Lorna's preferred disclaimer, unchanged.
+
 ## 1.2.4 (15 Oct 2026)
 
 Meet the Team, at Rowayne's request. No change to copy, images or booking.

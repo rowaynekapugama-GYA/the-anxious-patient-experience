@@ -18,9 +18,10 @@ window.APE_CONFIG = {
   },
 
   /* Footer disclaimer.
-     The client prefers the first line. GYA is confirming whether the second (invasive procedure) line is required.
-     Once confirmed, set SHOW_INVASIVE_RISK_DISCLAIMER to false to remove it from every page. */
-  SHOW_INVASIVE_RISK_DISCLAIMER: true,
+     The general line is the client's preferred wording (confirmed 15 Oct 2026).
+     The invasive procedure line is switched off: GYA confirmed it is only needed if the site shows before and after
+     photos. Set SHOW_INVASIVE_RISK_DISCLAIMER back to true if that changes. */
+  SHOW_INVASIVE_RISK_DISCLAIMER: false,
   disclaimer: {
     general: 'The information on this website is general in nature and does not replace individual assessment or advice from a registered dental practitioner. Suitability for The Anxious Patient Experience™, and for any treatment or sedation options discussed, will be assessed individually with your dentist.',
     invasiveRisk: 'Any invasive procedure carries risks. Before proceeding, you should seek a second opinion from an appropriately qualified health practitioner.'

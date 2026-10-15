@@ -15,7 +15,7 @@ you) and commit.
 | Setting | What it controls |
 |---|---|
 | `contact.phone`, `contact.email`, `contact.address` | Footer contact block on every page. Empty (`''`) shows the yellow placeholder. |
-| `SHOW_INVASIVE_RISK_DISCLAIMER` | `true` shows the "Any invasive procedure carries risks..." line under the footer disclaimer. Set to `false` once GYA confirms it is not required. |
+| `SHOW_INVASIVE_RISK_DISCLAIMER` | Off (`false`) since 15 Oct 2026. `true` shows the "Any invasive procedure carries risks..." line under the footer disclaimer. Only needed if the site shows before and after photos. |
 | `disclaimer.general`, `disclaimer.invasiveRisk` | The two footer disclaimer lines. |
 | `clinic` | The APE clinic (The Cronulla Dentists, 11–13 Cronulla Street, Cronulla NSW 2230), shown on Book Now and in the booking summary. |
 | `booking.days`, `booking.startTimes` | Appointment days and times used by the booking flow (Wednesdays at 9:00 am, 10:20 am and 11:40 am, Sydney time). Not shown as fixed text anywhere. |
@@ -171,7 +171,6 @@ small serverless function, so connecting it will add an `api` folder to this rep
 | Alex's and Lauren's bios | Meet the Team, "Bio coming soon" |
 | Photos of Alex and Lauren, new photo of Lorna | Meet the Team (initials placeholders; Lorna's current photo stays) |
 | Cronulla clinic photos | Meet the Team marked spot, optionally hero and Book Now |
-| Footer disclaimer | `SHOW_INVASIVE_RISK_DISCLAIMER` pending GYA's confirmation |
 | Domain | `https://example.com` in canonical, OG and sitemap links |
 | Privacy policy text | `/privacy-policy/` |
 | Talk to Alex | Goes to the footer contact block until Alex's contact method is confirmed |
@@ -192,7 +191,8 @@ soon", "Photo of ... coming soon" (screen reader label on the initials), the lin
       swipe the FAQ cards, tap Talk to Alex, run a test booking
 - [ ] Every yellow placeholder and "coming soon" replaced (search the files for `[` and `TODO`)
 - [ ] Contact details filled in `assets/site-config.js` and confirmed against the brief
-- [ ] Footer disclaimer confirmed with Lorna; `SHOW_INVASIVE_RISK_DISCLAIMER` set accordingly
+- [x] Footer disclaimer confirmed with Lorna (15 Oct 2026); invasive procedure line off
+- [ ] If before and after photos are ever added, set `SHOW_INVASIVE_RISK_DISCLAIMER` to `true`
 - [ ] `https://example.com` replaced with the live domain everywhere
 - [ ] Booking connected and tested end to end in test mode, then live (with the 24-hour rule enforced server side)
 - [ ] Deposit and cancellation policy wording re-checked with Lorna on the live flow
