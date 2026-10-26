@@ -242,7 +242,7 @@ html:not(.js-ready) .scroll-progress{display:none}
   .member .member-text{display:contents}
   .member .member-photo{grid-row:1 / span 2;grid-column:1;max-width:none;order:0;align-self:center}
   .member .member-photo .frame{aspect-ratio:4/4.7;border-radius:clamp(52px,15vw,75px) clamp(52px,15vw,75px) 22px 22px;box-shadow:0 18px 36px -30px rgba(40,72,88,.45)}
-  .member .member-photo img{object-position:52% 18%!important;transform:scale(1.35);transform-origin:52% 22%}
+  .member .member-photo img{object-position:50% 20%!important;transform:scale(1.25);transform-origin:50% 24%}
   .member .member-name{grid-column:2;align-self:end;margin:0 0 4px;font-size:clamp(24px,6.6vw,30px)}
   .member .role{grid-column:2;align-self:start;margin:0;font-size:11.5px;letter-spacing:.12em;line-height:1.5}
   .member .member-text>*:not(.member-name):not(.role){grid-column:1 / -1}
@@ -300,3 +300,26 @@ html:not(.js-ready) .scroll-progress{display:none}
 .read-more[aria-expanded=true] svg{transform:rotate(180deg)}
 @media (max-width:900px){.member .member-text>.read-more{justify-self:start}}
 @media (prefers-reduced-motion:reduce){.bio-more,.bio-more.is-collapsed .bio-more-inner,.read-more svg{transition:none}}
+
+/* ---------- 26 Oct 2026: Lorna's images, contact details, booking requests ---------- */
+/* <picture> wraps each photo (WebP sizes plus a JPG fallback); it takes no space of its own, so frames style the img as before */
+picture{display:contents}
+/* "What if your dental care started..." is now a two-tone quote band; the heading keeps the band's own type sizes */
+.bridge-quote h2.two-tone-lines{max-width:none;margin:0;font-size:inherit;font-weight:inherit;letter-spacing:normal}
+.bridge-quote .l1{max-width:26ch}
+/* footer contact block */
+.foot .contact .contact-name{font-family:var(--serif);font-size:18px;color:var(--navy);margin-bottom:12px}
+.foot .contact .contact-email{margin-top:16px}
+.foot .contact .contact-label{display:block;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--taupe-ink);margin-bottom:2px}
+.foot .contact a{overflow-wrap:anywhere}
+.clinic-address a{color:inherit;text-decoration:underline;text-decoration-color:var(--taupe);text-underline-offset:3px}
+.notice-24h a[href^="tel:"]{white-space:nowrap}
+/* booking: collection notice tick box, spam trap, sending state */
+.check.consent{margin:2px 0 0;font-size:15.5px;color:var(--ink-soft)}
+.check.consent a{color:var(--navy);text-decoration:underline;text-underline-offset:3px}
+.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.send-err{margin:0 0 18px}
+.btn[aria-busy=true]{cursor:progress;opacity:.75}
+.confirm .confirm-next{margin-top:18px;margin-bottom:0}
+/* hero subline: below 24px the lighter taupe is under 4.5:1 on cream, so use the darker text taupe (4.98:1) */
+.hero .sub{color:var(--taupe-ink)}

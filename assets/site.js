@@ -2,8 +2,9 @@
    Continuous scroll (fixed header with section links, gentle scroll-triggered motion, a hairline scroll progress),
    FAQ cards and the Book Now flow. Clinic details, appointment times and booking rules come from
    assets/site-config.js (window.APE_CONFIG).
-   The booking flow runs in test mode: sample APE sessions, no payment taken.
-   BOOKING INTEGRATION POINT: replace getSlots() and the pay step with the live booking system and payment gateway. */
+   Booking (26 Oct 2026): the site does not connect to Core Practice. The request is sent to /api/booking, which emails
+   it to the APE inbox; the team blocks the time in Core Practice and confirms with the patient.
+   The deposit step stays in test mode: no payment is taken. PAYMENT INTEGRATION POINT: the "pay" action below. */
 (function () {
   'use strict';
 
@@ -172,18 +173,26 @@
   if (!bookingEl) return;
   var flowBox = bookingEl.parentNode;
 
-  var COPY = {"steps": ["Choose your appointment", "Enter your details", "Pay your $100 deposit", "Booking confirmed"], "policy": {"items": [{"lead": "48 hours' notice or more:", "text": "your deposit can be transferred to a new appointment or refunded."}, {"lead": "Less than 48 hours' notice or non-attendance:", "text": "your deposit may be retained."}, {"lead": "If anxiety is making it hard to attend:", "text": "please contact us. We would much rather hear from you than have you simply not come."}], "checkbox": "I have read and understand the deposit and cancellation policy.", "paymentButton": "Pay $100 deposit"}, "confirmation": {"heading": "You're booked in.", "body": "Your appointment details have been sent to your email. Before your visit, we'll be in touch to learn a little more about you and what will help you feel comfortable.", "accent": "You've already taken the hardest step."}};
+  var COPY = {"steps": ["Choose your appointment", "Enter your details", "Pay your $100 deposit", "Booking confirmed"], "policy": {"items": [{"lead": "48 hours' notice or more:", "text": "your deposit can be transferred to a new appointment or refunded."}, {"lead": "Less than 48 hours' notice or non-attendance:", "text": "your deposit may be retained."}, {"lead": "If anxiety is making it hard to attend:", "text": "please contact us. We would much rather hear from you than have you simply not come."}], "checkbox": "I have read and understand the deposit and cancellation policy.", "paymentButton": "Pay $100 deposit"}, "confirmation": {"heading": "You're booked in.", "body": "Your appointment details have been sent to your email. Before your visit, we'll be in touch to learn a little more about you and what will help you feel comfortable.", "accent": "You've already taken the hardest step.", "next": "The APE team will be in touch to confirm your appointment and send your new patient information pack."}};
+  /* confirmation.next is NEW COPY (26 Oct 2026) waiting on the client's sign-off */
   /* Booking settings live in assets/site-config.js. The values here are only a fallback if that file fails to load. */
   var CONFIG = window.APE_CONFIG || {};
   var SESSIONS = CONFIG.booking || {"days": [3], "startTimes": ["09:00", "10:20", "11:40"], "weeksAhead": 6, "minNoticeHours": 24, "timeZone": "Australia/Sydney"};
   var CLINIC = CONFIG.clinic || null;
+  var PHONE = (CONFIG.contact && CONFIG.contact.phone) || '(02) 8599 9815';
+  var ENDPOINT = '/api/booking/';  /* trailing slash: vercel.json sets trailingSlash, so this skips a redirect */
   var UI = {
     cont: 'Continue', back: 'Back', none: 'No appointments are available right now.',
     name: 'Your name', email: 'Email address', phone: 'Phone number (optional)',
     notes: 'What would you like support with? (optional)',
     errName: 'Please enter your name.', errEmail: 'Please enter a valid email address.',
-    mockNote: 'Test mode: no payment is taken. The live booking and payment integration connects here.',
-    tooSoon: 'That time is now less than 24 hours away, so it can no longer be booked online. Please choose another time, or contact the clinic directly.'
+    mockNote: 'Test mode: no payment is taken. Your booking request is still sent to the APE team.',
+    tooSoon: 'That time is now less than 24 hours away, so it can no longer be booked online. Please choose another time, or contact the clinic directly on ' + PHONE + '.',
+    /* NEW UI COPY (26 Oct 2026), waiting on the client's sign-off */
+    consent: 'I agree to the APE team using these details to arrange my appointment, as set out in the <a href="/privacy-policy/">Privacy Policy</a>.',
+    errConsent: 'Please tick this box so we can arrange your appointment.',
+    sending: 'Sending your request',
+    sendFail: 'Sorry, we could not send your booking request just now. Please try again, or contact the clinic on ' + PHONE + '.'
   };
 
   function typeset(s) {
@@ -244,7 +253,7 @@
   function fmtTime(iso) { return new Intl.DateTimeFormat('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso)).replace(' ', ' '); }
   function dayKey(iso) { return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date(iso)); }
 
-  var state = { step: 1, slots: getSlots(), slot: null, details: { name: '', email: '', phone: '', notes: '' }, errors: {}, ack: false, ref: '' };
+  var state = { step: 1, slots: getSlots(), slot: null, details: { name: '', email: '', phone: '', notes: '', website: '' }, consent: false, errors: {}, ack: false, ref: '', sending: false };
 
   function stepsHtml() {
     return '<ol class="steps" aria-label="How booking works">' + COPY.steps.map(function (label, i) {
@@ -288,6 +297,9 @@
         '<div class="field"><label for="bk-email">' + UI.email + '</label><input id="bk-email" name="email" type="email" autocomplete="email" required value="' + esc(d.email) + '"' + (e.email ? ' aria-invalid="true" aria-describedby="bk-email-err"' : '') + '>' + (e.email ? '<div class="err" id="bk-email-err">' + e.email + '</div>' : '') + '</div>' +
         '<div class="field full"><label for="bk-phone">' + UI.phone + '</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" value="' + esc(d.phone) + '"></div>' +
         '<div class="field full"><label for="bk-notes">' + UI.notes + '</label><textarea id="bk-notes" name="notes">' + esc(d.notes) + '</textarea></div>' +
+        '<div class="hp" aria-hidden="true"><label for="bk-website">Leave this empty</label><input id="bk-website" name="website" tabindex="-1" autocomplete="off" value="' + esc(d.website) + '"></div>' +
+        '<div class="field full"><label class="check consent"><input type="checkbox" name="consent" required' + (state.consent ? ' checked' : '') + (e.consent ? ' aria-invalid="true" aria-describedby="bk-consent-err"' : '') + '><span>' + UI.consent + '</span></label>' +
+        (e.consent ? '<div class="err" id="bk-consent-err">' + e.consent + '</div>' : '') + '</div>' +
         '</div><div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to1">' + UI.back + '</button><button type="submit" class="btn">' + UI.cont + '</button></div></form>';
     }
     if (s === 3) {
@@ -295,15 +307,18 @@
         COPY.policy.items.map(function (p) { return '<li><strong>' + t(p.lead) + '</strong> ' + t(p.text) + '</li>'; }).join('') +
         '</ul></div><label class="check"><input type="checkbox" required' + (state.ack ? ' checked' : '') + '><span>' + t(COPY.policy.checkbox) + '</span></label>' +
         chosenHtml(' style="margin-top:0"') +
-        '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2">' + UI.back + '</button>' +
-        '<button type="button" class="btn" data-act="pay"' + (state.ack ? ' aria-disabled="false"' : ' disabled aria-disabled="true"') + '>' + t(COPY.policy.paymentButton) + '</button></div>' +
+        (state.errors.send ? '<p class="err send-err" role="alert">' + esc(state.errors.send) + '</p>' : '') +
+        '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2"' + (state.sending ? ' disabled' : '') + '>' + UI.back + '</button>' +
+        '<button type="button" class="btn" data-act="pay"' + (state.ack && !state.sending ? ' aria-disabled="false"' : ' disabled aria-disabled="true"') + (state.sending ? ' aria-busy="true"' : '') + '>' +
+        (state.sending ? esc(UI.sending) + '…' : t(COPY.policy.paymentButton)) + '</button></div>' +
         '<p class="integration-note">' + UI.mockNote + '</p></div>';
     }
     if (s === 4) {
       h += '<div class="confirm"><h3>' + t(COPY.confirmation.heading) + '</h3>' +
         (state.slot ? '<p class="summary">' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start) + (state.ref ? ' · ' + state.ref : '')) +
           (CLINIC ? '<span class="chosen-clinic">' + clinicLine() + '</span>' : '') + '</p>' : '') +
-        '<p>' + t(COPY.confirmation.body) + '</p><p class="accent">' + t(COPY.confirmation.accent) + '</p></div>';
+        '<p>' + t(COPY.confirmation.body) + '</p><p class="accent">' + t(COPY.confirmation.accent) + '</p>' +
+        '<p class="confirm-next">' + t(COPY.confirmation.next) + '</p></div>';
     }
     return h;
   }
@@ -343,17 +358,42 @@
     var a = act.getAttribute('data-act');
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) go(2);
-    if (a === 'pay' && state.ack) {
+    if (a === 'pay' && state.ack && !state.sending) {
       if (!bookable(state.slot)) { go(3); return; }
-      state.ref = 'APE-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      go(4);
+      submitRequest();
     }
   });
+
+  /* Sends the booking request to the APE inbox (api/booking.js). Payment is still in test mode. */
+  function submitRequest() {
+    state.sending = true;
+    state.errors = {};
+    render(false);
+    var d = state.details;
+    var payload = { slotStart: state.slot.start, name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim(), notes: d.notes.trim(),
+      website: d.website, consent: state.consent, policy: state.ack };
+    var request = window.APE_BOOKING_PREVIEW
+      ? Promise.resolve({ ok: true, ref: 'APE-PREVIEW' })
+      : fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+          .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+    request.then(function (res) {
+      state.sending = false;
+      if (res && res.ok) { state.ref = res.ref || ''; go(4); return; }
+      if (res && res.error === 'too_soon') { state.slot = null; go(3); return; }
+      state.errors = { send: UI.sendFail };
+      render(false);
+    }, function () {
+      state.sending = false;
+      state.errors = { send: UI.sendFail };
+      render(false);
+    });
+  }
   flowBox.addEventListener('input', function (ev) {
     var el = ev.target;
     if (el.name && state.details.hasOwnProperty(el.name)) state.details[el.name] = el.value;
   });
   flowBox.addEventListener('change', function (ev) {
+    if (ev.target.name === 'consent') { state.consent = ev.target.checked; return; }
     if (ev.target.matches('.check input')) {
       state.ack = ev.target.checked;
       var pay = flowBox.querySelector('[data-act="pay"]');
@@ -366,8 +406,9 @@
     var d = state.details, errs = {};
     if (!d.name.trim()) errs.name = UI.errName;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) errs.email = UI.errEmail;
+    if (!state.consent) errs.consent = UI.errConsent;
     state.errors = errs;
-    if (errs.name || errs.email) { render(false); return; }
+    if (errs.name || errs.email || errs.consent) { render(false); return; }
     go(3);
   });
 

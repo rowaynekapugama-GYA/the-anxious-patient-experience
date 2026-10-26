@@ -2,12 +2,14 @@
 /* ==========================================================================
    Build and check for The Anxious Patient Experience™ website (plain HTML, no dependencies).
 
-   1. Reads assets/site-config.js and writes the contact details, footer disclaimer and clinic details into every
-      page (between the <!-- config:... --> markers), so a change in that one file reaches the whole site.
+   1. Reads assets/site-config.js and writes the contact details, footer disclaimer, clinic details, phone number and
+      Dentist structured data into every page (between the <!-- config:... --> markers), so a change in that one file
+      reaches the whole site.
    2. Checks the site: every internal link and #anchor points at something real, every image and file exists,
       the structured data is valid, the FAQ counter matches the number of questions, and there are no em dashes.
    3. Copies the finished site into public/, which is the folder Vercel publishes. Build tools, notes and
-      settings for developers (scripts/, package.json, README.md and so on) are left out of it.
+      settings for developers (scripts/, api/, package.json, README.md and so on) are left out of it. The booking
+      email function in api/ is deployed by Vercel separately, as a serverless function.
 
    Run with: npm run build   (exits with an error message if anything is wrong)
    ========================================================================== */
@@ -19,6 +21,7 @@ import vm from 'node:vm';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SKIP_DIRS = new Set(['node_modules', '.git', '.vercel', '.next', 'scripts', 'public']);
 const OUT_DIR = 'public';
+// api/ holds the booking email function: checked for em dashes, never copied into public/
 // files at the top of the repo that are for developers, not for visitors
 const NOT_PUBLISHED = new Set(['package.json', 'package-lock.json', 'vercel.json', 'README.md', 'CHANGELOG.md', '.gitignore']);
 const problems = [];
@@ -54,16 +57,52 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const placeholder = (label) => `<mark class="placeholder" title="Placeholder: waiting on the client">[${label}]</mark>`;
 
 const contact = C.contact;
+const clinic = C.clinic;
+// (02) 8599 9815 -> +61285999815
+const telOf = (phone) => {
+  const d = String(phone).replace(/[^\d+]/g, '');
+  return d.startsWith('+') ? d : d.startsWith('0') ? `+61${d.slice(1)}` : d;
+};
+const phoneLink = contact.phone ? `<a href="tel:${esc(telOf(contact.phone))}">${esc(contact.phone)}</a>` : placeholder('Phone');
+const mailLink = (addr, label) => (addr ? `<a href="mailto:${esc(addr)}">${esc(addr)}</a>` : placeholder(label));
+const address = `${clinic.street}, ${clinic.suburb}`;
+const addressLink = clinic.mapsUrl
+  ? `<a href="${esc(clinic.mapsUrl)}" target="_blank" rel="noopener">${esc(address)}<span class="sr-only"> (opens Google Maps)</span></a>`
+  : esc(address);
+const addrParts = String(clinic.suburb).match(/^(.*?)\s+([A-Z]{2,3})\s+(\d{4})$/) || [null, clinic.suburb, '', ''];
+const postal = { '@type': 'PostalAddress', streetAddress: clinic.street, addressLocality: addrParts[1], addressRegion: addrParts[2], postalCode: addrParts[3], addressCountry: 'AU' };
+const intlPhone = contact.phone ? telOf(contact.phone).replace(/^\+61(\d)(\d{4})(\d{4})$/, '+61 $1 $2 $3') : undefined;
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Dentist',
+  name: clinic.name,
+  address: postal,
+  telephone: intlPhone,
+  email: contact.receptionEmail || undefined,
+  hasMap: clinic.mapsUrl || undefined,
+  department: {
+    '@type': 'Dentist',
+    name: 'The Anxious Patient Experience™',
+    description: 'A nervous-system-aware approach to dental care.',
+    address: postal,
+    telephone: intlPhone,
+    email: contact.apeEmail || undefined,
+  },
+};
 const REGIONS = {
   contact: [
-    `<li>${contact.phone ? `<a href="tel:${esc(String(contact.phone).replace(/[^\d+]/g, ''))}">${esc(contact.phone)}</a>` : placeholder('Phone')}</li>`,
-    `<li>${contact.email ? `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>` : placeholder('Email')}</li>`,
-    `<li>${contact.address ? esc(contact.address) : placeholder('Practice address')}</li>`,
+    `<li class="contact-name">${esc(clinic.name)}</li>`,
+    `<li>${addressLink}</li>`,
+    `<li>${phoneLink}</li>`,
+    `<li class="contact-email"><span class="contact-label">APE enquiries</span>${mailLink(contact.apeEmail, 'APE email')}</li>`,
+    `<li class="contact-email"><span class="contact-label">General practice enquiries</span>${mailLink(contact.receptionEmail, 'Reception email')}</li>`,
   ].join(''),
+  phone: phoneLink,
+  schema: `<script type="application/ld+json">${JSON.stringify(schema)}</script>`,
   disclaimer:
     `<p class="disclaimer">${esc(C.disclaimer.general)}</p>` +
     (C.SHOW_INVASIVE_RISK_DISCLAIMER ? `<p class="disclaimer disclaimer-risk">${esc(C.disclaimer.invasiveRisk)}</p>` : ''),
-  clinic: `<span class="clinic-name">${esc(C.clinic.name)}</span> <span class="clinic-address">${esc(C.clinic.street)}, ${esc(C.clinic.suburb)}</span>`,
+  clinic: `<span class="clinic-name">${esc(clinic.name)}</span> <span class="clinic-address">${addressLink}</span>`,
 };
 
 const files = walk(ROOT);
@@ -111,6 +150,13 @@ for (const [path, { file, html, ids }] of pages) {
     }
   }
   if (isRedirect) continue;
+  // every file in a srcset exists
+  for (const m of html.matchAll(/\ssrcset="([^"]+)"/g)) {
+    for (const part of m[1].split(',')) {
+      const url = part.trim().split(/\s+/)[0];
+      if (url.startsWith('/') && !existsSync(join(ROOT, url.split('?')[0]))) problem(file, `srcset file "${url}" does not exist`);
+    }
+  }
   // structured data
   for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
     try { JSON.parse(m[1]); } catch { problem(file, 'structured data (ld+json) is not valid JSON'); }
@@ -147,7 +193,7 @@ let copied = 0;
 for (const file of walk(ROOT)) {
   const r = rel(file);
   const name = r.split('/').pop();
-  if (NOT_PUBLISHED.has(r) || name === '.DS_Store' || name.startsWith('.env')) continue;
+  if (NOT_PUBLISHED.has(r) || r.startsWith('api/') || name === '.DS_Store' || name.startsWith('.env')) continue;
   const target = join(out, r);
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(file, target);

@@ -1,5 +1,154 @@
 # Changelog
 
+## 1.3.1 (26 Oct 2026)
+
+Meet the Team only. No change to copy, layout, booking or the other images.
+
+- Dr Lorna Gladwin's new photo: `images/team-lorna-gladwin-2026-10-26.webp` (1086 x 1448, as supplied) replaces
+  `team-lorna-gladwin.webp`, which is deleted. New file name so browsers and Vercel show it straight away.
+- Framing: centred on her face on desktop; on phones and tablets the small portrait beside her name is gently zoomed
+  to head and shoulders (the previous zoom was set for the old landscape photo). Alt text unchanged.
+- This also closes the open item about the old portrait's scrubs reading "Godwin".
+
+## 1.3.0 (26 Oct 2026): Round 4 client updates
+
+Delivered as `ape-website-v4-2026-10-26.zip`. Lorna's email of 26 Oct 2026, plus a full audit of every earlier
+request. The design, palette, type, spacing and motion are unchanged.
+
+### Part A: new changes
+
+**A1. Imagery: Lorna's five images.** Every stock image with a face is gone (hero calm smile, aligner smile,
+toothpaste smiles, braces smile, brushing demo, the old share image). The only faces left are the team's own photos.
+No clinic rooms, chairs or treatment spaces.
+
+| Image | Where | Why there |
+|---|---|---|
+| `ape-armchair-corner` | Hero | As suggested |
+| `ape-candle-book` | The heart of the experience | Keeps the warm, calm mood straight after the hero |
+| `ape-hands-comfort` | Our approach, "We work with it" | As suggested |
+| `ape-toothbrushes-eucalyptus` | Who is The Anxious Patient Experience™ for? | The homepage has no photo spot near "What happens after I book?" (it is an FAQ card), so it sits here instead |
+| `ape-textured-napkin` | Book Now hero | As suggested |
+
+- Five images for what were six photo spots, so "What if your dental care started with understanding your anxiety
+  first?" is now a two-tone quote band (the same style as the site's other quote sections) instead of text beside a
+  photo.
+- `ape-candle-book`: the book's cover and spine carried a legible third-party title. It has been removed, so the
+  book reads as plain white at every size. Nothing else in the photo was changed.
+- Each image: WebP at 800, 1400 and 2400 px wide plus a 1400 px JPG fallback, in a `<picture>`. Hero and Book Now
+  images are preloaded; everything below the fold is lazy-loaded. The two cooler photos (hands, toothbrushes) have
+  the site's gentle warm grade; the other three are as supplied.
+- New share image `social-share-armchair.jpg` (1200 x 630).
+- Alt text: armchair "A soft cream armchair beside a small wooden table with a white vase of olive branches and a lit
+  candle, in warm afternoon light"; candle "A lit candle in a glass resting on a plain white book, beside a stone vase
+  of dried flowers"; hands "One hand resting gently on another over a soft white blanket"; toothbrushes "Bamboo
+  toothbrushes in a glass jar beside a sprig of eucalyptus and folded white towels"; napkin "A textured cream napkin
+  with a small tooth outline, resting on soft draped fabric".
+- On phones the photos stay moderate (full column width, landscape crop) and always follow the section's heading and
+  text.
+
+**A2. Practice and contact details** (footer on every page and the Book Now page), all from `assets/site-config.js`:
+The Cronulla Dentists, 13 Cronulla Street, Cronulla NSW 2230 (linked to Google Maps), (02) 8599 9815
+(`tel:+61285999815`), theanxiouspatientexperience@gmail.com labelled "APE enquiries", and
+reception@thecronulladentists.com.au labelled "General practice enquiries". The address replaces 11–13 Cronulla
+Street everywhere. New `Dentist` JSON-LD on the homepage and Book Now, with the APE as a department. Staging stays
+noindex (the `X-Robots-Tag` header on `*.vercel.app`).
+
+**A3. Booking requests to the APE inbox** (no Core Practice connection). Same flow and design: choose appointment,
+details, deposit, confirmation.
+
+- New `api/booking.js` (Vercel serverless function, Resend). It checks the request again on the server (Wednesday,
+  9:00 / 10:20 / 11:40 am Sydney time, at least 24 hours away, within six weeks, required fields, both tick boxes),
+  emails the request to the APE inbox and sends the patient an acknowledgement. Hidden spam field. No keys in code.
+- 24-hour rule: times under 24 hours away (Sydney time) are never shown, and the server refuses them too. The note
+  now gives the number: "Need an appointment within the next 24 hours? Please contact the clinic directly on
+  (02) 8599 9815 so we have time to properly prepare for your visit."
+- Form kept minimal (name, email, optional phone, optional note). New collection notice tick box (see New copy).
+- Deposit stays in **test mode**: no payment is taken. Provider and deposit handling still to be confirmed.
+- Deposit and cancellation policy still sits directly above the payment button with the required tick box (approved
+  copy wording, which matches the three points in the brief).
+- Confirmation: "You've already taken the hardest step." is kept, with the new line underneath.
+- Appointment title stays "The Anxious Patient Experience™: New Patient Appointment" (colon rather than a dash, per
+  the site's no-dash style), 70 minutes | $350, $100 deposit.
+
+**Environment variables to add in Vercel** (Settings > Environment Variables, Production and Preview, then redeploy):
+
+| Variable | Value |
+|---|---|
+| `RESEND_API_KEY` | from Resend (required) |
+| `BOOKING_FROM` | a sender on a Resend-verified domain, e.g. `The Anxious Patient Experience <bookings@yourdomain.com.au>` (required) |
+| `BOOKING_NOTIFY_TO` | `theanxiouspatientexperience@gmail.com` |
+| `BOOKING_BCC` | leave empty (optional) |
+
+Until the first two are set, the last step shows the send-failure message with the clinic's phone number.
+
+### New copy needing client sign-off
+
+1. Confirmation screen, under "You've already taken the hardest step.": **"The APE team will be in touch to confirm
+   your appointment and send your new patient information pack."**
+2. The confirmation heading is still the approved "You're booked in.", but bookings are now confirmed by hand.
+   Suggest Lorna considers a softer heading (for example "We've received your request."). Not changed without her
+   sign-off.
+3. Collection notice tick box (details step): "I agree to the APE team using these details to arrange my
+   appointment, as set out in the Privacy Policy." Error: "Please tick this box so we can arrange your appointment."
+4. Footer labels: "APE enquiries", "General practice enquiries".
+5. 24-hour note: "...contact the clinic directly on (02) 8599 9815..." (number added).
+6. Booking messages: "Sending your request…"; "Sorry, we could not send your booking request just now. Please try
+   again, or contact the clinic on (02) 8599 9815."; too-soon message now ends "...or contact the clinic directly on
+   (02) 8599 9815."; test-mode note "Test mode: no payment is taken. Your booking request is still sent to the APE
+   team."
+7. Patient acknowledgement email. Subject "We have received your booking request | The Anxious Patient
+   Experience™". Body: "Hi [first name], / Thank you for your booking request for The Anxious Patient Experience™
+   New Patient Appointment. / Requested time: [day, date, time] (Sydney time) / Location: The Cronulla Dentists,
+   13 Cronulla Street, Cronulla NSW 2230 / Reference: [APE-XXXXXX] / The APE team will be in touch to confirm your
+   appointment and send your new patient information pack. No deposit has been taken yet. / If anything changes or
+   you have a question, simply reply to this email or call us on (02) 8599 9815. / Warm regards, The Anxious Patient
+   Experience™ team"
+8. Internal request email to the APE inbox (not patient facing): subject "APE booking request: [day, time], [name]
+   ([reference])", all details, and "Next step: block this time in Core Practice, then reply to the patient to
+   confirm the appointment and send the new patient information pack."
+
+### Part B: audit of earlier requests
+
+✅ already correct · 🔧 fixed now · ⚠️ needs input
+
+| # | Request | Status | Notes |
+|---|---|---|---|
+| 1 | Hero button "Discover the Experience ↓", next section only | ✅ | Down arrow is an icon; goes to `#intro` |
+| 2 | Eyebrow "A GENTLER WAY TO BEGIN DENTAL CARE" | ✅ | |
+| 3 | Nav order, anchors, filled Book Now, sticky both ways, menu closes, offsets | ✅ | Headings clear the header at 375, 768, 1280 and 1440 |
+| 4 | First mention reads "The Anxious Patient Experience™ (APE)" | 🔧 | "(APE)" was on the What is... line, but the intro band mentions the brand first. Moved to the intro band |
+| 5 | Quote section, verbatim | ✅ | Now a two-tone quote band |
+| 6 | "We don't ask you to ignore that response. We work with it." | ✅ | |
+| 7 | Nervous-system wording, verbatim | 🔧 | Words were right but split into two paragraphs; now one, as in Lorna's email |
+| 8 | Appointment wording, verbatim | ✅ | In What is..., replacing the 7 Oct "During the appointment, the focus is..." paragraph, as her 13 Oct email asked |
+| 9 | Meet the Team: three members, initials tiles, Read more | ✅ | ⚠️ Alex's and Lauren's bios and photos, and Lorna's softer photo, still to come |
+| 10 | Footer disclaimer, verbatim, invasive line removed | ✅ | |
+| 11 | FAQ "What happens after I book?", verbatim | ✅ | Second in the list |
+| 12 | Continuous scroll, gentle motion, reduced motion respected | ✅ | |
+| 13 | Intro flows into Understanding | ✅ | |
+| 14 | What is The Anxious Patient Experience™?, verbatim; no sedation in Understanding | 🔧 ⚠️ | 🔧 First line now "The Anxious Patient Experience™ begins with..." (see 4). ⚠️ The round 4 brief quotes the 7 Oct "During the appointment, the focus is..." paragraph, which Lorna replaced on 13 Oct with item 8; item 8 is kept. Confirm she does not want both. No sedation in Understanding ✅ |
+| 15 | Who It's For, verbatim | ✅ | |
+| 16 | Lorna's bio, verbatim; smaller, softer photo on phones | ✅ | |
+| 17 | FAQ headphones, verbatim | ✅ | |
+| 18 | FAQ sedation, verbatim | ✅ | |
+| 19 | Opening lines and cornerstone statement | ✅ | |
+| 20 | Triggers, physical responses, "not always a conscious..." | 🔧 | Added "People you don't know" and "Lack of control" from her 22 Sep brief (the printed copy had cut them off). Physical responses all present. Closing line uses the approved "This is not always a conscious choice." |
+| 21 | What we do differently, incl. additional support/sedation | ⚠️ | Six cards. The sedation card was removed at Lorna's request on 7 Oct ("I want to take the sedation bit out of this"); sedation is covered in Who It's For and the FAQ. Not re-added |
+| 22 | FAQ list | ✅ | All 11 |
+| 23 | Ready for future additions | ✅ | Plain folders and sections; see README "Later additions" |
+| QA | No console errors; build passes | ✅ | |
+| QA | 375, 768, 1280, 1440: nav, anchors, menu, booking | ✅ | Plus a keyboard-only booking |
+| QA | Lighthouse mobile | ✅ | Home: performance 97, accessibility 100. Book Now: 99, 100 (hero subline taupe darkened slightly for contrast) |
+| QA | ™ renders as text, never "™️" | ✅ | |
+| QA | Staging noindex | ✅ | |
+
+### Files
+
+New: `api/booking.js`, `.env.example`, the ten `ape-*` WebP files, five `ape-*.jpg`, `social-share-armchair.jpg`.
+Changed: `index.html`, `book-now/index.html`, `privacy-policy/index.html`, `404.html`, `assets/site-config.js`,
+`assets/site.css`, `assets/site.js`, `scripts/build.mjs`, `vercel.json`, `.gitignore`, `package.json`,
+`package-lock.json`, `README.md`, `CHANGELOG.md`. Removed: the seven old photos.
+
 ## 1.2.5 (15 Oct 2026)
 
 Footer disclaimer only, per Lorna's 15 Oct email. No change to copy, images, layout or booking.

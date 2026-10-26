@@ -61,5 +61,11 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/booking.js": {
+      "includeFiles": "assets/site-config.js",
+      "maxDuration": 10
+    }
+  }
 }
