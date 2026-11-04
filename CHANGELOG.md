@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 (4 Nov 2026): dashboard sign-in card centred
+
+- The sign-in card at `/admin/login` sat left of centre on wide screens when it showed the "Create the first login"
+  notice (the notice's long line widened the column). The column is now always the card's width, so the card is
+  centred at every width. "Built and supported by GYA" is now in the warm brand tone. Dashboard only; the website is
+  unchanged. (`src/dashboard/dashboard.css`)
+
 ## 1.5.0 (4 Nov 2026): the GYA standard client dashboard, with online booking built in
 
 Rowayne, 4 Nov 2026: build the standard dashboard now so the client can see the process with the booking dashboard

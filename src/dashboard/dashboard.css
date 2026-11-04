@@ -255,13 +255,15 @@ body.pd { font-family: var(--pd-font); font-size: 14px; line-height: 1.5; color:
 
 /* ------------------------------------------------------------ login */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(80% 60% at 50% 0%, rgba(186,156,126,.30), rgba(186,156,126,0) 60%), linear-gradient(180deg, var(--pd-navy-3), var(--pd-navy)); }
-.login .card { width: min(400px, 100%); background: #fff; border-radius: 12px; padding: 30px 28px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+/* the column is the card's width, so long words inside (the first login notice) cannot widen it off centre */
+.login > div { width: min(400px, 100%); }
+.login .card { width: 100%; background: #fff; border-radius: 12px; padding: 30px 28px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
 .login .card .logo-strip { background: var(--pd-navy); margin: -30px -28px 20px; padding: 22px 20px; border-radius: 12px 12px 0 0; }
 .login .card .logo { display: block; height: 44px; max-width: 100%; margin: 0 auto; object-fit: contain; }
 .login .card h1 { font-size: 20px; text-align: center; margin-bottom: 4px; }
 .login .card .sub { text-align: center; color: var(--pd-muted); margin-bottom: 20px; }
 .login .card .btn { width: 100%; padding: 10px; }
-.login .foot { text-align: center; color: #9fbdbb; font-size: 12px; margin-top: 16px; }
+.login .foot { text-align: center; color: #c9b9a6; font-size: 12px; margin-top: 16px; }
 
 /* ------------------------------------------------------------ misc */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
