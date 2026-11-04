@@ -1,5 +1,122 @@
 # Changelog
 
+## 1.4.0 (3 Nov 2026): final bios, Alex's photo, pricing, opening special, booking dashboard, QR code
+
+Lorna's email of 3 Nov 2026 and Rowayne's notes (pop-up for the offer; a dashboard for availability; the offer must
+come down by itself after two weeks or once the places are filled). Update to the existing repo. Design unchanged.
+
+### Changes
+
+**Team**
+- Alex Loupos: Lorna's final bio, word for word, with "Read more" like Lorna's. Role line "APE Lead | Patient Care &
+  Support". Photo `images/team-alex-loupos-2026-11-03.webp` + `.jpg` fallback (987 x 1593), lazy-loaded, framed on
+  her face.
+- Lauren Bright: final bio, word for word, with "Read more". Role line "APE Dental Assistant | Patient Care & Support".
+  Photo pending: a soft "L" monogram in the brand colours at **`images/team-lauren-bright.jpg`**. Replace that one
+  file (same name, portrait about 1200 x 1500, face in the top third) and nothing else changes. Team photos are now
+  served with `must-revalidate`, so a replaced photo shows straight away.
+- "Meet Alex" / "Meet Lauren" lines are not used as headings: the cards sit under "Meet the Team" and already carry the
+  names, as Lorna's card does.
+
+**"Talk to Alex" softened** (every instance: 2 buttons on the homepage, 1 button and 1 section label on Book Now)
+- Buttons now read "Reach out to Alex" and go to the contact details in the footer.
+- "Alex is happy to talk it through with you." is now "Alex, our APE Lead, is happy to talk it through with you."
+- Book Now: "Not ready to book yet? Talk to Alex first..." is now "Not ready to book yet? Reach out to Alex, our APE
+  Lead, first. There is no pressure and no need to have the right words."
+
+**Pricing**
+- FAQ "How much does it cost?": "The New Patient Appointment is 70 minutes and costs $350. Health fund rebates are
+  available. A $100 deposit is required to secure your booking." (FAQ schema updated.)
+- Book Now card: "70 minutes | $350", "Health fund rebates available", "$100 deposit required to secure the
+  appointment".
+- Every time on Book Now shows its fee in the summary ("Fee: $350. Health fund rebates available." or "Fee: $250
+  opening special (usually $350). Health fund rebates available."), and so do the confirmation screen and both emails.
+- Deposit: no payment account hard-coded. `DEPOSIT_PAYMENT_URL` (a Stripe Payment Link or similar) switches on
+  "Send request and pay deposit" and a "Pay your $100 deposit" button with the reference filled in. Until it is set:
+  "Send booking request" and "Deposit details will be sent with your confirmation." The old test-mode note is gone.
+
+**Opening special** ($250 for the first six patients, appointments Wed 2 Dec to Tue 15 Dec 2026)
+- A quiet ribbon under the homepage hero buttons, a calm pop-up (once per visitor), a note in the cost FAQ, a card on
+  Book Now with ~~$350~~ $250, and an "Opening special $250" label on those days in the booking list.
+- Automatic: shows only while a special-priced time is still free. Hides by itself once six special bookings exist or
+  the special days are under 24 hours away. Counted in the database inside the same locked step that saves each
+  booking, so it can never go past six. A cancelled special booking frees its place.
+- Settings: `openingSpecial` in `assets/site-config.js` (price, dates, cap, pop-up on/off, enabled).
+- The $100 deposit still applies to the special. No "places left" count is ever shown (no urgency wording).
+- With three times on each Wednesday, the window holds exactly six times, so the cap and the dates end together unless
+  a day is blocked.
+
+**Booking**
+- APE appointments start Wednesday 2 December 2026 (`booking.startDate`). Earlier Wednesdays are no longer offered.
+- Bookings are saved in Neon Postgres. A time that has been requested disappears from Book Now, so two patients can no
+  longer ask for the same time. The 24-hour rule, the start date, blocked days and the special are all checked again
+  on the server.
+- If the notification email fails, the booking is still saved and shows in the dashboard.
+
+**Booking dashboard at `/admin/`** (password `ADMIN_PASSWORD`)
+- Bookings: confirm, mark deposit received, cancel (frees the time), restore; tabs for To confirm, Cancelled, Past.
+- Availability: block a period of leave, a single day or a single time, and open them again. 23 and 30 December 2026
+  are blocked from the first use.
+- Opening special: places used and whether it is showing.
+- "How to" page and `docs/HOW-TO-USE-THE-BOOKING-DASHBOARD.md` for Lorna.
+- Sign-in: 12-hour session cookie (HttpOnly, Secure, SameSite=Strict), 8 wrong attempts lock sign-in for 15 minutes,
+  every change needs the dashboard's own header. noindex, not in the sitemap, blocked in robots.txt.
+
+**QR code**: `qr/ape-flyer-qr.png` (2015 px) and `qr/ape-flyer-qr.svg`, navy on white, error correction H, encoding
+`https://the-anxious-patient-experience.vercel.app/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch`.
+`qr/make-qr.py` regenerates it for the final domain (one-line command in the README).
+
+**Also**: GA4 and Meta Pixel slots (`analytics` in the settings, empty), new files `api/availability.js`,
+`api/admin.js`, `api/_lib/core.js`, `admin/index.html`, `assets/admin.css`, `assets/admin.js`,
+`docs/HOW-TO-USE-THE-BOOKING-DASHBOARD.md`, `qr/`; one dependency (`@neondatabase/serverless`).
+
+### New copy needing the client's sign-off
+1. Ribbon: "OPENING SPECIAL $250 for our first six patients (usually $350)".
+2. Pop-up: eyebrow "Opening special"; heading "A gentle welcome for our first six patients"; "$350 $250" (struck
+   through); "To welcome our first patients, the full 70-minute Anxious New Patient Experience is $250 instead of $350
+   for appointments on Wednesday 2 December or Wednesday 9 December 2026. Health fund rebates are still available, and
+   a $100 deposit secures your time."; buttons "See available times" and "Maybe later".
+3. FAQ note: "Opening special: for our first six patients, the full appointment is $250 instead of $350, for
+   appointments on Wednesday 2 December or Wednesday 9 December 2026. Health fund rebates are still available, and the
+   deposit still applies."
+4. Book Now card: "OPENING SPECIAL $350 $250 for our first six patients, for appointments on Wednesday 2 December or
+   Wednesday 9 December 2026. Health fund rebates are still available."
+5. Pricing lines: "Health fund rebates are available." (FAQ), "Health fund rebates available" (Book Now card), fee
+   lines as above.
+6. Booking: "Send booking request", "Send request and pay deposit", "Deposit details will be sent with your
+   confirmation.", "After you send your request, you can pay the $100 deposit securely online.", "Pay your $100
+   deposit", "The payment page opens in a new tab. Your reference is filled in for you.", "Sorry, that time has just
+   been requested by someone else. Please choose another time.", "Sorry, we could not load the available times just
+   now. Please refresh the page, or contact the clinic on (02) 8599 9815."
+7. "Alex, our APE Lead," (two places) and "Reach out to Alex".
+8. Patient email: now includes "Fee: ..." and either "To secure your time, please pay your $100 deposit here: [link]"
+   or "A $100 deposit secures your appointment. Deposit details will be sent with your confirmation."
+9. Book Now hero (approved copy, unchanged): "Book your first appointment and pay your deposit online in four simple
+   steps." This is only true once the deposit link is set up. Suggest changing it if the site launches without one.
+10. The dashboard wording (for the APE team only).
+
+### Still pending
+- Lauren's photo (replace `images/team-lauren-bright.jpg`).
+- Ram's deposit account: create a $100 payment link and add it as `DEPOSIT_PAYMENT_URL` in Vercel.
+- Final domain: the QR code uses the vercel.app address; regenerate before printing large runs.
+- Vercel set-up: Neon, `ADMIN_PASSWORD`, Resend (`RESEND_API_KEY`, `BOOKING_FROM`), then a test booking.
+- Privacy policy text (the booking form now stores personal details).
+- GA4 ID, so the flyer UTM tags can be seen.
+- Repo still public; should be private.
+
+### Environment variables
+Required: `DATABASE_URL` (Neon, added by Vercel Storage), `ADMIN_PASSWORD`, `RESEND_API_KEY`, `BOOKING_FROM`.
+Optional: `BOOKING_NOTIFY_TO` (defaults to the APE inbox), `BOOKING_BCC`, `DEPOSIT_PAYMENT_URL`.
+
+### Checked
+39 server tests (pricing in and out of the window, the cap of six, a cancelled special reopening, blocked days and
+single times, the 24-hour rule, the start date, no database, the deposit link) and 68 browser tests (homepage ribbon,
+pop-up once per visitor, Read more on all three bios, Alex's photo and Lauren's placeholder, Reach out to Alex, booking
+at 375, 768, 1280 and 1440 with $250 and $350 times, 23 and 30 Dec not offered, the special hiding itself once full,
+the dashboard at desktop and phone width, payment link mode, no database). No horizontal scroll at 320 to 1920, no
+console errors. Lighthouse mobile: home 95 performance / 100 accessibility, Book Now 98 / 100. Vercel build ok (three
+functions, each with the settings file and the Neon driver).
+
 ## 1.3.1 (26 Oct 2026)
 
 Meet the Team only. No change to copy, layout, booking or the other images.

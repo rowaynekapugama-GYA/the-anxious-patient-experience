@@ -89,6 +89,22 @@ const schema = {
     email: contact.apeEmail || undefined,
   },
 };
+// GA4 and Meta Pixel, only when their IDs are filled in (assets/site-config.js > analytics)
+function analyticsTags(a) {
+  const ga = String(a.ga4Id || '').trim();
+  const px = String(a.metaPixelId || '').trim();
+  let out = '';
+  if (ga) {
+    if (!/^G-[A-Z0-9]+$/.test(ga)) problem('assets/site-config.js', `analytics.ga4Id "${ga}" does not look like a GA4 ID (G-XXXXXXX)`);
+    out += `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(ga)}"></script>` +
+      `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${esc(ga)}');</script>`;
+  }
+  if (px) {
+    if (!/^\d{6,20}$/.test(px)) problem('assets/site-config.js', `analytics.metaPixelId "${px}" should be digits only`);
+    out += `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${esc(px)}');fbq('track','PageView');</script>`;
+  }
+  return out;
+}
 const REGIONS = {
   contact: [
     `<li class="contact-name">${esc(clinic.name)}</li>`,
@@ -99,6 +115,7 @@ const REGIONS = {
   ].join(''),
   phone: phoneLink,
   schema: `<script type="application/ld+json">${JSON.stringify(schema)}</script>`,
+  analytics: analyticsTags(C.analytics || {}),
   disclaimer:
     `<p class="disclaimer">${esc(C.disclaimer.general)}</p>` +
     (C.SHOW_INVASIVE_RISK_DISCLAIMER ? `<p class="disclaimer disclaimer-risk">${esc(C.disclaimer.invasiveRisk)}</p>` : ''),
@@ -130,6 +147,7 @@ const pageFor = (p) => pages.get(p) || pages.get(p.endsWith('/') ? p : `${p}/`) 
 
 for (const [path, { file, html, ids }] of pages) {
   const isRedirect = /http-equiv="refresh"/.test(html);
+  const isDashboard = path.startsWith('/admin/');  // the APE dashboard has no public header, footer or schema
   // links and files
   for (const m of html.matchAll(/\s(href|src)="([^"]+)"/g)) {
     const url = m[2];
@@ -169,6 +187,7 @@ for (const [path, { file, html, ids }] of pages) {
     const schema = (html.match(/"@type":"Question"/g) || []).length;
     if (schema !== cards) problem(file, `FAQ schema has ${schema} questions but the page has ${cards}`);
   }
+  if (isDashboard) continue;
   // settings markers present on every full page
   const raw = readFileSync(join(ROOT, file), 'utf8');
   if (!raw.includes('<!-- config:contact -->')) problem(file, 'footer contact settings marker missing');
@@ -193,7 +212,7 @@ let copied = 0;
 for (const file of walk(ROOT)) {
   const r = rel(file);
   const name = r.split('/').pop();
-  if (NOT_PUBLISHED.has(r) || r.startsWith('api/') || name === '.DS_Store' || name.startsWith('.env')) continue;
+  if (NOT_PUBLISHED.has(r) || r.startsWith('api/') || r.startsWith('qr/') || r.startsWith('docs/') || name === '.DS_Store' || name.startsWith('.env')) continue;
   const target = join(out, r);
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(file, target);

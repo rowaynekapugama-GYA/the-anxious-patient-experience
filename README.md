@@ -1,260 +1,269 @@
-# The Anxious Patient Experience™: website (plain HTML)
+# The Anxious Patient Experience™: website
 
-GYA build for Dr Lorna Gladwin. Plain HTML, CSS and JavaScript with no framework and no dependencies, plus one small
-Vercel serverless function (`api/booking.js`) that emails booking requests to the APE inbox. A build step
+GYA build for Dr Lorna Gladwin. Plain HTML, CSS and JavaScript pages, three small Vercel serverless functions for
+booking (`api/`), a booking dashboard for the APE team at `/admin/`, and a Neon Postgres database. A build step
 (`npm run build`) writes the settings in `assets/site-config.js` into every page and checks the site.
 
+Repo: `rowaynekapugama-GYA/the-anxious-patient-experience` (update to the existing repo; it should be private).
+Staging: https://the-anxious-patient-experience.vercel.app/
+
 Pages: one continuous homepage (The Experience, Who It's For, Meet the Team and FAQs are sections of it), Book Now,
-a placeholder Privacy Policy page and a 404 page. All copy is word for word from the approved copy doc (29 Sep 2026)
-and Lorna's emails of 7 Oct, 13 Oct and 26 Oct 2026.
+a placeholder Privacy Policy page, a 404 page and the dashboard at `/admin/` (noindex). All copy is word for word from
+the approved copy doc (29 Sep 2026) and Lorna's emails of 7 Oct, 13 Oct, 26 Oct and 3 Nov 2026.
+
+## Vercel set-up (once)
+
+Framework Preset **Other**. Build Command `npm run build`. Output Directory `public`. Install Command: default
+(`npm install`, which installs the one dependency, the Neon database driver).
+
+1. **Database**: Vercel > the project > Storage > Create Database > **Neon** > connect it to this project (Production
+   and Preview). Vercel adds `DATABASE_URL` by itself. The tables are created automatically the first time the site
+   is used, and 23 and 30 December 2026 are blocked at that moment.
+2. **Environment variables**: Vercel > Settings > Environment Variables (Production and Preview):
+
+   | Variable | Required | What it is |
+   |---|---|---|
+   | `DATABASE_URL` | yes | Neon Postgres connection string (added by step 1) |
+   | `ADMIN_PASSWORD` | yes | Password for the dashboard at `/admin/`. 12+ characters. Changing it signs everyone out |
+   | `RESEND_API_KEY` | yes | Resend API key for the booking emails |
+   | `BOOKING_FROM` | yes | Sender on a Resend-verified domain, e.g. `The Anxious Patient Experience <bookings@yourdomain.com.au>` |
+   | `BOOKING_NOTIFY_TO` | no | Where requests go. Default `theanxiouspatientexperience@gmail.com` |
+   | `BOOKING_BCC` | no | Extra copies, comma separated. Empty on purpose (health information) |
+   | `DEPOSIT_PAYMENT_URL` | no | Payment link for the $100 deposit, e.g. a Stripe Payment Link. Empty until Ram confirms the account |
+
+3. **Redeploy** after adding variables (Deployments > latest > Redeploy).
+4. **Test**: make a booking on the staging site with your own email, check both emails arrive (look in spam the first
+   time), sign in at `/admin/`, find it under Bookings and cancel it.
+
+Without `DATABASE_URL`, `RESEND_API_KEY` and `BOOKING_FROM` the site still shows times, but the last booking step says
+"Sorry, we could not send your booking request just now..." with the clinic's phone number. Nothing is lost silently.
+
+Any `*.vercel.app` address and `/admin/` are sent `X-Robots-Tag: noindex`, and `robots.txt` keeps crawlers out of
+`/api/` and `/admin/`.
 
 ## Settings: `assets/site-config.js`
 
-One file for everything that is still changing. Edit it and commit; Vercel runs the build on every deploy.
-
 | Setting | What it controls |
 |---|---|
-| `contact.phone` | (02) 8599 9815. Footer, the 24-hour note on Book Now and the booking emails. The `tel:` link (`+61285999815`) is worked out from it. |
-| `contact.apeEmail` | theanxiouspatientexperience@gmail.com, shown in the footer as "APE enquiries". |
-| `contact.receptionEmail` | reception@thecronulladentists.com.au, shown in the footer as "General practice enquiries". |
-| `clinic` | The Cronulla Dentists, 13 Cronulla Street, Cronulla NSW 2230, plus the Google Maps link. Footer, Book Now, booking summary, booking emails and the Dentist structured data. |
-| `SHOW_INVASIVE_RISK_DISCLAIMER` | Off (`false`) since 15 Oct 2026. `true` shows the "Any invasive procedure carries risks..." line under the footer disclaimer. Needed if the site ever shows before and after photos or promotes a surgical procedure. |
-| `disclaimer.general`, `disclaimer.invasiveRisk` | The two footer disclaimer lines. |
-| `booking.days`, `booking.startTimes` | Wednesdays at 9:00 am, 10:20 am and 11:40 am, Sydney time. Not shown as fixed text anywhere. |
-| `booking.minNoticeHours`, `booking.weeksAhead` | 24 hours' minimum notice; times offered six weeks ahead. |
-| `booking.depositMode` | `'test'`: no payment is taken. Leave it until a payment provider is chosen. |
+| `contact.phone`, `contact.apeEmail`, `contact.receptionEmail` | Footer, Book Now, emails. `tel:` link worked out from the phone number |
+| `clinic` | The Cronulla Dentists, 13 Cronulla Street, Cronulla NSW 2230, Maps link. Footer, Book Now, emails, Dentist schema |
+| `SHOW_INVASIVE_RISK_DISCLAIMER`, `disclaimer` | Footer disclaimer (invasive line off since 15 Oct 2026) |
+| `booking.days`, `booking.startTimes` | Wednesdays at 9:00 am, 10:20 am and 11:40 am, Sydney time |
+| `booking.startDate` | First bookable day: `2026-12-02` |
+| `booking.minNoticeHours`, `booking.weeksAhead` | 24 hours' notice; six weeks ahead (counted from today or the start date, whichever is later) |
+| `booking.initialBlockedDates` | Blocked once, when the database is first used (23 and 30 Dec 2026). After that, blocking is done in the dashboard |
+| `pricing.appointment`, `pricing.deposit` | $350 and $100 |
+| `openingSpecial` | `$250`, appointments `2026-12-02` to `2026-12-15`, `maxBookings: 6`, `popup: true`, `enabled` |
+| `analytics.ga4Id`, `analytics.metaPixelId` | Empty. Fill in and the build adds GA4 / Meta Pixel to every page |
 
-The build replaces whatever sits between the `<!-- config:contact -->`, `<!-- config:disclaimer -->`,
-`<!-- config:clinic -->`, `<!-- config:phone -->` and `<!-- config:schema -->` markers in the pages, so edit the config
-file, not those parts of the HTML. The booking function reads the same file, so the page and the server check use
-the same days, times and notice period.
+The build replaces whatever sits between the `<!-- config:... -->` markers in the pages (contact, disclaimer, clinic,
+phone, schema, analytics), so edit the config file, not those parts of the HTML. The booking functions read the same
+file, so the page, the server check and the dashboard always agree.
 
 ## Build and check
 
 ```
-npm install      # nothing to download; it just records the project
+npm install      # installs @neondatabase/serverless
 npm run build    # applies the settings, checks every page, then copies the finished site into public/
 ```
 
 The check fails (with a plain-English list) if a link or #anchor points at nothing, an image (including every size in
 a `srcset`) or file is missing, the structured data is broken, the FAQ counter or FAQ schema does not match the
-questions, a settings marker is missing, or an em dash has crept in.
+questions, a settings marker is missing, an analytics ID looks wrong, or an em dash has crept in. `api/`, `qr/`,
+`docs/`, `scripts/` and developer files are never copied into `public/`.
 
-## Deploy
+## Booking
 
-The repo is connected to Vercel through GitHub, so a push to `main` deploys. Use `update-and-deploy.sh` (supplied
-with each release): it checks the repo, tags a backup, copies the new build in, runs the build, commits, pushes and
-prints the link and a one-line rollback.
+Lorna confirmed (26 Oct 2026) that the team blocks APE time in Core Practice and enters bookings by hand, so the
+website does **not** connect to Core Practice.
 
-Vercel project settings: Framework Preset **Other**; Build Command `npm run build` (or the default); Output
-Directory `public`. The build copies the finished site into `public/` (scripts, `api/`, package files and notes stay
-out of it) and Vercel publishes that folder. `api/booking.js` is deployed separately as a serverless function at
-`/api/booking/` (`vercel.json` bundles `assets/site-config.js` with it). If the check fails, Vercel stops the deploy
-and the live site does not change. `public/` is created by the build and is not committed.
+1. Book Now asks `/api/availability/` for the times patients can book: APE days from 2 December 2026, six weeks
+   ahead, at least 24 hours away (Sydney time), minus anything blocked in the dashboard and anything already
+   requested. Each time carries its fee ($250 opening special or $350).
+2. The patient chooses a time, enters name, email, optional phone and note, and ticks the collection notice.
+3. The deposit and cancellation policy sits directly above the send button with a required tick box.
+4. "Send booking request" posts to `/api/booking/`. The server checks everything again, works out the fee and saves the
+   booking in one locked step, so **a time can never be booked twice and the special can never go past six**. It then
+   emails the APE inbox (reply goes to the patient) and the patient (reply goes to the APE inbox).
+5. The confirmation screen shows the time, the fee and a reference such as `APE-3F9A1C`.
+6. The team blocks the time in Core Practice, confirms with the patient, and marks it confirmed in the dashboard.
 
-**Environment variables** (Vercel > Settings > Environment Variables, Production and Preview, then redeploy; see
-`.env.example`):
+**Deposit**: if `DEPOSIT_PAYMENT_URL` is set, the button reads "Send request and pay deposit", the confirmation screen
+shows "Pay your $100 deposit" (opens the payment link with the reference and email filled in), and the patient's email
+includes the link. If it is not set, the button reads "Send booking request" and the patient is told "Deposit details
+will be sent with your confirmation." No payment account is hard-coded anywhere. With a Stripe Payment Link, payments
+show the booking reference as the client reference ID. The team marks "Deposit received" in the dashboard.
 
-| Variable | Value |
+**Privacy**: the form only asks for what is needed to arrange the visit. The patient's note can contain health
+information, so it is not in the email subject, not copied into the patient's email, and `BOOKING_BCC` is empty.
+GYA's usual form setup also copies SmileOx and rowayne@gyaclients.com; that is left off for this form on purpose. The
+database keeps bookings until they are deleted; the dashboard shows the last 60 days and everything upcoming.
+
+## Opening special
+
+Lorna, 3 Nov 2026: $250 instead of $350 for the first six patients, for appointments in the first two weeks
+(Wed 2 Dec to Tue 15 Dec 2026, which is Wednesday 2 and Wednesday 9 December, three times each). Health fund rebates
+still apply. The $100 deposit still applies.
+
+- **How it is counted**: every booking saved in the database records whether it got the special. A time gets $250 if
+  its date is in the window **and** fewer than six special bookings exist (cancelled ones do not count). This is
+  checked inside the same locked database step that saves the booking, so two people booking at once cannot both get
+  the sixth place.
+- **Switching off by itself**: the ribbon under the homepage hero, the pop-up, the FAQ note, the Book Now card and the
+  $250 labels all come from `/api/availability/`. They show only while at least one special-priced time is still
+  free. Once six are booked, or the last special day is less than 24 hours away, they all disappear and every time
+  is $350. No manual change is needed.
+- **If a special booking is cancelled** in the dashboard, that time goes back to $250 (still within the six).
+- **Pop-up**: calm, shown at most once per visitor (after 9 seconds or 30% down the homepage), closes with the button,
+  the cross, Escape or a click outside. Never on Book Now. It never shows how many places are left (no urgency
+  wording, per AHPRA).
+- **Change it**: `openingSpecial` in `assets/site-config.js` (`enabled: false` turns it off early).
+
+## Booking dashboard (`/admin/`)
+
+Signed in with `ADMIN_PASSWORD`. Sessions last 12 hours; eight wrong passwords from one address lock sign-in for 15
+minutes. Plain-English instructions for the team are in `docs/HOW-TO-USE-THE-BOOKING-DASHBOARD.md` and on the
+dashboard's "How to" page.
+
+- **Bookings**: upcoming requests grouped by day, with contact details, note, fee, status and deposit. Mark confirmed,
+  Deposit received, Cancel booking (opens the time again), Restore. Tabs for To confirm, Cancelled and Past.
+- **Availability**: block a period of leave (every APE day between two dates), block or open a single day, or tap a
+  single time to block or open it. 23 and 30 December 2026 are blocked from the start. Blocking does not cancel
+  requests already on that day; the dashboard lists them so the team can contact those patients.
+- **Opening special**: how many of the six are used and whether it is showing on the website.
+
+This is a booking dashboard only. The full GYA client dashboard (edit wording and photos on the page, blog, SEO) is
+not part of this release; see "Not in this release".
+
+## Team
+
+Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex Loupos (APE Lead | Patient Care & Support),
+Lauren Bright (APE Dental Assistant | Patient Care & Support). Each bio shows its first paragraph and a "Read more"
+button; without JavaScript the whole bio shows.
+
+- **Lauren's photo**: replace **`images/team-lauren-bright.jpg`** with her photo, same file name. Portrait, about
+  1200 x 1500 px, JPG, face in the top third. Nothing else needs to change; team photos are served with
+  `must-revalidate`, so the new one shows straight away after the deploy. The current file is a soft "L" monogram in
+  the brand colours.
+- **Alex's photo**: `images/team-alex-loupos-2026-11-03.webp` with a `.jpg` fallback (987 x 1593, as supplied).
+- **Lorna's photo**: `images/team-lorna-gladwin-2026-10-26.webp`.
+
+## Images
+
+Lorna's rules: no faces anywhere except the team's own photos (26 Oct 2026), and nothing that looks like a clinic,
+dental chair or treatment room unless it is genuine photography of her practices (13 Oct 2026). Lifestyle photos are
+WebP at 800, 1400 and 2400 px plus a 1400 px JPG, inside a `<picture>`; everything below the hero is lazy-loaded.
+
+| Files (`images/`) | Where |
 |---|---|
-| `RESEND_API_KEY` | Resend API key. Required for booking emails. |
-| `BOOKING_FROM` | Sender on a domain verified in Resend, e.g. `The Anxious Patient Experience <bookings@yourdomain.com.au>`. Required. |
-| `BOOKING_NOTIFY_TO` | `theanxiouspatientexperience@gmail.com` (also the built-in default if left out). |
-| `BOOKING_BCC` | Optional extra copies, comma separated. Empty on purpose (see Booking). |
+| `ape-armchair-corner-*` | Hero (preloaded) |
+| `ape-candle-book-*` | The heart of the experience (third-party book title removed) |
+| `ape-hands-comfort-*` | Our approach, "We work with it" |
+| `ape-toothbrushes-eucalyptus-*` | Who is The Anxious Patient Experience™ for? |
+| `ape-textured-napkin-*` | Book Now hero (preloaded) |
+| `social-share-armchair.jpg` | Share image, 1200 x 630 |
+| `team-*` | Meet the Team (see above) |
+| `ape-logo.webp`, `ape-logo.png` | Logo |
 
-Without `RESEND_API_KEY` and `BOOKING_FROM` the form still works up to the last step, then shows "Sorry, we could not
-send your booking request just now..." with the clinic's phone number, and nothing is lost silently.
+## QR code for the flyer
 
-Any `*.vercel.app` address is sent `X-Robots-Tag: noindex, nofollow` (set in `vercel.json`), so the staging link never
-competes with the live site in Google. `robots.txt` also keeps crawlers out of `/api/`.
+`qr/ape-flyer-qr.png` (2015 x 2015 px, print-ready) and `qr/ape-flyer-qr.svg`. Navy on white, error correction H.
+It opens:
+
+`https://the-anxious-patient-experience.vercel.app/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch`
+
+Print it at least 3 cm wide. To make a new one for the final domain (from the repo folder, on a Mac):
+
+```
+python3 -m pip install --user segno && python3 qr/make-qr.py "https://YOUR-DOMAIN/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch"
+```
+
+The UTM tags only show up in reports once `analytics.ga4Id` is filled in (GA4 > Reports > Acquisition > Traffic
+acquisition, source "flyer").
 
 ## What is in here
 
 ```
-index.html                              Home: the whole continuous page
-book-now/index.html                     Booking flow
-understanding-the-experience/index.html Forwards to /#understanding
-meet-the-team/index.html                Forwards to /#meet-the-team
-faqs/index.html                         Forwards to /#faqs
-privacy-policy/index.html               Placeholder page (noindex) so the footer link works
-404.html
-api/booking.js                          Booking requests: checks them and emails the APE inbox and the patient
-assets/site-config.js                   Settings (see above)
-assets/site.css                         Full design system
-assets/site.js                          Header, scroll-triggered motion, scroll progress, FAQ cards, Read more, booking flow
-assets/fonts/                           Playfair Display and Figtree, self-hosted (SIL OFL)
-images/                                 Photos (WebP in three sizes plus a JPG each), logo, social share image
-scripts/build.mjs                       The build and check
-.env.example                            The environment variables the booking function needs (no real values)
-package.json, package-lock.json         `npm run build` (no dependencies)
-icon.svg, apple-touch-icon.png, robots.txt, sitemap.xml
-vercel.json                             Clean URLs, trailing slashes, headers, booking function settings
+index.html, book-now/, privacy-policy/, 404.html      Pages
+understanding-the-experience/, meet-the-team/, faqs/  Forward to the matching homepage section
+admin/index.html                                      Booking dashboard (noindex)
+api/availability.js                                   GET  /api/availability/  times, prices, special status
+api/booking.js                                        POST /api/booking/       save a request, email the team and patient
+api/admin.js                                          /api/admin/              dashboard sign-in and actions
+api/_lib/core.js                                      Shared code (settings, schedule, special, database, email, sign-in)
+assets/site-config.js                                 Settings
+assets/site.css, assets/site.js                       Website styles and script
+assets/admin.css, assets/admin.js                     Dashboard styles and script
+assets/fonts/, images/                                Fonts and photos
+qr/                                                   Flyer QR code and the script that makes it
+docs/HOW-TO-USE-THE-BOOKING-DASHBOARD.md              Instructions for Lorna and the APE team
+scripts/build.mjs                                     The build and check
+.env.example                                          Environment variables (no real values)
+package.json, package-lock.json, vercel.json, robots.txt, sitemap.xml, icon.svg, apple-touch-icon.png
 README.md, CHANGELOG.md
 ```
 
-## Before go-live: set the domain
-
-The canonical tags, share (OG) links and sitemap use `https://example.com` until the domain is confirmed. Once it
-is, find and replace `https://example.com` with the live domain in every `.html` file, `sitemap.xml` and
-`robots.txt`.
-
 ## Layout
 
-- **Navigation** (fixed, always visible): The Experience (`#understanding`), Who It's For (`#who-is-it-for`),
-  Meet the Team (`#meet-the-team`), FAQs (`#faqs`) and a filled Book Now button. From other pages the links are
-  `/#understanding` and so on. Phones show Book Now and a menu button; the menu has all five items and closes after a
-  tap. Every section a link can land on has `scroll-margin-top`, so its heading clears the fixed header.
-- **Hero**: "Discover the Experience" moves down to the very next section (`#intro`) so visitors read the story from
-  the beginning. The intro band is the first mention of the brand: "The Anxious Patient Experience™ (APE)".
-- **Quote sections**: "If the thought of booking...", "What if your dental care started with understanding your
-  anxiety first?" and "Imagine walking out..." use the two-tone quote band (navy line, taupe rule, taupe line).
-- **Old addresses**: `understanding-the-experience/`, `meet-the-team/` and `faqs/` forward to the matching homepage
-  section (noindex, canonical to the homepage). Keep them so old links never break.
-- **Motion**: anything with `reveal` animates once as it scrolls into view. Add `from-left`, `from-right`, `pop` or
-  `fade` for the style, `seq` to make neighbouring items follow one another, `d1` to `d3` for a small delay.
-  With reduced motion nothing animates; without JavaScript everything shows.
-- **FAQs**: a numbered question index beside an answer card on desktop, swipeable cards on phones. To add a
-  question, add a button to `.faq-index`, a matching `.faq-card` to `.faq-track`, update the "/ 11" total, and add
-  it to the FAQ schema at the bottom of `index.html`. The build checks all three match.
-- **Later additions** (walkthrough videos once Cronulla opens, an education or training platform, member areas, a
-  practitioner or location search, a directory or certification pathway): each can be added as a new section or a
-  new folder (for example `learn/index.html`, `find-a-practitioner/index.html`) using the same header, footer and
-  styles, or moved onto the GYA Next.js framework without changing any address on this site.
+- **Navigation** (fixed, always visible): The Experience (`#understanding`), Who It's For (`#who-is-it-for`), Meet
+  the Team (`#meet-the-team`), FAQs (`#faqs`) and a filled Book Now button. The phone menu closes after a tap.
+- **Hero**: "Discover the Experience" moves down to the next section (`#intro`). The intro band is the first mention
+  of the brand: "The Anxious Patient Experience™ (APE)".
+- **Motion**: `reveal` with `from-left`, `from-right`, `pop` or `fade`; `seq` for one after another. With reduced
+  motion nothing animates; without JavaScript everything shows.
+- **FAQs**: to add a question, add a button to `.faq-index`, a `.faq-card` to `.faq-track`, update the "/ 11" total
+  and the FAQ schema at the bottom of `index.html`. The build checks all three match.
+- **Later additions** (walkthrough videos, training platform, member areas, practitioner search, directory): new
+  sections or folders using the same header, footer and styles, or a move to the GYA Next.js framework, without
+  changing any address on this site.
 
-## Team
+## Before go-live: set the domain
 
-Three people, in this order: Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex Loupos (APE Lead),
-Lauren Bright (Dental Assistant). Even columns on desktop; on phones and tablets each person stacks, with a small
-portrait beside the name.
+Canonical tags, share links and the sitemap use `https://example.com` until the domain is confirmed. Then replace it
+with the live domain in every `.html` file, `sitemap.xml` and `robots.txt`, regenerate the QR code, and update
+`ape.url` / `ape.bookUrl` on the Caringbah and Cronulla sites.
 
-- **Bios**: Alex's and Lauren's show "Bio coming soon" (marked `<!-- TODO: client to supply bio -->` in
-  `index.html`). Replace the `<p class="bio-soon ...">` with one or more `<p class="bio reveal">...</p>`.
-- **Photos**: Alex and Lauren have warm initials tiles in the brand colours (marked
-  `<!-- TODO: client to supply photo -->`). No stock faces. To add a photo, save it as WebP (about 1600 px wide) in
-  `images/` (for example `images/team-alex-loupos.webp`) and replace the `<div class="frame ph arch portrait" ...>...</div>` with
-  `<div class="frame arch portrait"><img src="/images/team-alex-loupos.webp" width="1600" height="1067" alt="Alex Loupos, APE Lead" sizes="(max-width: 900px) 30vw, 30vw" loading="lazy" decoding="async" style="object-position:50% 30%"/></div>`
-  (use the photo's real width and height). Use a new file name for any new photo (see Images) and update the `src`, `width` and `height`.
-- **Read more**: Lorna's bio shows its first paragraph, then a "Read more" button that opens the rest of the bio and
-  her quote (the button then reads "Read less"). The extra paragraphs sit inside
-  `<div class="bio-more" id="lorna-gladwin-more">`. Without JavaScript the full bio shows and the button stays
-  hidden. To use it for Alex or Lauren once their bios arrive, copy the same pattern with a new id and matching
-  `aria-controls` on the button.
-
-## Images
-
-Lorna's rules: **no faces anywhere except the team's own photos** (26 Oct 2026), and nothing that looks like a
-clinic, dental chair or treatment room unless it is genuine photography of her practices (13 Oct 2026).
-
-All five photos were chosen by Lorna (26 Oct 2026). Each is saved as WebP at 800, 1400 and 2400 px wide (the browser
-picks the right size) plus a 1400 px JPG for very old browsers, inside a `<picture>`. Everything below the hero is
-lazy-loaded.
-
-| Files (`images/`) | Where | Notes |
-|---|---|---|
-| `ape-armchair-corner-*.webp`, `.jpg` | Hero (preloaded) | |
-| `ape-candle-book-*.webp`, `.jpg` | The heart of the experience | The book title on the original was a real brand: it has been removed so the book is plain |
-| `ape-hands-comfort-*.webp`, `.jpg` | Our approach, "We work with it" | Hands only, no faces. Gentle warm grade |
-| `ape-toothbrushes-eucalyptus-*.webp`, `.jpg` | Who is The Anxious Patient Experience™ for? | Gentle warm grade |
-| `ape-textured-napkin-*.webp`, `.jpg` | Book Now hero (preloaded) | |
-| `social-share-armchair.jpg` | Share image (og:image, twitter:image) on every page, 1200 x 630 | |
-| `team-lorna-gladwin-2026-10-26.webp` | Meet the Team, Dr Lorna Gladwin | Lorna's own photo (26 Oct 2026, 1086 x 1448). Team photos are the only faces allowed on the site |
-| `ape-logo.webp`, `ape-logo.png` | Header and footer logo, logo in the search schema | Client |
-
-The "What if your dental care started..." section no longer has a photo (five images for what were six spots); it
-is a two-tone quote band.
-
-**Cronulla clinic photos**: the Meet the Team section has a marked spot (`<!-- CRONULLA CLINIC PHOTOS ... -->` in
-`index.html`) for a wide photo of the real practice. Never use stock or AI images of clinics, dental chairs,
-equipment, treatment rooms or waiting areas.
-
-Use a new file name for a new photo (and update the `src`/`srcset`): browsers and Vercel keep images for a day, so a
-new photo under an existing name can take up to a day to show. When `assets/site.css`, `assets/site.js` or
-`assets/site-config.js` changes, bump the `?v=` number on their links in every page.
-
-## Booking
-
-Lorna confirmed (26 Oct 2026) that the team will block APE time in Core Practice and enter bookings by hand, so the
-website does **not** connect to Core Practice.
-
-1. The patient chooses a time (Wednesdays 9:00 am, 10:20 am or 11:40 am at The Cronulla Dentists, six weeks ahead).
-2. They enter their name, email, an optional phone number and an optional note, and tick the collection notice.
-3. The deposit and cancellation policy sits directly above the payment button with a required tick box.
-   **Payment is in test mode: no money is taken.**
-4. "Pay $100 deposit" sends the request to `/api/booking/`, which checks it again on the server (a listed day and
-   time, at least 24 hours away in Sydney time, within six weeks, required fields and both tick boxes) and then:
-   - emails the request to `theanxiouspatientexperience@gmail.com` (reply goes straight to the patient), with the
-     name, email, phone, requested date and time, the note, deposit status (test mode), reference and timestamp;
-   - emails the patient an acknowledgement (reply goes to the APE inbox).
-5. The confirmation screen shows the time, the clinic and a reference such as `APE-3F9A1C`.
-
-The team then blocks the time in Core Practice and confirms with the patient.
-
-- **24-hour rule**: times less than 24 hours away (Sydney time) are never offered; the page checks again before each
-  step, and the server refuses a time that has become too close (the patient is sent back to choose again). The note
-  on Book Now gives the clinic's number for anyone who needs an appointment sooner.
-- **Two requests for the same time** are possible, because nothing is reserved until the team confirms. The team
-  sorts this out when confirming.
-- **Spam**: a hidden field catches simple bots; their requests are dropped silently.
-- **Privacy**: the form asks only for what is needed to arrange the visit (the pre-appointment questionnaire goes out
-  later in the information pack). The patient's note can contain health information, so it is not put in the email
-  subject, it is not copied into the patient's acknowledgement, and `BOOKING_BCC` is empty. GYA's usual form setup
-  also copies SmileOx and rowayne@gyaclients.com; that has been left off for this form because of the health
-  information. Turn it on only if Lorna agrees and the privacy policy covers it.
-- **Payment**: still to be decided with the client (provider, and how deposits work alongside manual booking). The
-  payment integration point is the `pay` action in `assets/site.js` and the deposit line in `api/booking.js`.
-
-**Resend set-up (once)**: create a Resend account, add and verify a sending domain (DNS records at the domain's
-registrar), create an API key, then add the variables above in Vercel and redeploy. Send a test booking and check
-both emails arrive (look in spam the first time, and mark the sender as safe in the APE Gmail inbox).
-
-## Placeholders (highlighted yellow or marked "coming soon")
+## Placeholders
 
 | Placeholder | Where |
 |---|---|
-| Alex's and Lauren's bios | Meet the Team, "Bio coming soon" |
-| Photos of Alex and Lauren | Meet the Team (initials tiles) |
-| Cronulla clinic photos | Meet the Team marked spot |
-| Domain | `https://example.com` in canonical, OG and sitemap links |
-| Privacy policy text | `/privacy-policy/` (now needed: the booking form collects personal details) |
-| Talk to Alex | Goes to the footer contact block until Alex's contact method is confirmed |
+| Lauren's photo | `images/team-lauren-bright.jpg` (monogram for now) |
+| Deposit payment link | `DEPOSIT_PAYMENT_URL` (waiting on Ram's account) |
+| Domain | `https://example.com` in canonical, OG and sitemap links; QR code uses the vercel.app address |
+| Privacy policy text | `/privacy-policy/` (needed: the booking form collects personal details) |
+| Analytics IDs | `analytics` in `assets/site-config.js` |
 
-## UI labels not in the copy doc (for sign-off)
+## Copy not from the client (for sign-off)
 
-Booking form labels from Lorna's Canva concept ("Your name", "Email address", "Phone number (optional)", "What would
-you like support with? (optional)"), "Continue", "Back", the form error messages, the "less than 24 hours away"
-message, the test-mode note, "Skip to content", "Open menu" / "Close menu", "Previous question" / "Next question"
-and the "1 / 11" counter on the FAQ cards, "Questions" (screen reader label on the FAQ question index), "Read more" /
-"Read less" on Lorna's bio, "Bio coming soon", "Photo of ... coming soon" (screen reader label on the initials), the
-link text on the forwarding pages, "Page not found" / "Home" on the 404 page, and (26 Oct 2026) the footer labels
-"APE enquiries" / "General practice enquiries", the collection notice tick box and its error message, "Sending your
-request", the send-failure message, the confirmation line "The APE team will be in touch...", and both booking emails.
-Full wording is in CHANGELOG.md under 1.3.0.
+All listed in CHANGELOG.md with exact wording: the opening special ribbon, pop-up, FAQ note and Book Now card; the
+booking buttons and deposit lines; the booking emails; "Alex, our APE Lead," in two places; the collection notice; the
+dashboard wording. Earlier UI labels (form labels, Continue/Back, error messages, menu and FAQ controls) are listed in
+the CHANGELOG entries for 1.2.0 to 1.3.0.
 
 ## Go-live checklist
 
 - [ ] Repo is private
-- [ ] Resend domain verified; `RESEND_API_KEY`, `BOOKING_FROM` and `BOOKING_NOTIFY_TO` set in Vercel; a test booking
-      reaches the APE inbox and the patient
-- [ ] Payment provider and deposit handling agreed with Lorna; deposit taken live (until then `depositMode: 'test'`)
-- [ ] Confirmation screen wording agreed (heading still says "You're booked in." although the team confirms by hand)
-- [ ] New copy signed off (see CHANGELOG 1.3.0)
-- [ ] Privacy policy supplied (Australian Privacy Principles, covers booking details sent by email and any deposit data)
-- [ ] iPhone check on the staging link (Safari): scroll the homepage top to bottom, open the menu and try each link,
-      swipe the FAQ cards, tap Talk to Alex, run a test booking
-- [ ] Every yellow placeholder and "coming soon" replaced (search the files for `[` and `TODO`)
-- [x] Contact details in `assets/site-config.js` match Lorna's email of 26 Oct 2026 (13 Cronulla Street, (02) 8599 9815,
-      reception@ and the APE Gmail address)
-- [x] Footer disclaimer confirmed with Lorna (15 Oct 2026); invasive procedure line off
-- [ ] If before and after photos are ever added, set `SHOW_INVASIVE_RISK_DISCLAIMER` to `true`
-- [ ] `https://example.com` replaced with the live domain everywhere
-- [ ] Deposit and cancellation policy wording re-checked with Lorna on the live flow
-- [ ] Team photos and bios in place (Lorna done 26 Oct 2026; Alex and Lauren to come)
-- [x] Lorna's new photo (26 Oct 2026) replaces the portrait whose scrubs read "Godwin"
-- [ ] Lorna's profile never uses the word "specialist" (general dentist with a special interest)
-- [ ] GA4 and Meta Pixel added if wanted
+- [ ] Neon connected; `ADMIN_PASSWORD`, `RESEND_API_KEY`, `BOOKING_FROM`, `BOOKING_NOTIFY_TO` set; redeployed
+- [ ] Resend sending domain verified; test booking reaches the APE inbox and the patient
+- [ ] Dashboard: sign in, see the test booking, cancel it; 23 and 30 Dec show as blocked
+- [ ] Deposit: `DEPOSIT_PAYMENT_URL` added once Ram confirms the account (until then patients get the "details will be sent" line)
+- [ ] Book Now hero says "pay your deposit online in four simple steps": true only once the payment link is set (see CHANGELOG 1.4.0)
+- [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
+- [ ] New copy signed off (CHANGELOG 1.4.0 and 1.3.0)
+- [ ] Privacy policy supplied (covers booking details held in the database and sent by email, and any deposit data)
+- [ ] Lauren's photo in place
+- [ ] Domain set, QR code regenerated for it before printing large runs
+- [ ] GA4 (and Meta Pixel if wanted) IDs added
+- [ ] iPhone check on staging: homepage, menu, pop-up, FAQ cards, Reach out to Alex, a test booking, the dashboard
+- [x] Contact details match Lorna's email of 26 Oct 2026
+- [x] Footer disclaimer confirmed (15 Oct 2026)
+- [ ] Lorna's profile never uses the word "specialist"
 - [ ] DNS: apex primary, www 308 to apex
 
 ## Not in this release
 
-The GYA client dashboard (Payload CMS) is not included in the plain HTML version. The Next.js source (v1.0.3) is
-kept by GYA and can be used when the dashboard is added.
+- The full GYA client dashboard (edit page wording and photos in place, blog, SEO, practice details), per
+  `gya-site-kit/client-dashboard-standard.md`. This release adds the booking dashboard Lorna asked for; the page
+  editor can be added after launch on the same `/admin/` area and the same Neon database.
+- Two-way sync with Core Practice (not wanted: bookings are entered by hand).
+- Automatic emails when a booking is confirmed or cancelled in the dashboard (the team emails the patient).
