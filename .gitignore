@@ -1,6 +1,20 @@
 node_modules/
+.next/
 .vercel/
 .env*
 !.env.example
 .DS_Store
-public/
+*.tsbuildinfo
+
+# written by the build from content/ (scripts/render-site.ts)
+/public/index.html
+/public/404.html
+/public/book-now/
+/public/privacy-policy/
+/public/blog/
+/public/sitemap.xml
+/public/robots.txt
+/public/assets/site-config.js
+/public/.generated.json
+# uploads when there is no Vercel Blob (local testing only)
+/media/

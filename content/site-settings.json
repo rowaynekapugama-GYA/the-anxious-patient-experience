@@ -1,0 +1,14 @@
+{
+  "practiceName": "The Anxious Patient Experience™",
+  "phone": "(02) 8599 9815",
+  "apeEmail": "theanxiouspatientexperience@gmail.com",
+  "receptionEmail": "reception@thecronulladentists.com.au",
+  "clinic": {
+    "name": "The Cronulla Dentists",
+    "street": "13 Cronulla Street",
+    "suburb": "Cronulla",
+    "state": "NSW",
+    "postcode": "2230",
+    "mapsUrl": "https://www.google.com/maps/search/?api=1&query=The%20Cronulla%20Dentists%2C%2013%20Cronulla%20Street%2C%20Cronulla%20NSW%202230"
+  }
+}

@@ -1,12 +1,63 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
-  "description": "The Anxious Patient Experience website: plain HTML, CSS and JavaScript. The build step applies assets/site-config.js to every page and checks links.",
+  "type": "module",
+  "description": "The Anxious Patient Experience website (static pages built from content/) with the GYA client dashboard and booking dashboard at /admin.",
   "scripts": {
-    "build": "node scripts/build.mjs"
+    "dev": "next dev",
+    "build": "node scripts/build.mjs",
+    "build:next": "next build",
+    "start": "next start",
+    "render": "tsx scripts/render-site.ts",
+    "pull": "tsx scripts/pull-content.ts",
+    "seed": "tsx scripts/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "qa:parity": "tsx scripts/qa-parity.ts",
+    "qa:editor": "tsx scripts/qa-editor.ts",
+    "qa:site": "node scripts/qa-site.mjs",
+    "qa:banned": "node scripts/qa-banned.mjs",
+    "qa:secrets": "node scripts/qa-secrets.mjs",
+    "qa": "npm run typecheck && npm run qa:parity && npm run qa:editor && npm run qa:site && npm run qa:banned && npm run qa:secrets",
+    "payload": "payload",
+    "migrate": "payload migrate",
+    "migrate:create": "payload migrate:create"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2"
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@dnd-kit/utilities": "3.2.2",
+    "@payloadcms/db-postgres": "3.92.1",
+    "@payloadcms/next": "3.92.1",
+    "@payloadcms/storage-vercel-blob": "3.92.1",
+    "@payloadcms/ui": "3.92.1",
+    "@tiptap/core": "3.32.2",
+    "@tiptap/extension-image": "3.32.2",
+    "@tiptap/extension-link": "3.32.2",
+    "@tiptap/extensions": "3.32.2",
+    "@tiptap/pm": "3.32.2",
+    "@tiptap/react": "3.32.2",
+    "@tiptap/starter-kit": "3.32.2",
+    "dotenv": "^18.0.4",
+    "graphql": "^16.8.1",
+    "next": "16.4.4",
+    "payload": "3.92.1",
+    "pg": "8.20.0",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "sanitize-html": "2.18.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/sanitize-html": "2.16.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@types/pg": "8.20.0"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

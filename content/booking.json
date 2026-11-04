@@ -1,0 +1,11 @@
+{
+  "timeZone": "Australia/Sydney",
+  "days": [3],
+  "startTimes": ["09:00", "10:20", "11:40"],
+  "startDate": "2026-12-02",
+  "minNoticeHours": 24,
+  "weeksAhead": 6,
+  "initialBlockedDates": ["2026-12-23", "2026-12-30"],
+  "pricing": { "appointment": 350, "deposit": 100 },
+  "openingSpecial": { "enabled": true, "price": 250, "from": "2026-12-02", "to": "2026-12-15", "maxBookings": 6, "popup": true }
+}

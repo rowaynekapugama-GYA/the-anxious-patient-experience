@@ -1,0 +1,77 @@
+{
+  "parts": {
+    "footer": {
+      "key": "footer",
+      "kind": "footer",
+      "label": "Footer",
+      "tag": "footer",
+      "attrs": {
+        "class": "site-footer"
+      },
+      "template": "<div class=\"wrap\"><div class=\"foot\"><div><a class=\"logo\" aria-label=\"The Anxious Patient Experience™\" href=\"{{site:pageTop}}\"><img class=\"logo-tile logo-img\" src=\"{{f1}}\" width=\"62\" height=\"62\" alt=\"\"/></a><p class=\"tagline\">{{f2}}</p></div><nav aria-label=\"Footer\"><ul><li>{{f3}}</li><li>{{f4}}</li><li>{{f5}}</li><li>{{f6}}</li>{{site:blogFooter}}<li>{{f7}}</li><li>{{f8}}</li></ul></nav><div id=\"contact\"><ul class=\"contact\">{{site:footerContact}}</ul></div></div><p class=\"disclaimer\">{{f9}}</p><p class=\"legal\">{{f10}}</p></div>",
+      "fields": [
+        {
+          "id": "f1",
+          "label": "Photo",
+          "type": "image",
+          "value": "/images/ape-logo.webp",
+          "original": "/images/ape-logo.webp"
+        },
+        {
+          "id": "f2",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "A nervous-system-aware approach to dental care."
+        },
+        {
+          "id": "f3",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"{{site:pageBase}}#understanding\">The Experience</a>"
+        },
+        {
+          "id": "f4",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"{{site:pageBase}}#who-is-it-for\">Who It’s For</a>"
+        },
+        {
+          "id": "f5",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"{{site:pageBase}}#meet-the-team\">Meet the Team</a>"
+        },
+        {
+          "id": "f6",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"{{site:pageBase}}#faqs\">FAQs</a>"
+        },
+        {
+          "id": "f7",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"/book-now/\">Book Now</a>"
+        },
+        {
+          "id": "f8",
+          "label": "List item",
+          "type": "richtext",
+          "value": "<a href=\"/privacy-policy/\">Privacy Policy</a>"
+        },
+        {
+          "id": "f9",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "The information on this website is general in nature and does not replace individual assessment or advice from a registered dental practitioner. Suitability for The Anxious Patient Experience™, and for any treatment or sedation options discussed, will be assessed individually with your dentist."
+        },
+        {
+          "id": "f10",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "© 2026 The Anxious Patient Experience™. All rights reserved."
+        }
+      ]
+    }
+  }
+}

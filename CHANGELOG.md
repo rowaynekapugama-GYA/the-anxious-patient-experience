@@ -1,5 +1,66 @@
 # Changelog
 
+## 1.5.0 (4 Nov 2026): the GYA standard client dashboard, with online booking built in
+
+Rowayne, 4 Nov 2026: build the standard dashboard now so the client can see the process with the booking dashboard
+(nothing is live yet). Update to the existing repo. **The website looks and reads exactly as v1.4.0**: an unedited
+build gives back the v1.4.0 pages byte for byte (`npm run qa:parity`).
+
+### What changed
+- **Dashboard at `/admin`**, ported from the GYA standard (Precision Dental v3.7 / Tooth n Care v2.1): sign in with
+  your own email and password (GYA administrators and practice Editors), Dashboard home, Pages with the visual page
+  editor (click words to edit in place, click a photo to replace it, Content / SEO / Sections tabs, Desktop and
+  Mobile), Blog Posts, Media Library, Team (opens the homepage at the team cards), SEO, Site Settings, Redirects and
+  Users (GYA only), Publish website. Payload's own screens moved to `/cms` (GYA only).
+- **Booking screens inside it** (replace the v1.4.0 password page at `/admin/`):
+  - Bookings: To confirm / Upcoming / Past / Cancelled, Mark confirmed, Deposit received, Cancel (with a check),
+    Restore, patient notes, CSV download, a count of requests to confirm beside the menu item and on the Dashboard.
+  - Availability: block a period, a day or a single time; a list of the next weeks with every time's status (open,
+    booked with the patient's name, blocked, too soon); clash warning naming anyone already booked; and **the weekly
+    booking days and start times can now be changed** (straight away on the website), with "Use the standard times".
+  - Opening special: places used and left, whether it is showing on the website, the special bookings.
+- **Pages are built from `content/`** (the content model the dashboard edits) by `scripts/render-site.ts`. The site is
+  now a Next.js project on Vercel (`vercel.json` sets the framework); the public pages are still plain HTML files.
+- **Booking API** moved from `api/*.js` (v1.4.0) to Next.js routes with the same addresses, rules and responses:
+  `/api/availability/`, `/api/booking/`. Same database tables; the special is still decided in one locked step.
+- **Site Settings**: phone, the two email addresses and the clinic address, written into the footer, Book Now, the
+  structured data and the booking emails; GYA only: who receives booking requests, GA4 and Meta Pixel IDs.
+- **Canonical and share links** now use the site's own address (the vercel.app address until `NEXT_PUBLIC_SERVER_URL`
+  is set at go-live) instead of the `https://example.com` placeholder.
+- **FAQ structured data** is now written from the questions on the page, so an edited question updates it too.
+- **Blog**: `/blog/` and one page per post, in the Privacy Policy page's layout, only once a post is published; the
+  Blog link then joins the menus and footer. Small styles added to `site.css` for posts.
+- `docs/HOW-TO-UPDATE.md` replaces `HOW-TO-USE-THE-BOOKING-DASHBOARD.md` (bookings, availability, the special, words,
+  photos, sections, SEO, posts, settings, publishing). Screenshots in `docs/screenshots/`.
+- Removed: `admin/`, `api/`, `assets/admin.*`, `ADMIN_PASSWORD` (no longer used). `assets/` and `images/` moved to
+  `public/`.
+
+### New wording for sign-off (dashboard only, not on the website)
+Dashboard labels and help text on the Bookings, Availability and Opening special screens, and `docs/HOW-TO-UPDATE.md`.
+The booking emails now say "mark it confirmed under Bookings in the website dashboard (/admin)" instead of
+"in the APE dashboard (/admin/)".
+
+### Vercel: needed before pushing (see README)
+Blob store (`BLOB_READ_WRITE_TOKEN`), `PAYLOAD_SECRET`, `PUBLISH_HOOK_URL`, `ALLOW_FIRST_USER=true` for the first login
+only. The build stops if `DATABASE_URL` is set without `PAYLOAD_SECRET`.
+
+### Checks run
+- `qa:parity`: the 4 pages rendered from `content/` match v1.4.0 byte for byte (apart from the old `<!-- config -->`
+  markers). Import into the dashboard then pull back out: `content/` identical.
+- `qa:editor`: every page in the editor is identical to the live page once the editor's markers are removed
+  (174 pieces of wording, 8 photos, 8 links).
+- `qa:site`, `qa:banned` (no em dashes; AHPRA words reviewed), `qa:secrets`, `tsc` clean, `next build` clean.
+- Full build against a local Postgres: migrate, first-build import, pull, render, build; the dashboard driven in a
+  browser: first login, home, page editor (edit and save a heading, photo panel, Sections, Mobile, SEO, footer words,
+  menu note), Team link, Media upload and photo import, blog post published and built into `/blog/`, Site Settings
+  change built into the footer, Publish website calling the deploy hook, a new Editor with a temporary password
+  (must change it; no Redirects or Users; refused at `/admin/users`, `/admin/redirects` and `/cms`).
+- Booking: a booking from Book Now arrives under Bookings with both emails sent; confirm, deposit, cancel (time and
+  special place freed on the website), restore; leave blocking, clash warning, single time block and open, weekly
+  times changed and put back. Eight requests for the same time at once: one saved, seven refused. Eleven special
+  times booked at once with one place already used: exactly five at $250, six at $350.
+- Dashboard at phone width (390 px): no sideways scrolling on any screen.
+
 ## 1.4.0 (3 Nov 2026): final bios, Alex's photo, pricing, opening special, booking dashboard, QR code
 
 Lorna's email of 3 Nov 2026 and Rowayne's notes (pop-up for the offer; a dashboard for availability; the offer must

@@ -1,0 +1,183 @@
+{
+  "slug": "book-now",
+  "name": "Book Now",
+  "path": "/book-now/",
+  "group": "Main pages",
+  "meta": {
+    "title": "Book Your Appointment | The Anxious Patient Experience™",
+    "description": "Book your 70-minute New Patient Appointment online and secure it with a $100 deposit.",
+    "ogImage": "/images/social-share-armchair.jpg",
+    "noindex": false
+  },
+  "head": "<!DOCTYPE html><!--viDmWcPHUl0dHAXOGGqe8--><html lang=\"en-AU\" class=\"__variable_398cc5 __variable_052c8a\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><script>document.documentElement.classList.add('js');setTimeout(function(){var d=document.documentElement;if(!d.classList.contains('js-ready'))d.classList.remove('js')},3000)</script><link rel=\"preload\" href=\"/assets/fonts/01f11ea540e3939a-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/0a002f5319e6b358-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/3db8134653b57583-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/7ba2591d4d0cdc48-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/a191b9bac6f8600d-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/e8bd9fc08858c4b1-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" as=\"image\" href=\"/images/ape-textured-napkin-1400.webp\" imagesizes=\"(max-width: 900px) 100vw, 50vw\" fetchpriority=\"high\" imagesrcset=\"/images/ape-textured-napkin-800.webp 800w, /images/ape-textured-napkin-1400.webp 1400w, /images/ape-textured-napkin-2400.webp 2400w\" type=\"image/webp\"/><link rel=\"stylesheet\" href=\"/assets/site.css?v={{site:v}}\"/><meta name=\"theme-color\" content=\"#F7F4EF\"/><title>{{seo:title}}</title><meta name=\"description\" content=\"{{seo:description}}\"/><meta name=\"application-name\" content=\"The Anxious Patient Experience™\"/>{{seo:robots}}<link rel=\"canonical\" href=\"{{seo:url}}\"/><meta property=\"og:title\" content=\"{{seo:title}}\"/><meta property=\"og:description\" content=\"{{seo:description}}\"/><meta property=\"og:url\" content=\"{{seo:url}}\"/><meta property=\"og:site_name\" content=\"The Anxious Patient Experience™\"/><meta property=\"og:locale\" content=\"en_AU\"/><meta property=\"og:image\" content=\"{{seo:ogImage}}\"/>{{seo:ogImageExtra}}<meta property=\"og:type\" content=\"website\"/><meta name=\"twitter:card\" content=\"summary_large_image\"/><meta name=\"twitter:title\" content=\"{{seo:title}}\"/><meta name=\"twitter:description\" content=\"{{seo:description}}\"/><meta name=\"twitter:image\" content=\"{{seo:ogImage}}\"/><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" sizes=\"any\"/><link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\"/>{{site:analytics}}</head><body class=\"book\"><a class=\"skip-link\" href=\"#main\">Skip to content</a><header class=\"site-header\"><div class=\"wrap nav\"><a class=\"logo\" aria-label=\"The Anxious Patient Experience™\" href=\"/\"><img class=\"logo-tile logo-img\" src=\"/images/ape-logo.webp\" width=\"62\" height=\"62\" alt=\"\"/></a><nav class=\"nav-main\" aria-label=\"Main\"><ul class=\"nav-links\"><li><a href=\"/#understanding\" data-section=\"understanding\">The Experience</a></li><li><a href=\"/#who-is-it-for\" data-section=\"who-is-it-for\">Who It’s For</a></li><li><a href=\"/#meet-the-team\" data-section=\"meet-the-team\">Meet the Team</a></li><li><a href=\"/#faqs\" data-section=\"faqs\">FAQs</a></li>{{site:blogNav}}</ul></nav><a class=\"btn nav-book\" href=\"/book-now/\" aria-current=\"page\">Book Now</a><button class=\"burger\" type=\"button\" aria-label=\"Open menu\" aria-expanded=\"false\" aria-controls=\"mobile-menu\"><span></span><span></span><span></span></button></div><nav id=\"mobile-menu\" class=\"mobile-menu wrap\" aria-label=\"Menu\"><ul><li><a href=\"/#understanding\" data-section=\"understanding\">The Experience</a></li><li><a href=\"/#who-is-it-for\" data-section=\"who-is-it-for\">Who It’s For</a></li><li><a href=\"/#meet-the-team\" data-section=\"meet-the-team\">Meet the Team</a></li><li><a href=\"/#faqs\" data-section=\"faqs\">FAQs</a></li>{{site:blogNav}}<li class=\"menu-book\"><a class=\"btn\" href=\"/book-now/\" aria-current=\"page\">Book Now</a></li></ul></nav></header><main id=\"main\">",
+  "sections": [
+    {
+      "key": "s1",
+      "kind": "hero",
+      "label": "A next step does not have to feel like a big one.",
+      "tag": "section",
+      "attrs": {
+        "class": "hero"
+      },
+      "template": "<div class=\"wrap grid\"><div><p class=\"eyebrow reveal fade\">{{f1}}</p><h1 class=\"reveal fade d1\">{{f2}}</h1><p class=\"sub reveal fade d2\" style=\"margin-bottom:0\">{{f3}}</p></div><div class=\"hero-media reveal fade d1\"><div class=\"frame landscape\"><picture><source type=\"image/webp\" srcset=\"{{f6}}\" sizes=\"(max-width: 900px) 100vw, 50vw\"/><img src=\"{{f4}}\" width=\"2400\" height=\"1340\" alt=\"{{f5}}\" loading=\"eager\" decoding=\"async\" fetchpriority=\"high\" style=\"object-position:45% 45%\"/></picture></div></div></div>",
+      "fields": [
+        {
+          "id": "f1",
+          "label": "Small heading above",
+          "type": "richtext",
+          "value": "When you are ready"
+        },
+        {
+          "id": "f2",
+          "label": "Main heading",
+          "type": "richtext",
+          "value": "A next step does not have to feel like a big one."
+        },
+        {
+          "id": "f3",
+          "label": "Introduction",
+          "type": "richtext",
+          "value": "Book your first appointment and pay your deposit online in four simple steps."
+        },
+        {
+          "id": "f4",
+          "label": "Photo",
+          "type": "image",
+          "value": "/images/ape-textured-napkin.jpg",
+          "original": "/images/ape-textured-napkin.jpg"
+        },
+        {
+          "id": "f5",
+          "label": "Photo description",
+          "type": "alt",
+          "value": "A textured cream napkin with a small tooth outline, resting on soft draped fabric"
+        },
+        {
+          "id": "f6",
+          "label": "Photo sizes",
+          "type": "srcset",
+          "value": "/images/ape-textured-napkin-800.webp 800w, /images/ape-textured-napkin-1400.webp 1400w, /images/ape-textured-napkin-2400.webp 2400w",
+          "of": "f4"
+        }
+      ]
+    },
+    {
+      "key": "s2",
+      "kind": "content",
+      "label": "Book your appointment",
+      "tag": "section",
+      "attrs": {
+        "class": "section bg-blush",
+        "style": "padding-top:clamp(56px,7vw,96px)",
+        "aria-label": "Book your appointment"
+      },
+      "template": "<div class=\"wrap\"><div class=\"appt-card reveal\"><div><h2>{{f1}}</h2><p class=\"details\">{{f2}}</p><p class=\"rebates\">{{f3}}</p><p class=\"special-card\" data-special-card=\"\" hidden=\"\"><span class=\"special-card-label\">Opening special</span> <span class=\"special-card-price\"><s><span class=\"sr-only\">Usually </span>$350</s> <strong>$250</strong></span> <span class=\"special-card-text\"></span></p><p class=\"deposit\">{{f4}}</p><p class=\"clinic\">{{site:clinicLine}}</p></div><a href=\"{{f5}}\" class=\"btn\">{{f6}}</a></div><p class=\"notice-24h reveal\">{{f7}}</p><div style=\"margin-top:28px\"><ol class=\"steps\" aria-label=\"How booking works\"><li data-state=\"current\" aria-current=\"step\">{{f8}}</li><li data-state=\"todo\">{{f9}}</li><li data-state=\"todo\">{{f10}}</li><li data-state=\"todo\">{{f11}}</li></ol><div class=\"booking\" id=\"booking\" tabindex=\"-1\" aria-live=\"polite\"><div><h3>Choose your appointment</h3><p>Loading available times</p><div class=\"row-actions\"><button type=\"button\" class=\"btn\" disabled=\"\">Continue</button></div></div></div></div></div>",
+      "fields": [
+        {
+          "id": "f1",
+          "label": "Heading",
+          "type": "richtext",
+          "value": "The Anxious Patient Experience™: New Patient Appointment"
+        },
+        {
+          "id": "f2",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "70 minutes | $350"
+        },
+        {
+          "id": "f3",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "Health fund rebates available"
+        },
+        {
+          "id": "f4",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "$100 deposit required to secure the appointment"
+        },
+        {
+          "id": "f5",
+          "label": "Button link",
+          "type": "href",
+          "value": "#booking"
+        },
+        {
+          "id": "f6",
+          "label": "Button words",
+          "type": "text",
+          "value": "Choose a time"
+        },
+        {
+          "id": "f7",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "Need an appointment within the next 24 hours? Please contact the clinic directly on {{site:phoneLink}} so we have time to properly prepare for your visit."
+        },
+        {
+          "id": "f8",
+          "label": "List item",
+          "type": "richtext",
+          "value": "Choose your appointment"
+        },
+        {
+          "id": "f9",
+          "label": "List item",
+          "type": "richtext",
+          "value": "Enter your details"
+        },
+        {
+          "id": "f10",
+          "label": "List item",
+          "type": "richtext",
+          "value": "Pay your $100 deposit"
+        },
+        {
+          "id": "f11",
+          "label": "List item",
+          "type": "richtext",
+          "value": "Booking confirmed"
+        }
+      ]
+    },
+    {
+      "key": "s3",
+      "kind": "content",
+      "label": "Reach out to Alex",
+      "tag": "section",
+      "attrs": {
+        "class": "section",
+        "style": "padding-top:clamp(48px,6vw,80px)",
+        "aria-label": "Reach out to Alex"
+      },
+      "template": "<div class=\"wrap\"><div class=\"reassure reveal pop\"><p>{{f1}}</p><a href=\"{{f2}}\" class=\"btn btn-ghost\">{{f3}}</a></div></div>",
+      "fields": [
+        {
+          "id": "f1",
+          "label": "Paragraph",
+          "type": "richtext",
+          "value": "Not ready to book yet? Reach out to Alex, our APE Lead, first. There is no pressure and no need to have the right words."
+        },
+        {
+          "id": "f2",
+          "label": "Button link",
+          "type": "href",
+          "value": "#contact"
+        },
+        {
+          "id": "f3",
+          "label": "Button words",
+          "type": "text",
+          "value": "Reach out to Alex"
+        }
+      ]
+    }
+  ],
+  "order": [
+    "section:0",
+    "section:1",
+    "section:2"
+  ],
+  "tail": "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"MedicalOrganization\",\"name\":\"The Anxious Patient Experience™\",\"url\":\"{{site:origin}}\",\"logo\":\"{{site:origin}}/images/ape-logo.png\",\"description\":\"A nervous-system-aware approach to dental care.\"}</script>{{site:schema}}<script src=\"/assets/site-config.js?v={{site:v}}\" defer></script><script src=\"/assets/site.js?v={{site:v}}\" defer></script></body></html>"
+}

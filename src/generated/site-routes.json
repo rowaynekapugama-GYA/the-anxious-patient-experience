@@ -1,0 +1,11 @@
+{
+ "routes": [
+  "/",
+  "/book-now/",
+  "/faqs/",
+  "/meet-the-team/",
+  "/privacy-policy/",
+  "/understanding-the-experience/"
+ ],
+ "redirects": []
+}

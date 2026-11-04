@@ -1,0 +1,19 @@
+[
+ { "rule": "best", "contains": "works best for you", "note": "Client copy: 'communicate in the way that works best for you'. Not a comparative claim." },
+ { "rule": "best", "contains": "var best", "note": "A variable name in site.js." },
+ { "rule": "best", "contains": "best = k", "note": "A variable name in site.js." },
+ { "rule": "best", "contains": "(best !== current) show(best)", "note": "A variable name in site.js." },
+ { "rule": "best", "contains": "work best between", "note": "Dashboard help about title length." },
+ { "rule": "best", "contains": "Best at 1200 by 630", "note": "Dashboard help about share image size." },
+ { "rule": "leading", "contains": "decimal-leading-zero", "note": "A CSS counter style." },
+ { "rule": "pain-free", "contains": "no \"pain-free\"", "note": "The AHPRA reminder in the how-to guide." },
+ { "rule": "guarantee", "contains": "\"guaranteed\", \"best\"", "note": "The AHPRA reminder in the how-to guide." },
+ { "rule": "best", "contains": "\"guaranteed\", \"best\"", "note": "The AHPRA reminder in the how-to guide." },
+ { "rule": "expert", "contains": "\"best\" or \"expert\"", "note": "The AHPRA reminder in the how-to guide." },
+ { "rule": "specialist", "contains": "as a \"specialist\"", "note": "The reminder never to call Lorna a specialist." },
+ { "rule": "specialist", "contains": "never uses the word \"specialist\"", "note": "Go-live checklist item." },
+ { "rule": "pain-free", "contains": "&ldquo;pain-free&rdquo;", "note": "The AHPRA reminder in the post editor." },
+ { "rule": "guarantee", "contains": "&ldquo;guaranteed&rdquo;", "note": "The AHPRA reminder in the post editor." },
+ { "rule": "best", "contains": "&ldquo;best&rdquo;", "note": "The AHPRA reminder in the post editor." },
+ { "rule": "expert", "contains": "&ldquo;expert&rdquo;", "note": "The AHPRA reminder in the post editor." }
+]
