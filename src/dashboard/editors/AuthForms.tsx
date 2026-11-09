@@ -28,7 +28,7 @@ export function LoginForm({ next }: { next?: string }) {
       <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
       <div className="field"><label htmlFor="password">Password</label><input id="password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
       <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'}</button>
-      <p className="help" style={{ marginTop: 12, textAlign: 'center' }}>Forgotten your password? Ask GYA to reset it.</p>
+      <p className="help" style={{ marginTop: 12, textAlign: 'center' }}><a href="/admin/forgot-password">Forgotten your password?</a></p>
     </form>
   )
 }
@@ -101,6 +101,70 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         <div className="help">At least 10 characters, with letters and numbers.</div></div>
       <div className="field"><label htmlFor="pw2">New password again</label><input id="pw2" className="input" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
       <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save my new password'}</button>
+    </form>
+  )
+}
+
+
+/** "Forgotten your password?": emails a link to choose a new one. */
+export function ForgotForm() {
+  const [email, setEmail] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(''); setMsg('')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErr('Please enter your email address.'); return }
+    setBusy(true)
+    try {
+      const r = await api<{ message: string }>('/api/dashboard/forgot-password', { method: 'POST', body: { email: email.trim() } })
+      setMsg(r.message)
+    } catch (e2) {
+      setErr((e2 as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (msg) return <><div className="notice good" role="status"><div className="grow">{msg}</div></div><p className="help" style={{ textAlign: 'center' }}><a href="/admin/login">Back to sign in</a></p></>
+  return (
+    <form onSubmit={submit} noValidate>
+      {err ? <div className="notice bad" role="alert"><div className="grow">{err}</div></div> : null}
+      <div className="field"><label htmlFor="fp-email">Email</label><input id="fp-email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Sending...' : 'Email me a link'}</button>
+      <p className="help" style={{ marginTop: 12, textAlign: 'center' }}><a href="/admin/login">Back to sign in</a></p>
+    </form>
+  )
+}
+
+/** The page the emailed link opens: choose a password, then straight into the dashboard. */
+export function ResetForm({ token }: { token: string }) {
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setErr('')
+    if (pw.length < 10 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) { setErr('Use at least 10 characters with letters and numbers.'); return }
+    if (pw !== pw2) { setErr('The two passwords do not match.'); return }
+    setBusy(true)
+    try {
+      await api('/api/users/reset-password', { method: 'POST', body: { token, password: pw } })
+      window.location.href = '/admin'
+    } catch {
+      setErr('This link has expired or has already been used. Ask for a new one below.')
+      setBusy(false)
+    }
+  }
+  if (!token) return <div className="notice bad" role="alert"><div className="grow">This link is not complete. Please use the button in the email, or <a href="/admin/forgot-password">ask for a new link</a>.</div></div>
+  return (
+    <form onSubmit={submit} noValidate>
+      {err ? <div className="notice bad" role="alert"><div className="grow">{err} <a href="/admin/forgot-password">Ask for a new link</a></div></div> : null}
+      <div className="field"><label htmlFor="rp-pw">New password</label><input id="rp-pw" className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+        <p className="help">At least 10 characters, with letters and numbers.</p></div>
+      <div className="field"><label htmlFor="rp-pw2">New password again</label><input id="rp-pw2" className="input" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
+      <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save my password'}</button>
     </form>
   )
 }

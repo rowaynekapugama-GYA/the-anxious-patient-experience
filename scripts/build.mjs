@@ -1,7 +1,8 @@
 /**
  * Production build (npm run build, which Vercel runs).
  *
- *   1. with a database: run migrations and pull whatever the dashboard holds into content/
+ *   1. with a database: run migrations, load the website into an empty dashboard, apply this release's content
+ *      changes (src/sitekit/releases.ts), and pull whatever the dashboard holds into content/
  *   2. write the public pages from content/ into public/ (scripts/render-site.ts)
  *   3. check every page: links, anchors, files, structured data, FAQ counter, em dashes (scripts/qa-site.mjs)
  *   4. next build: the dashboard at /admin, Payload at /cms, the booking and dashboard API routes
@@ -55,6 +56,12 @@ if (process.env.DATABASE_URL) {
   if (quiet('npx', ['tsx', 'scripts/seed.ts', '--if-empty']) !== 0) {
     console.log('> could not load the website into the dashboard; GYA can press Import on the Dashboard')
   }
+
+  console.log('> applying this release\'s content changes to the dashboard')
+  quiet('npx', ['tsx', 'scripts/content-updates.ts'])
+
+  console.log('> dashboard logins from DASHBOARD_EDITORS')
+  quiet('npx', ['tsx', 'scripts/dashboard-logins.ts'])
 
   console.log('> pulling content from the dashboard')
   const status = quiet('npx', ['tsx', 'scripts/pull-content.ts'])

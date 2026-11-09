@@ -7,7 +7,7 @@
  * - Contact details: Site Settings (content/site-settings.json, written by the build from the dashboard).
  * - Bookings, blocked days and times live in Postgres (DATABASE_URL, Neon on Vercel), in tables of their own next to
  *   the dashboard's. They are created on first use.
- * - Email goes through Resend (RESEND_API_KEY, BOOKING_FROM).
+ * - Email goes through SMTP2GO or Resend (src/lib/email.ts): SMTP2GO_API_KEY or RESEND_API_KEY, and BOOKING_FROM.
  */
 import { Pool, type PoolClient } from 'pg'
 import bookingJson from '../../content/booking.json'
@@ -279,16 +279,9 @@ export async function readState(): Promise<{ cfg: Cfg; state: State }> {
   }
 }
 
-// ---------------------------------------------------------------- email (Resend)
-export async function sendEmail(msg: Record<string, unknown>): Promise<unknown> {
-  const r = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(msg),
-  })
-  if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 300)}`)
-  return r.json().catch(() => ({}))
-}
+// ---------------------------------------------------------------- email (SMTP2GO or Resend, src/lib/email.ts)
+export { sendEmail, emailConfigured } from '@/lib/email'
+export type { Email } from '@/lib/email'
 
 // ---------------------------------------------------------------- helpers
 export function send(status: number, body: unknown, headers: Record<string, string> = {}): Response {

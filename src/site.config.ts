@@ -21,7 +21,7 @@ export const DEFAULTS = {
   apeEmail: 'theanxiouspatientexperience@gmail.com',
   /** labelled "General practice enquiries" */
   receptionEmail: 'reception@thecronulladentists.com.au',
-  /** Booking requests are emailed to these. Empty uses BOOKING_NOTIFY_TO, then the APE inbox. */
+  /** Booking requests are emailed to these. Empty uses BOOKING_NOTIFY_EMAIL (or the older BOOKING_NOTIFY_TO), then the APE inbox. */
   bookingRecipients: [] as string[],
   /** the default share picture and its size and description */
   ogImage: '/images/social-share-armchair.jpg',

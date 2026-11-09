@@ -11,7 +11,7 @@ export default async function Users() {
   const users = res.docs.map((d) => ({ id: d.id, name: String(d.name || ''), email: String(d.email), role: d.role === 'admin' ? 'admin' as const : 'editor' as const, mustChangePassword: !!d.mustChangePassword }))
   return (
     <>
-      <div className="pd-head"><div className="grow"><h1>Users</h1><p className="pd-sub">Who can sign in to the dashboard.</p></div></div>
+      <div className="pd-head"><div className="grow"><h1>Users</h1><p className="pd-sub">Who can sign in to the dashboard. Accounts can also be added from Vercel with DASHBOARD_EDITORS (see README). Delete an account here to stop someone signing in.</p></div></div>
       <UsersEditor initial={users} me={me.id} />
     </>
   )

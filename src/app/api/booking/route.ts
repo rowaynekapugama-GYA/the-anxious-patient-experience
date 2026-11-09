@@ -11,8 +11,9 @@
  * The APE team then blocks the time in Core Practice, confirms with the patient and marks it confirmed under
  * Bookings in the dashboard (/admin/bookings).
  *
- * Environment variables: DATABASE_URL, RESEND_API_KEY and BOOKING_FROM (required); BOOKING_NOTIFY_TO, BOOKING_BCC,
- * DEPOSIT_PAYMENT_URL (optional). See .env.example.
+ * Environment variables: DATABASE_URL, SMTP2GO_API_KEY or RESEND_API_KEY, and BOOKING_FROM (required);
+ * BOOKING_NOTIFY_EMAIL (or BOOKING_NOTIFY_TO), BOOKING_BCC, DEPOSIT_PAYMENT_URL (optional). See .env.example.
+ * Who gets the request: Site Settings > Who receives booking requests, else BOOKING_NOTIFY_EMAIL, else the APE inbox.
  */
 import crypto from 'node:crypto'
 import * as core from '@/booking/core'
@@ -87,8 +88,8 @@ export async function POST(req: Request) {
   const slot = core.checkSlot(cfg, core.clean(body.slotStart, 40), now)
   if (slot.error) return core.send(slot.error === 'too_soon' ? 409 : 400, { ok: false, error: slot.error })
 
-  if (!d || !process.env.RESEND_API_KEY || !process.env.BOOKING_FROM) {
-    console.error('booking: DATABASE_URL, RESEND_API_KEY and BOOKING_FROM must all be set in Vercel. Request not taken:', ref)
+  if (!d || !core.emailConfigured()) {
+    console.error('booking: DATABASE_URL, an email key (SMTP2GO_API_KEY or RESEND_API_KEY) and BOOKING_FROM must all be set in Vercel. Request not taken:', ref)
     return core.send(503, { ok: false, error: 'not_configured' })
   }
 
@@ -124,7 +125,8 @@ export async function POST(req: Request) {
   const link = depositLink(ref, email)
   const deposit = cfg.pricing.deposit
   const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
-  const notifyTo = cfg.bookingRecipients.length ? cfg.bookingRecipients : list(process.env.BOOKING_NOTIFY_TO || core.DEFAULT_NOTIFY_TO)
+  const notifyTo = cfg.bookingRecipients.length ? cfg.bookingRecipients
+    : list(process.env.BOOKING_NOTIFY_EMAIL || process.env.BOOKING_NOTIFY_TO || core.DEFAULT_NOTIFY_TO)
   const bcc = list(process.env.BOOKING_BCC || '')
   const apeInbox = cfg.contact.apeEmail || core.DEFAULT_NOTIFY_TO
   const clinicPhone = cfg.contact.phone
@@ -145,8 +147,7 @@ export async function POST(req: Request) {
     ['Submitted', submitted],
   ]
   const nextStep = 'Next step: block this time in Core Practice, reply to the patient to confirm and send the new patient information pack, then mark it confirmed under Bookings in the website dashboard (/admin).'
-  const notify: Record<string, unknown> = {
-    from: process.env.BOOKING_FROM,
+  const notify: core.Email = {
     to: notifyTo,
     reply_to: email,
     subject: `APE booking request: ${core.fmtDateTime(start, tz, false)}, ${name} (${ref})${special ? ' [opening special]' : ''}`,
@@ -180,7 +181,6 @@ export async function POST(req: Request) {
   let ackSent = true
   try {
     await core.sendEmail({
-      from: process.env.BOOKING_FROM,
       to: [email],
       reply_to: apeInbox,
       subject: `We have received your booking request | ${TM}`,

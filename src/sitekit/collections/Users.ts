@@ -16,9 +16,19 @@ export const Users: CollectionConfig = {
     maxLoginAttempts: 8,
     lockTime: 15 * 60 * 1000,
     cookies: { sameSite: 'Lax', secure: process.env.NODE_ENV === 'production' },
+    // the links in "Set up your password" and "Reset your password" emails (src/dashboard/lib/passwordLink.ts)
+    forgotPassword: { expiration: 72 * 60 * 60 * 1000 },
   },
   hooks: {
     beforeOperation: [firstUserGate],
+    beforeValidate: [
+      ({ data, operation }) => {
+        // choosing a password from an emailed link counts as choosing your own, so no forced change afterwards
+        const d = data as Record<string, unknown> | undefined
+        if (operation === 'update' && d && typeof d.hash === 'string' && d.resetPasswordExpiration) d.mustChangePassword = false
+        return data
+      },
+    ],
     beforeChange: [
       ({ data, originalDoc, operation, req }) => {
         // an administrator setting a password for someone else makes it temporary

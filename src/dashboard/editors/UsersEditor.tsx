@@ -22,6 +22,13 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
   const [form, setForm] = useState({ name: '', email: '', role: 'editor', password: tempPassword() })
   const [reset, setReset] = useState<{ u: U; password: string } | null>(null)
 
+  async function emailLink(u: { id: number | string; email: string }) {
+    try {
+      const r = await api<{ message: string }>('/api/dashboard/send-password-link', { method: 'POST', body: { id: u.id } })
+      toast(r.message, 'good')
+    } catch (e) { toast((e as Error).message, 'bad') }
+  }
+
   async function add() {
     if (!form.email.includes('@')) { toast('Please enter an email address.', 'bad'); return }
     if (form.password.length < 10) { toast('The temporary password must be at least 10 characters.', 'bad'); return }
@@ -68,8 +75,9 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                     <option value="editor">Editor (practice)</option><option value="admin">Administrator (GYA)</option>
                   </select>
                 </td>
-                <td>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="chip good">Set by the user</span>}</td>
+                <td>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="chip good">Set by the user or by link</span>}</td>
                 <td className="actions">
+                  <button className="btn small" onClick={() => emailLink(u)}>Email a password link</button>
                   <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
                   {String(u.id) !== String(me) ? <button className="btn small danger" onClick={() => remove(u)}>{Icon.trash()} Delete</button> : null}
                 </td>

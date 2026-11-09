@@ -117,6 +117,7 @@ export function tokensFor(s: SiteSettings, opts: { blog?: boolean } = {}): Recor
     phoneHref: `tel:${esc(telOf(s.phone))}`,
     phoneLink,
     apeEmail: esc(s.apeEmail),
+    apeEmailLink: mailLink(s.apeEmail, 'APE email'),
     receptionEmail: esc(s.receptionEmail),
     clinicName: esc(c.name),
     address: esc(address),

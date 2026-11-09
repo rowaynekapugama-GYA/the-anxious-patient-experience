@@ -111,7 +111,8 @@
       if (label) label.textContent = open ? 'Read less' : 'Read more';
       if (open) [].forEach.call(more.querySelectorAll('.reveal'), function (el) { el.classList.add('in'); });
     }
-    setOpen(false);
+    /* a link straight to the hidden part (the booking form links to #privacy-more) opens it */
+    setOpen(location.hash === '#' + more.id);
     btn.hidden = false;
     btn.addEventListener('click', function () {
       var open = btn.getAttribute('aria-expanded') !== 'true';
@@ -263,7 +264,7 @@
     errName: 'Please enter your name.', errEmail: 'Please enter a valid email address.',
     tooSoon: 'That time is now less than 24 hours away, so it can no longer be booked online. Please choose another time, or contact the clinic directly on ' + PHONE + '.',
     /* NEW UI COPY (26 Oct and 3 Nov 2026), waiting on the client's sign-off */
-    consent: 'I agree to the APE team using these details to arrange my appointment, as set out in the <a href="/privacy-policy/">Privacy Policy</a>.',
+    consent: 'I agree to the APE team using these details to arrange my appointment, as set out in the <a href="/privacy-policy/#privacy-more" target="_blank" rel="noopener">Privacy Policy<span class="sr-only"> (opens in a new tab)</span></a>.',
     errConsent: 'Please tick this box so we can arrange your appointment.',
     sending: 'Sending your request',
     sendFail: 'Sorry, we could not send your booking request just now. Please try again, or contact the clinic on ' + PHONE + '.',

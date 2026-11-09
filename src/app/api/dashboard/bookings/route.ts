@@ -71,7 +71,7 @@ async function data(now: number) {
   return {
     ok: true,
     database: state.db,
-    email: !!(process.env.RESEND_API_KEY && process.env.BOOKING_FROM),
+    email: core.emailConfigured(),
     deposit: { mode: process.env.DEPOSIT_PAYMENT_URL ? 'link' : 'later', amount: cfg.pricing.deposit },
     pricing: cfg.pricing,
     booking: {

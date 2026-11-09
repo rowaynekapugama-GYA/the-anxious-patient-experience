@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.6.0 (9 Nov 2026): pre-launch, client feedback round 2
+
+Lorna's email of 9 Nov 2026 and Rowayne's brief "Client feedback round 2". Update to the existing repo. Lorna has
+approved going live once these are done. Full handover: `docs/HANDOVER-v1.6.0.md`.
+
+### What changed
+- **Dashboard logins from a list**: `DASHBOARD_EDITORS` (Vercel, comma separated). Each production build adds any
+  address without a login as an Editor and emails a link to choose a password (one use, 72 hours). Never deletes.
+  (`scripts/dashboard-logins.ts`, build step.) Set to Lorna's four addresses.
+- **Forgotten password** on the sign-in page (`/admin/forgot-password`, `/admin/reset-password`), and **Email a
+  password link** for each person under Users (GYA only). Same message whether or not an address has a login; one
+  email per address every 2 minutes. Reset links clear "must change password".
+- **Emails through SMTP2GO** (the GYA standard) or Resend: `src/lib/email.ts`. Used by booking emails and password
+  links. Booking request recipient now `BOOKING_NOTIFY_EMAIL` (`BOOKING_NOTIFY_TO` still read). Audit: every booking
+  emails the APE inbox and the patient; on staging neither could send because no email key was ever set.
+- **Stripe webhook** (optional): `POST /api/stripe/webhook`, signature checked with `STRIPE_WEBHOOK_SECRET`; a paid
+  Checkout session with an `APE-XXXXXX` reference ticks Deposit received. No Stripe API keys in the site. Bank details
+  are entered in the Stripe Dashboard only and appear nowhere in the repo.
+- **Lauren's photo** (supplied 9 Nov): `team-lauren-bright-2026-11-09.jpg` 1086 x 1448, WebP at 800 and 1086 px,
+  `<picture>` with `srcset`, framed at 45% 22%. Alt text unchanged.
+- **Privacy Policy** written for APE (it said "to be supplied"): a summary, then **Read more** opens the full policy
+  in 14 sections (button with `aria-expanded`; without JavaScript it all shows). Now indexed and in the sitemap. Lorna
+  to confirm the legal entity and Privacy Officer. New `{{site:apeEmailLink}}` token; legal page styles in `site.css`.
+- **Booking form**: the Privacy Policy link in the consent line opens in a new tab (so the booking is not lost) with
+  the full policy already open (`#privacy-more`). Any link to `#privacy-more` opens it.
+- **QR code** regenerated: `deliverables/qr/` 1000 px PNG (300 dpi), about 2000 px PNG and SVG, error correction H,
+  opening the vercel.app address with UTM tags. `qr/make-qr.py` writes all three.
+- **Release content updates** (`scripts/content-updates.ts`, `src/sitekit/releases.ts`): the build puts the new
+  privacy policy and Lauren's photo into the live dashboard content only where the client has not changed them, then
+  leaves them alone.
+- Other legal links checked: the site has only the Privacy Policy (no Terms or Cookie pages); footer, booking form and
+  sitemap all link to it.
+- Docs: README (env table, logins, email audit, Stripe), `docs/HOW-TO-UPDATE.md` (signing in, forgotten password, who
+  can sign in, deposit ticking itself), `.env.example`, `docs/HANDOVER-v1.6.0.md`.
+
+### Vercel environment variables
+Add: `SMTP2GO_API_KEY`, `BOOKING_FROM` (sender on a domain verified in SMTP2GO), `BOOKING_NOTIFY_EMAIL`
+(`theanxiouspatientexperience@gmail.com`), `DASHBOARD_EDITORS` (the four addresses, Production). When Stripe is
+ready: `DEPOSIT_PAYMENT_URL`, `STRIPE_WEBHOOK_SECRET`. At go-live: `NEXT_PUBLIC_SERVER_URL`. Delete:
+`ALLOW_FIRST_USER`, `ADMIN_PASSWORD`, and `BOOKING_NOTIFY_TO` once the new one is in. Unchanged: `DATABASE_URL`,
+`PAYLOAD_SECRET`, `BLOB_READ_WRITE_TOKEN`, `PUBLISH_HOOK_URL`.
+
+### Checked
+`npm run build` with and without a database; `npm run qa` all passing; end-to-end in Chromium against a copy of the
+live content: pop-up, booking with both emails, Stripe webhook (good and bad signature), logins and password reset,
+privacy page at 390 px with keyboard Read more, Lauren's photo at desktop and mobile, QR files decoding. Details in
+the handover, section 7.
+
 ## 1.5.1 (4 Nov 2026): dashboard sign-in card centred
 
 - The sign-in card at `/admin/login` sat left of centre on wide screens when it showed the "Create the first login"

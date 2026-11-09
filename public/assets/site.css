@@ -385,3 +385,15 @@ section.post{padding-top:0}
 .post-body img{border-radius:var(--r-img);margin:24px 0;height:auto}
 .post-back{margin-top:40px}
 .post-back a{text-decoration:none}
+/* v1.6.0: the privacy policy (a short summary, then Read more for the full policy) */
+.legal-page{padding-bottom:clamp(64px,8vw,110px)}
+.legal{max-width:72ch}
+.legal h1{margin-bottom:12px}
+.legal .legal-updated{font-size:14px;color:var(--ink-soft);margin:0 0 24px}
+.legal .legal-lead{font-family:var(--serif);font-size:clamp(19px,1.6vw,22px);line-height:1.5;color:var(--navy);margin:0 0 8px}
+.legal h2{font-size:clamp(22px,2vw,28px);margin:1.6em 0 .5em}
+.legal ul{color:var(--ink-soft);padding-left:1.2em;margin:0 0 1em}
+.legal li{margin:0 0 .55em}
+.legal strong{color:var(--navy);font-weight:600}
+.legal a{text-decoration:underline;text-underline-offset:3px}
+.legal .read-more{margin-top:10px}

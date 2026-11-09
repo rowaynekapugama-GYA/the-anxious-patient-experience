@@ -1,8 +1,21 @@
 # How to update The Anxious Patient Experience website
 
 Web address: **[your website]/admin** (for now: https://the-anxious-patient-experience.vercel.app/admin)
-Sign in with your email and the password GYA sends you separately. The first time, you choose your own password.
-Forgotten it? Ask GYA to reset it (1300 889 840).
+
+### Signing in
+- Your login is your own email address. When GYA adds you, you get an email called "Your login for The Anxious
+  Patient Experience website dashboard" with a link to choose your password (the link works once, for 72 hours).
+  Check junk mail if it has not arrived.
+- **Forgotten your password?** On the sign-in page press **Forgotten your password?**, enter your email and use the
+  link that arrives to choose a new one. If it has been a few minutes and nothing has come, call GYA on 1300 889 840.
+- Passwords need at least 10 characters with letters and numbers. Please do not share a login: everyone who needs
+  one can have their own.
+
+### Who can sign in
+The logins are: lorna-gladwin1@hotmail.co.uk, reception@thecaringbahdentists.com.au,
+reception@thecronulladentists.com.au and theanxiouspatientexperience@gmail.com. To add, change or remove one, just
+email GYA with the new address: we add it to the list and the person gets their own link to choose a password.
+Removing an address from the list does not delete the login, so tell us when someone should no longer have access.
 
 Changes to wording, photos, posts and settings are saved in the dashboard first, and go on the website when you
 press **Publish website** (the website updates in about two minutes). Bookings and availability are different: they
@@ -11,11 +24,14 @@ change on the website straight away.
 ## Bookings
 
 ### When a booking request comes in
-1. You get an email at the APE inbox, and the request shows under **Bookings** as **To confirm** (the number beside
+1. You get an email at the APE inbox (theanxiouspatientexperience@gmail.com) with every detail of the request, and
+   the patient gets an email saying their request has been received, with the deposit link. Replying to your email
+   replies straight to the patient. The request also shows under **Bookings** as **To confirm** (the number beside
    Bookings in the menu is how many are waiting). The time is held, so nobody else can book it online.
 2. Block the time in Core Practice and enter the patient.
 3. Reply to the patient to confirm and send the new patient information pack.
-4. Press **Mark confirmed**. When the deposit arrives, press **Deposit received**.
+4. Press **Mark confirmed**. When the patient pays the deposit online, **Deposit received** ticks itself (Stripe
+   tells the website). If they pay another way, press **Deposit received** yourself.
 
 Click a patient's name to see their note. **Download for Excel (CSV)** saves the list.
 

@@ -123,7 +123,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
 
         {isAdmin ? (
           <>
-            <Panel id="recipients" title="Who receives booking requests (GYA only)" intro="Every booking request from the website is emailed to all of these. If the list is empty, the BOOKING_NOTIFY_TO setting in Vercel is used, then the APE inbox. Takes effect when you publish.">
+            <Panel id="recipients" title="Who receives booking requests (GYA only)" intro="Every booking request from the website is emailed to all of these. If the list is empty, the BOOKING_NOTIFY_EMAIL setting in Vercel is used, then the APE inbox. Takes effect when you publish.">
               {s.bookingRecipients.map((r, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <input className="input" aria-label={`Recipient ${i + 1}`} value={r}

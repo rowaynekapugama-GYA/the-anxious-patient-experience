@@ -20,45 +20,73 @@ the database, and an unedited site is **byte for byte the approved v1.4.0 pages*
 Bookings and availability are live (the Book Now page reads them from the API); everything else goes live when
 someone presses **Publish website**.
 
-For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md`.
+For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md`. This release's handover
+(env vars, Stripe go-live, the email audit and the post-launch scoping): `docs/HANDOVER-v1.6.0.md`.
 
-## Vercel set-up (once, before pushing v1.5.0)
+## Vercel environment variables (v1.6.0)
 
-The build stops with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not, so add the variables first.
+Add or change these in Vercel > Project > Settings > Environment Variables **before** pushing v1.6.0. The build stops
+with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys and secrets as Sensitive.
 
-1. **Database**: already connected (Neon, `DATABASE_URL`). The dashboard's tables are added by the build. The
-   bookings tables from v1.4.0 are kept as they are.
-2. **Media storage**: Storage > Create > **Blob** > connect to this project (Production and Preview). Adds
-   `BLOB_READ_WRITE_TOKEN`. Without it, photos uploaded in the dashboard would be lost at the next deploy.
-3. **Publish hook**: Settings > Git > Deploy Hooks > name `dashboard-publish`, branch `main`. Copy the address into
-   `PUBLISH_HOOK_URL`.
-4. **Environment variables** (Settings > Environment Variables):
+| Variable | Environments | Value | Status |
+|---|---|---|---|
+| `DATABASE_URL` | Production, Preview | Added by Neon | already set |
+| `BLOB_READ_WRITE_TOKEN` | Production, Preview | Added by the Blob store `ape-media` | already set |
+| `PAYLOAD_SECRET` | Production, Preview | Random, 32+ characters. Changing it signs everyone out. | already set |
+| `PUBLISH_HOOK_URL` | Production | Deploy hook for `main` | already set |
+| `SMTP2GO_API_KEY` | Production, Preview | SMTP2GO API key with send permission (or `RESEND_API_KEY` for Resend) | **add** |
+| `BOOKING_FROM` | Production, Preview | `The Anxious Patient Experience <bookings@VERIFIED-DOMAIN>`: a sender on a domain verified in SMTP2GO. Not a gmail.com address. | **add** |
+| `BOOKING_NOTIFY_EMAIL` | Production, Preview | `theanxiouspatientexperience@gmail.com` (comma separate for more) | **add** |
+| `DASHBOARD_EDITORS` | Production | `lorna-gladwin1@hotmail.co.uk,reception@thecaringbahdentists.com.au,reception@thecronulladentists.com.au,theanxiouspatientexperience@gmail.com` | **add** |
+| `DEPOSIT_PAYMENT_URL` | Production (test link in Preview) | The $100 Stripe Payment Link, `https://buy.stripe.com/...` | add when Stripe is ready |
+| `STRIPE_WEBHOOK_SECRET` | Production | `whsec_...` from the Stripe webhook (see Stripe go-live steps) | optional, recommended |
+| `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://the-final-domain.com.au`, no trailing slash. Leave unset on vercel.app. | at go-live |
+| `BOOKING_BCC` | optional | Extra copies of each request | optional |
+| `ALLOW_FIRST_USER` | | Only for the very first login. | **delete** if still there |
+| `ADMIN_PASSWORD` | | Not used since v1.5.0 | **delete** if still there |
+| `BOOKING_NOTIFY_TO` | | Still read, but replaced by `BOOKING_NOTIFY_EMAIL` | delete once the new one is in |
 
-| Variable | Where | Value |
-|---|---|---|
-| `DATABASE_URL` | Production, Preview | Added by Neon (already there) |
-| `BLOB_READ_WRITE_TOKEN` | Production, Preview | Added by the Blob store (step 2) |
-| `PAYLOAD_SECRET` | Production, Preview | A random string of 32 characters or more (`openssl rand -hex 32`). Sensitive. Changing it signs everyone out. |
-| `PUBLISH_HOOK_URL` | Production | The deploy hook from step 3. Sensitive. |
-| `ALLOW_FIRST_USER` | Production | `true` only while the first login is made (step 6), then delete it |
-| `NEXT_PUBLIC_SERVER_URL` | Production | Leave unset on vercel.app. At go-live: `https://the-final-domain.com.au` (no trailing slash), then redeploy |
-| `RESEND_API_KEY`, `BOOKING_FROM` | Production, Preview | Booking emails (Resend); `BOOKING_FROM` on a Resend-verified domain |
-| `BOOKING_NOTIFY_TO` | optional | Where booking requests go, if Site Settings has no list (defaults to the APE inbox) |
-| `BOOKING_BCC` | optional | Extra copies of each request, comma separated |
-| `DEPOSIT_PAYMENT_URL` | optional | The $100 deposit payment link (for example a Stripe Payment Link), once Ram confirms the account |
-
-`ADMIN_PASSWORD` from v1.4.0 is no longer used (the dashboard has its own logins now) and can be deleted.
-
-5. **Push** v1.5.0 (`update-v1.5.0.sh`). The first build adds the dashboard tables and loads the website into the
-   dashboard by itself.
-6. **First login**: open `/admin/login`. With `ALLOW_FIRST_USER=true` and no accounts yet, it shows "Create the first
-   login" (always a GYA administrator): use `rowayne@gyaclients.com`. Then **delete `ALLOW_FIRST_USER` and redeploy**.
-7. On the Dashboard press **Import pictures into the Media Library** (GYA only), then under **Users** add Lorna and
-   Alex as Editors with a temporary password each (they choose their own at first sign in). Send the password
-   separately from the link.
+Without an email key and `BOOKING_FROM`, **online booking is switched off**: Book Now shows "we could not send your
+booking request" with the clinic's phone number and nothing is saved. Those two are the launch blocker.
 
 Build settings: Framework Next.js (`vercel.json` sets it), install `npm ci`, build `npm run build`, output `.next`.
 Leave the project's own Build and Development settings alone. Node 20.9 or later.
+
+## Dashboard logins
+
+- **Where the list lives**: `DASHBOARD_EDITORS` in Vercel (comma separated). On each production build
+  (`scripts/dashboard-logins.ts`), any address in it without a login gets an **Editor** login and an email with a
+  link to choose a password (one use, 72 hours). Existing logins are left alone; removing an address does not
+  delete its login (Users > Delete, GYA only). Preview builds do nothing.
+- To add someone: add the address to `DASHBOARD_EDITORS` and redeploy (or press Publish website). Or add them under
+  **Users** and press **Email a password link**.
+- **Forgotten password**: "Forgotten your password?" on `/admin/login` emails a reset link (same response whether or
+  not the address has a login; one email per address every 2 minutes). Needs the email variables above.
+- GYA administrators are added under Users, not through `DASHBOARD_EDITORS`.
+
+## Booking emails (audit, 9 Nov 2026)
+
+Each booking sends two emails through `src/lib/email.ts` (SMTP2GO if `SMTP2GO_API_KEY` is set, else Resend):
+
+1. **To the APE team**: "APE booking request: [day, time], [name] ([ref])" to Site Settings > Who receives booking
+   requests if that list has anyone in it (it is empty), else `BOOKING_NOTIFY_EMAIL`, else
+   theanxiouspatientexperience@gmail.com. Every detail of the request; Reply-To is the patient.
+2. **To the patient**: "We have received your booking request", with the time, place, fee, reference and the deposit
+   link. Reply-To is the APE inbox.
+
+The booking is saved before the emails are sent, so a failed email never loses a booking (it shows under Bookings).
+Before v1.6.0 only Resend was wired up and its variables were never added, so the live booking form could not send.
+
+## Stripe
+
+- The site never holds Stripe API keys. The deposit is a **Stripe Payment Link** (`DEPOSIT_PAYMENT_URL`); the
+  booking adds `client_reference_id` (the booking reference) and `prefilled_email`.
+- Optional webhook: `POST /api/stripe/webhook`, verified with `STRIPE_WEBHOOK_SECRET` (Stripe-Signature, 5 minute
+  tolerance). On `checkout.session.completed` or `checkout.session.async_payment_succeeded` with a paid session and an
+  `APE-XXXXXX` reference, the booking's Deposit received is ticked. A bad signature gets 400; a database error gets
+  500 so Stripe retries.
+- **Bank and payout details belong in the Stripe Dashboard only** (Settings > Bank accounts and currencies), never in
+  this repo, Vercel or an email. Go-live steps: `docs/HANDOVER-v1.6.0.md`.
 
 ## How it works
 
@@ -68,6 +96,8 @@ dashboard (/admin)  ->  Neon Postgres  ->  "Publish website"  ->  Vercel deploy 
   npm run build (scripts/build.mjs):                                    v
     1. payload migrate          dashboard tables up to date
     2. seed --if-empty          the first time only: load content/ into the dashboard
+    2b. content-updates         this release's changes to dashboard content, only where the client has not edited it
+    2c. dashboard-logins        DASHBOARD_EDITORS: add missing logins and email their password links
     3. pull-content             dashboard -> content/*.json (skipped until the content has been imported)
     4. render-site              content/*.json -> public/*.html, sitemap.xml, robots.txt, assets/site-config.js
     5. qa-site                  every link, anchor, file, structured data, FAQ count; no em dashes
@@ -94,8 +124,10 @@ content/                 the site's content (JSON); the build overwrites it from
 src/dashboard/           the /admin dashboard: screens, editors, styles (brand.ts and the colours at the top of dashboard.css are the APE parts)
 src/dashboard/render.ts  pages to HTML, for the build and for the page editor (so the editor shows what goes live)
 src/app/(dashboard)/     /admin routes            src/app/(payload)/   Payload's own screens at /cms (GYA only)
-src/app/api/             availability, booking, dashboard/bookings, dashboard/pages, publish-site, import-content, import-media
-src/booking/core.ts      booking rules, schedule, opening special, database, email
+src/app/api/             availability, booking, stripe/webhook, dashboard/bookings, dashboard/forgot-password, dashboard/pages, publish-site, import-content, import-media
+src/booking/core.ts      booking rules, schedule, opening special, database
+src/lib/email.ts         sending email (SMTP2GO or Resend)      src/lib/stripe.ts  webhook signature check
+src/sitekit/releases.ts  content changes a release makes to the dashboard (never over the client's edits)
 src/sitekit/             Payload collections and Site Settings, import and pull (sync.ts)
 src/proxy.ts             clean URLs, trailing slash, 404, dashboard redirects
 public/                  assets/ (site.css, site.js, fonts), images/, icons, the forwarding pages; the build adds the pages
@@ -103,7 +135,8 @@ scripts/                 build.mjs, render-site.ts, pull-content.ts, seed.ts, qa
 migrations/              dashboard database schema (the build runs them)
 tools/v140/              the approved v1.4.0 pages, which qa:parity compares against
 tools/extract-static-site/  the one-off script that made content/ from them (kept for the record)
-qr/                      flyer QR code
+qr/                      flyer QR code script (and copies)
+deliverables/qr/         the QR files to send
 docs/                    HOW-TO-UPDATE.md (for the practice), screenshots/, build-notes/
 ```
 
@@ -121,16 +154,18 @@ Local: `npm ci`, a `.env` with `DATABASE_URL` and `PAYLOAD_SECRET`, `npm run bui
 Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex Loupos (APE Lead | Patient Care & Support),
 Lauren Bright (APE Dental Assistant | Patient Care & Support). Each bio shows its first paragraph and "Read more".
 
-- **Lauren's photo**: in the dashboard, Team > click the "L" picture > Upload (portrait, face in the top third), Save
-  changes, Publish website. Or replace `public/images/team-lauren-bright.jpg` in the repo (same name).
+- **Lauren's photo** (v1.6.0, supplied 9 Nov 2026): `public/images/team-lauren-bright-2026-11-09.jpg` (1086 x 1448),
+  `.webp` and `-800.webp`, served with a `srcset`. To change it later: dashboard, Team, click the photo, Upload.
 - Lorna's rules: no faces except the team's own photos; nothing that looks like a clinic, dental chair or treatment
   room unless it is genuine photography of her practices. The Media Library holds the approved photos.
 
 ## QR code for the flyer
 
-`qr/ape-flyer-qr.png` (2015 px) and `.svg`, navy on white. It opens
+`deliverables/qr/` (and a copy in `qr/`): `ape-flyer-qr.png` (1000 x 1000 px, 300 dpi), `ape-flyer-qr-print.png`
+(about 2000 px) and `ape-flyer-qr.svg`, navy on white, error correction H. It opens
 `https://the-anxious-patient-experience.vercel.app/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch`.
-For the final domain: `python3 -m pip install --user segno && python3 qr/make-qr.py "https://YOUR-DOMAIN/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch"`.
+For the final domain: `python3 -m pip install --user segno pillow && python3 qr/make-qr.py "https://YOUR-DOMAIN/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch"`.
+Keep the vercel.app address working after go-live (Vercel keeps it by default) so printed flyers keep scanning.
 
 ## Before go-live: set the domain
 
@@ -142,27 +177,29 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 
 | Item | Where |
 |---|---|
-| Lauren's photo | Team (monogram for now) |
-| Deposit payment link | `DEPOSIT_PAYMENT_URL` (waiting on Ram's account) |
+| Email key and verified sender | `SMTP2GO_API_KEY`, `BOOKING_FROM` (launch blocker) |
+| Deposit payment link | `DEPOSIT_PAYMENT_URL` (Stripe account owner to set up) |
+| Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
 | Domain | `NEXT_PUBLIC_SERVER_URL`, QR code |
-| Privacy policy text | Pages > Privacy Policy (needed: the booking form collects personal details) |
 | GA4 / Meta Pixel IDs | Site Settings > Tracking (GYA only) |
 
 ## Go-live checklist
 
 - [ ] Repo is private
-- [ ] Vercel: Blob, `PAYLOAD_SECRET`, `PUBLISH_HOOK_URL`, Resend variables; first login made and `ALLOW_FIRST_USER` removed
-- [ ] Media Library imported; Lorna and Alex added as Editors and signed in once
-- [ ] Publish website tested (deploy starts, change shows on the site)
-- [ ] Test booking reaches the APE inbox and the patient; shows under Bookings; cancelled afterwards
-- [ ] 23 and 30 Dec show as blocked under Availability
-- [ ] Deposit link added once Ram confirms (until then patients get the "details will be sent" line)
+- [ ] Vercel: `SMTP2GO_API_KEY`, `BOOKING_FROM` (verified domain), `BOOKING_NOTIFY_EMAIL`, `DASHBOARD_EDITORS` added;
+      `ALLOW_FIRST_USER` and `ADMIN_PASSWORD` deleted
+- [ ] All four logins received their password email and signed in once
+- [ ] Test booking: request email at the APE inbox, acknowledgement at the patient's address (check junk), shows
+      under Bookings; then cancelled
+- [ ] Stripe: test Payment Link paid with 4242 4242 4242 4242; Deposit received ticked (if the webhook is set up);
+      then the live link and live webhook (docs/HANDOVER-v1.6.0.md)
+- [ ] Payout bank account entered and verified in the Stripe Dashboard by the account owner
+- [ ] Privacy Policy: legal entity and Privacy Officer confirmed by Lorna
 - [ ] Book Now hero "pay your deposit online in four simple steps" true only once the payment link exists
 - [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
 - [ ] New copy signed off (CHANGELOG 1.5.0, 1.4.0, 1.3.0)
-- [ ] Privacy policy supplied; Lauren's photo in place
-- [ ] `NEXT_PUBLIC_SERVER_URL` set to the domain; QR regenerated; GA4 added
-- [ ] iPhone check: homepage, menu, pop-up, FAQ cards, a test booking, the dashboard
+- [ ] `NEXT_PUBLIC_SERVER_URL` set to the domain; QR regenerated if the flyer is not yet printed; GA4 added
+- [ ] iPhone check: homepage, menu, pop-up, FAQ cards, a test booking, the privacy page, the dashboard
 - [ ] Lorna's profile never uses the word "specialist"
 - [ ] DNS: apex primary, www 308 to apex
 
@@ -170,6 +207,7 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 
 - Two-way sync with Core Practice (not wanted: bookings are entered by hand).
 - Automatic emails when a booking is confirmed or cancelled (the team emails the patient).
+- The New Patient Information Pack online (scoped in `docs/HANDOVER-v1.6.0.md`).
 - Changing the fee, deposit or opening special from the dashboard (GYA changes `content/booking.json`, because offers
   must state price, inclusions and dates).
 - One-off extra sessions on a single date (the weekly times and blocks cover leave and regular days).
