@@ -17,6 +17,7 @@
  */
 import crypto from 'node:crypto'
 import * as core from '@/booking/core'
+import { questionnaireEnabled, onBookingRequested } from '@/lib/questionnaire'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
   if (d) {
     try {
       await core.ensureSchema(d, cfg)
-      cfg = core.loadConfig(await core.readSchedule(d))
+      cfg = core.loadConfig(await core.readOverrides(d))
     } catch (err) {
       console.error('booking: database error', ref, (err as Error).message)
       return core.send(503, { ok: false, error: 'unavailable' })
@@ -190,6 +191,16 @@ export async function POST(req: Request) {
   } catch (err) {
     ackSent = false
     console.error('booking: acknowledgement email failed (the booking is saved)', ref, (err as Error).message)
+  }
+  // v1.7.0: the welcome pack and questionnaire link, if Site Settings says to send them at request time
+  if (questionnaireEnabled()) {
+    try {
+      const { getPayload } = await import('payload')
+      const { default: config } = await import('@payload-config')
+      await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: start.toISOString() })
+    } catch (err) {
+      console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
+    }
   }
   return core.send(200, { ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit, depositUrl: link, notified, ackSent })
 }

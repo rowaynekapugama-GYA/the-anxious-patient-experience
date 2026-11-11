@@ -6,6 +6,7 @@ import { when } from '@/dashboard/lib/format'
 import { ImportButtons } from '@/dashboard/editors/ImportButtons'
 import { BRAND } from '@/dashboard/brand'
 import { db } from '@/booking/core'
+import { countUnreviewed, questionnaireEnabled } from '@/lib/questionnaire'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -30,6 +31,8 @@ export default async function Home() {
     posts: (await payload.count({ collection: 'posts', where: { _status: { equals: 'published' } }, overrideAccess: true })).totalDocs,
     drafts: (await payload.count({ collection: 'posts', where: { _status: { equals: 'draft' } }, overrideAccess: true })).totalDocs,
   }
+  const canView = !!(u as { canViewQuestionnaires?: boolean }).canViewQuestionnaires
+  const toReview = questionnaireEnabled() && canView ? await countUnreviewed(payload) : null
   const empty = counts.pages === 0
   const homeId = home.docs[0]?.id
   const recent = [
@@ -71,6 +74,7 @@ export default async function Home() {
         <div className="stat"><b>{counts.posts}</b><span>Published posts</span></div>
         <div className="stat"><b>{counts.drafts}</b><span>Draft posts</span></div>
         <div className="stat"><b>{toConfirm}</b><span>Bookings to confirm</span></div>
+        {toReview !== null ? <div className="stat"><b>{toReview}</b><span>Questionnaires to review</span></div> : null}
       </div>
 
       <div className="panel">

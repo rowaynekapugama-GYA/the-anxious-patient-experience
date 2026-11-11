@@ -86,6 +86,15 @@ export const Users: CollectionConfig = {
       access: { create: adminFieldOnly, update: adminFieldOnly },
     },
     {
+      name: 'canViewQuestionnaires',
+      type: 'checkbox',
+      defaultValue: false,
+      saveToJWT: true,
+      label: 'Can view patient questionnaires',
+      admin: { description: 'Off for everyone until given, GYA administrators included. Lorna nominates who has it. Every view is logged.' },
+      access: { create: adminFieldOnly, update: adminFieldOnly },
+    },
+    {
       name: 'mustChangePassword',
       type: 'checkbox',
       defaultValue: false,

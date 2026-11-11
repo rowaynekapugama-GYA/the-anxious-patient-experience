@@ -25,7 +25,7 @@ const CONTENT = path.join(process.cwd(), 'content')
 const CHROME_TITLES: Record<string, string> = {
   footer: 'Site footer',
 }
-const ORDER: Record<string, number> = { home: -1, 'book-now': 0, 'privacy-policy': 1, 'not-found': 2 }
+const ORDER: Record<string, number> = { home: -1, 'book-now': 0, 'privacy-policy': 1, review: 2, 'not-found': 3 }
 
 type Result = { created: number; updated: number }
 

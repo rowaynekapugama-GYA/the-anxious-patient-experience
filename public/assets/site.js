@@ -186,6 +186,7 @@
   var ribbon = document.querySelector('[data-special-ribbon]');
   var faqNote = document.querySelector('[data-special-note]');
   var pop = document.getElementById('special-pop');
+  var popT0 = Date.now();   /* the pop-up delay counts from here (the page is interactive once this script runs) */
   if ((ribbon || faqNote || pop) && window.fetch) {
     fetch(APE_API + '?summary=1', { headers: { Accept: 'application/json' } })
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -208,36 +209,101 @@
       })
       .catch(function () { /* stay hidden */ });
   }
+  /* The pop-up (v1.7.0): shows on the first open of the homepage, about 0.8 seconds after the page is interactive
+     (the delay is a dashboard setting), once per browser session, and not again for 7 days after it is closed.
+     Every storage read and write is wrapped, so a browser that blocks storage (private mode, in-app browsers) still
+     gets it once per page view and never an error. It only exists on the homepage. */
   function setUpPopup(dlg, sp, when) {
-    var KEY = 'ape-special-popup-seen';
-    try { if (window.localStorage.getItem(KEY)) return; } catch (e) { /* storage blocked: show once per page view */ }
-    dlg.querySelector('.special-pop-body').textContent =
-      'To welcome our first patients, the full 70-minute Anxious New Patient Experience is ' + moneyStr(sp.price) + ' instead of ' +
-      moneyStr(sp.regular) + ' for appointments on ' + when + '. Health fund rebates are still available, and a $100 deposit secures your time.';
-    var shown = false, timer;
+    var SESSION_KEY = 'ape-pop-shown', DISMISS_KEY = 'ape-pop-dismissed', WEEK = 7 * 24 * 60 * 60 * 1000;
+    function read(store, key) { try { return window[store].getItem(key); } catch (e) { return null; } }
+    function write(store, key, value) { try { window[store].setItem(key, value); } catch (e) { /* storage blocked */ } }
+    if (read('sessionStorage', SESSION_KEY)) return;
+    var dismissedAt = Number(read('localStorage', DISMISS_KEY) || 0);
+    if (dismissedAt && Date.now() - dismissedAt < WEEK) return;
+
+    var heading = dlg.querySelector('#special-pop-title');
+    if (heading && sp.heading) heading.textContent = sp.heading;
+    var body = String(sp.body || 'To welcome our first patients, the full 70-minute Anxious New Patient Experience is {price} instead of {regular} for appointments on {dates}. Health fund rebates are still available, and a $100 deposit secures your time.');
+    dlg.querySelector('.special-pop-body').textContent = body.split('{price}').join(moneyStr(sp.price)).split('{regular}').join(moneyStr(sp.regular)).split('{dates}').join(when);
+
+    var shown = false, before = null, tries = 0;
     function open() {
-      if (shown || document.querySelector('dialog[open]') || (header && header.classList.contains('open'))) return;
+      if (shown) return;
+      /* wait if the mobile menu or another dialog is open (try again a few times) */
+      if (document.querySelector('dialog[open]') || (header && header.classList.contains('open'))) {
+        if (tries++ < 20) setTimeout(open, 1000);
+        return;
+      }
       shown = true;
-      window.removeEventListener('scroll', onScrollPop);
-      clearTimeout(timer);
-      try { window.localStorage.setItem(KEY, String(Date.now())); } catch (e) { /* ignore */ }
-      dlg.showModal();
+      write('sessionStorage', SESSION_KEY, '1');
+      before = document.activeElement;
+      try { dlg.showModal(); } catch (e) { return; }
+      doc.classList.add('pop-open');
       dlg.classList.add('is-open');
+      var inner = dlg.querySelector('.special-pop-inner');
+      if (inner) inner.focus({ preventScroll: true });
+    }
+    function finish() {
+      doc.classList.remove('pop-open');
+      if (dlg.open) dlg.close();
+      if (before && typeof before.focus === 'function' && document.contains(before)) before.focus({ preventScroll: true });
     }
     function close() {
+      write('localStorage', DISMISS_KEY, String(Date.now()));
       dlg.classList.remove('is-open');
-      if (reduce) { dlg.close(); return; }
-      setTimeout(function () { dlg.close(); }, 260);
-    }
-    function onScrollPop() {
-      var max = doc.scrollHeight - window.innerHeight;
-      if (max > 0 && window.pageYOffset / max > 0.3) open();
+      if (reduce) { finish(); return; }
+      setTimeout(finish, 260);
     }
     [].forEach.call(dlg.querySelectorAll('[data-close]'), function (b) { b.addEventListener('click', close); });
-    dlg.addEventListener('cancel', function (ev) { ev.preventDefault(); close(); });
+    [].forEach.call(dlg.querySelectorAll('a[href]'), function (a) { a.addEventListener('click', function () { write('localStorage', DISMISS_KEY, String(Date.now())); }); });
+    dlg.addEventListener('cancel', function (ev) { ev.preventDefault(); close(); });   /* Esc */
     dlg.addEventListener('click', function (ev) { if (ev.target === dlg) close(); });   /* click outside the card */
-    timer = setTimeout(open, 9000);
-    window.addEventListener('scroll', onScrollPop, { passive: true });
+    var delay = Number(sp.showAfter);
+    if (!isFinite(delay) || delay < 0) delay = 0.8;
+    setTimeout(open, Math.max(0, delay * 1000 - (Date.now() - popT0)));
+  }
+
+  /* ---------- Google review page (/review/, v1.7.0) ----------
+     Every star and the button do exactly the same thing: open the "taking you to Google" pop-up and go to the one
+     Google review link from Site Settings. Nothing about the rating is stored or branched on (Google's review policy
+     and the ACCC both prohibit steering only happy patients to public reviews). With no link yet, "coming soon" shows. */
+  var reviewRoot = document.querySelector('[data-review]');
+  if (reviewRoot) {
+    var reviewLink = String(reviewRoot.getAttribute('data-review-link') || '').trim();
+    var ask = reviewRoot.querySelector('[data-review-ask]');
+    var soon = reviewRoot.querySelector('[data-review-soon]');
+    var rdlg = document.getElementById('review-pop');
+    var okLink = /^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(reviewLink);
+    if (okLink && ask) { ask.hidden = false; if (soon) soon.hidden = true; }
+    else if (soon) { soon.hidden = false; if (ask) ask.hidden = true; }
+    if (okLink && rdlg) {
+      [].forEach.call(rdlg.querySelectorAll('[data-review-link-out]'), function (a) { a.setAttribute('href', reviewLink); });
+      var timer = null, rBefore = null;
+      var goNow = function () { window.location.href = reviewLink; };
+      var closeReview;
+      var openReview = function () {
+        if (typeof rdlg.showModal !== 'function') { goNow(); return; }
+        rBefore = document.activeElement;
+        try { rdlg.showModal(); } catch (e) { goNow(); return; }
+        doc.classList.add('pop-open');
+        rdlg.classList.add('is-open');
+        var first = rdlg.querySelector('[data-review-link-out]');
+        if (first) first.focus({ preventScroll: true });
+        clearTimeout(timer);
+        timer = setTimeout(goNow, 1500);
+      };
+      closeReview = function () {
+        clearTimeout(timer);
+        rdlg.classList.remove('is-open');
+        doc.classList.remove('pop-open');
+        if (rdlg.open) rdlg.close();
+        if (rBefore && typeof rBefore.focus === 'function') rBefore.focus({ preventScroll: true });
+      };
+      [].forEach.call(reviewRoot.querySelectorAll('[data-review-go]'), function (b) { b.addEventListener('click', openReview); });
+      [].forEach.call(rdlg.querySelectorAll('[data-close]'), function (b) { b.addEventListener('click', closeReview); });
+      rdlg.addEventListener('cancel', function (ev) { ev.preventDefault(); closeReview(); });
+      rdlg.addEventListener('click', function (ev) { if (ev.target === rdlg) closeReview(); });
+    }
   }
 
   /* ---------- Book Now ----------

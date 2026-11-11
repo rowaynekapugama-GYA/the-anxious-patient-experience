@@ -7,7 +7,7 @@
  *   /book-now/           -> serves public/book-now/index.html (written by scripts/render-site.ts)
  *   anything else        -> the site's own 404 page, with a 404 status
  *
- * /admin, /cms, /api and /_next are left to Next.js and Payload.
+ * /admin, /cms, /api, /_next and /questionnaire (the private patient pages, v1.7.0) are left to Next.js and Payload.
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import site from './generated/site-routes.json'
@@ -17,7 +17,7 @@ type R = { from: string; to: string; type?: string }
 const norm = (p: string) => '/' + p.trim().replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').replace(/\/+$/, '') + '/'
 const REDIRECTS = new Map<string, R>((site.redirects as R[]).filter((r) => r.from && r.to).map((r) => [norm(r.from), r]))
 
-const APP = /^\/(admin|cms|api|_next)(\/|$)/
+const APP = /^\/(admin|cms|api|_next|questionnaire)(\/|$)/
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|assets/|images/).*)'],

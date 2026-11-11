@@ -17,6 +17,8 @@ export type Email = {
   subject: string
   text: string
   html: string
+  /** v1.7.0: files to attach (the welcome pack); content is the file's bytes */
+  attachments?: { filename: string; content: Buffer; mimetype: string }[]
 }
 
 export function emailProvider(): 'smtp2go' | 'resend' | null {
@@ -46,6 +48,7 @@ export async function sendEmail(msg: Email): Promise<void> {
         text_body: msg.text,
         html_body: msg.html,
         ...(msg.reply_to ? { custom_headers: [{ header: 'Reply-To', value: msg.reply_to }] } : {}),
+        ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, fileblob: a.content.toString('base64'), mimetype: a.mimetype })) } : {}),
       }),
     })
     const body = await r.json().catch(() => ({})) as { data?: { succeeded?: number; failed?: number; failures?: unknown[]; error?: string } }
@@ -58,7 +61,10 @@ export async function sendEmail(msg: Email): Promise<void> {
   const r = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...msg, from }),
+    body: JSON.stringify({
+      ...msg, from,
+      ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.content.toString('base64') })) } : {}),
+    }),
   })
   if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 300)}`)
 }

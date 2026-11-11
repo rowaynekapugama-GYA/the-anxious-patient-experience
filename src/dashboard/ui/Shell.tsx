@@ -8,13 +8,17 @@ import { BRAND } from '../brand'
 
 type NavItem = { href: string; label: string; icon: keyof typeof Icon; adminOnly?: boolean; count?: number }
 
-export function Shell({ user, children, toConfirm = 0, teamHref = '/admin/pages' }: {
+export function Shell({ user, children, toConfirm = 0, toReview = 0, teamHref = '/admin/pages', reviewHref = '/admin/pages' }: {
   user: { name?: string; email: string; role: string }
   children: React.ReactNode
   /** booking requests still to confirm */
   toConfirm?: number
+  /** questionnaires received and not yet reviewed (0 unless this person has access) */
+  toReview?: number
   /** the team cards are edited on the homepage itself */
   teamHref?: string
+  /** the Google review page is edited like any page */
+  reviewHref?: string
 }) {
   const path = usePathname() || '/admin'
   const [open, setOpen] = useState(false)
@@ -29,6 +33,8 @@ export function Shell({ user, children, toConfirm = 0, teamHref = '/admin/pages'
     { href: '/admin/bookings', label: 'Bookings', icon: 'bookings', count: toConfirm },
     { href: '/admin/availability', label: 'Availability', icon: 'availability' },
     { href: '/admin/special', label: 'Opening special', icon: 'special' },
+    { href: '/admin/questionnaires', label: 'Questionnaires', icon: 'enquiries', count: toReview },
+    { href: reviewHref, label: 'Review page', icon: 'eye' },
     'sep',
     { href: '/admin/seo', label: 'SEO', icon: 'seo' },
     { href: '/admin/settings', label: 'Site Settings', icon: 'settings' },
@@ -36,7 +42,7 @@ export function Shell({ user, children, toConfirm = 0, teamHref = '/admin/pages'
     { href: '/admin/users', label: 'Users', icon: 'users', adminOnly: true },
   ]
   const on = (href: string) => (href === '/admin' ? path === '/admin' || path === '/admin/'
-    : href === teamHref ? false
+    : href === teamHref || href === reviewHref ? false
       : path.startsWith(href))
   const initials = (user.name || user.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join('')
 
@@ -56,7 +62,7 @@ export function Shell({ user, children, toConfirm = 0, teamHref = '/admin/pages'
               <li key={i.href}>
                 <Link href={i.href} className={on(i.href) ? 'on' : ''} aria-current={on(i.href) ? 'page' : undefined}>
                   {Icon[i.icon]()}<span>{i.label}</span>
-                  {i.count ? <span className="count" title={`${i.count} to confirm`}>{i.count}</span> : null}
+                  {i.count ? <span className="count" title={`${i.count} waiting`}>{i.count}</span> : null}
                 </Link>
               </li>
             ))}

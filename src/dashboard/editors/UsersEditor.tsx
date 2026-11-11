@@ -6,7 +6,7 @@ import { Modal, Select, TextInput } from '../ui/fields'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 
-type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; createdAt?: string }
+type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string }
 
 function tempPassword() {
   const words = ['Calm', 'Breathe', 'Gentle', 'Linen', 'Candle', 'Cronulla', 'Harbour', 'Willow']
@@ -39,6 +39,9 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
       toast(`Account created for ${r.doc.email}. Send them the temporary password; they choose their own at first sign in.`, 'good')
     } catch (e) { toast((e as Error).message, 'bad') }
   }
+  async function setQuestionnaires(u: U, on: boolean) {
+    try { const r = await api<{ doc: U }>(`/api/users/${u.id}?depth=0`, { method: 'PATCH', body: { canViewQuestionnaires: on } }); setUsers((x) => x.map((y) => (y.id === u.id ? r.doc : y))); toast(on ? `${u.email} can now open patient questionnaires.` : `${u.email} can no longer open patient questionnaires.`, 'good') } catch (e) { toast((e as Error).message, 'bad') }
+  }
   async function setRole(u: U, role: string) {
     try { const r = await api<{ doc: U }>(`/api/users/${u.id}?depth=0`, { method: 'PATCH', body: { role } }); setUsers((x) => x.map((y) => (y.id === u.id ? r.doc : y))); toast('Role changed.', 'good') } catch (e) { toast((e as Error).message, 'bad') }
   }
@@ -64,7 +67,7 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Password</th><th /></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th /></tr></thead>
           <tbody>
             {users.map((u) => (
               <tr key={String(u.id)}>
@@ -75,6 +78,7 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                     <option value="editor">Editor (practice)</option><option value="admin">Administrator (GYA)</option>
                   </select>
                 </td>
+                <td><label className="check" style={{ margin: 0 }} title="Can view patient questionnaires. Off for everyone until Lorna nominates them."><input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} /> <span>{u.canViewQuestionnaires ? 'Can view' : 'No access'}</span></label></td>
                 <td>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="chip good">Set by the user or by link</span>}</td>
                 <td className="actions">
                   <button className="btn small" onClick={() => emailLink(u)}>Email a password link</button>

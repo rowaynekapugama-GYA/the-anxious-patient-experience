@@ -29,6 +29,10 @@ export const DEFAULTS = {
   ogImageWidth: '1200',
   ogImageHeight: '630',
   tracking: { ga4: '', metaPixel: '' },
+  /** The Google Business Profile's "Ask for reviews" link. Empty: /review/ says coming soon. */
+  googleReviewLink: '',
+  /** v1.7.0 New Patient Information Pack */
+  questionnaire: { sendWhen: 'confirmed' as 'confirmed' | 'requested', notifyEmails: [] as string[] },
 }
 
 export type SiteDefaults = typeof DEFAULTS

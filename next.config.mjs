@@ -18,6 +18,9 @@ const nextConfig = {
     '/api/import-content': ['./content/**/*'],
     '/api/import-media': ['./docs/build-notes/*', './public/images/**/*'],
     '/admin/**/*': ['./content/**/*', './package.json'],
+    '/questionnaire/**/*': ['./content/**/*', './public/downloads/*'],
+    '/api/dashboard/**/*': ['./content/**/*', './public/downloads/*'],
+    '/api/booking': ['./content/**/*', './public/downloads/*'],
   },
   images: {
     // Vercel image optimisation is capped account wide, so the repo ships pre-compressed webp and serves it as is
@@ -39,6 +42,8 @@ const nextConfig = {
       { source: '/admin/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'no-store' }] },
       { source: '/admin', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'no-store' }] },
       { source: '/cms/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
+      // the patient questionnaire pages: never indexed, never cached, no referrer sent anywhere
+      { source: '/questionnaire/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
     ]
   },
 }

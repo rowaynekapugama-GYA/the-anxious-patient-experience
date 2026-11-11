@@ -42,6 +42,36 @@ export const SiteSettings: GlobalConfig = {
       fields: [{ name: 'address', type: 'email', label: 'Email address', required: true }],
     },
     {
+      name: 'googleReviewLink',
+      type: 'text',
+      label: 'Google review link',
+      admin: { description: 'The "Ask for reviews" link from the Google Business Profile (https://g.page/r/.../review). The /review/ page says "coming soon" until this is filled in.' },
+    },
+    {
+      name: 'questionnaire',
+      type: 'group',
+      label: 'Welcome pack and questionnaire',
+      fields: [
+        {
+          name: 'sendWhen',
+          type: 'select',
+          label: 'Send the welcome pack when',
+          defaultValue: 'confirmed',
+          options: [
+            { label: 'a booking is confirmed (recommended)', value: 'confirmed' },
+            { label: 'a booking request is received', value: 'requested' },
+          ],
+        },
+        {
+          name: 'notifyEmails',
+          type: 'array',
+          label: 'Questionnaire notifications',
+          admin: { description: 'Who is told when a patient submits. Empty uses the booking notification address. The email never contains answers.' },
+          fields: [{ name: 'address', type: 'email', label: 'Email address', required: true }],
+        },
+      ],
+    },
+    {
       name: 'tracking',
       type: 'group',
       label: 'Tracking',

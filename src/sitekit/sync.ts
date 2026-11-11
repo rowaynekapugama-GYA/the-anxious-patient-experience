@@ -230,5 +230,13 @@ export function settingsFileFromGlobal(raw: Record<string, unknown>): Record<str
   const recipients = ((s.bookingRecipients as { address?: string }[] | undefined) ?? []).map((r) => r.address).filter(Boolean)
   if (recipients.length) out.bookingRecipients = recipients
   if (s.tracking && (s.tracking.ga4 || s.tracking.metaPixel)) out.tracking = { ga4: s.tracking.ga4 ?? '', metaPixel: s.tracking.metaPixel ?? '' }
+  if (s.googleReviewLink) out.googleReviewLink = s.googleReviewLink
+  if (s.questionnaire) {
+    const q: Record<string, unknown> = {}
+    if (s.questionnaire.sendWhen) q.sendWhen = s.questionnaire.sendWhen
+    const notify = ((s.questionnaire.notifyEmails as { address?: string }[] | undefined) ?? []).map((r) => r.address).filter(Boolean)
+    if (notify.length) q.notifyEmails = notify
+    if (Object.keys(q).length) out.questionnaire = q
+  }
   return out
 }

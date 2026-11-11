@@ -11,7 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Payload } from 'payload'
 import type { Page } from '@/lib/parts'
-import { partToSectionDoc, type FieldDoc, type SectionDoc } from '@/sitekit/sync'
+import { partToSectionDoc, pageToDoc, type FieldDoc, type SectionDoc } from '@/sitekit/sync'
 
 type Doc = { id: number | string; sections?: (SectionDoc & { id?: string })[]; meta?: Record<string, unknown> }
 
@@ -79,6 +79,43 @@ export const UPDATES: Update[] = [
       const sections = rows.map((s, n) => (n === i
         ? { ...s, template: repo.template, content: plainRows(content) }
         : { ...s, content: plainRows(s.content ?? []) }))
+      await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
+      return 'applied'
+    },
+  },
+  {
+    id: 'v1.7.0-review-page',
+    describe: 'The Google review page (/review/) is added to the dashboard',
+    async apply(payload) {
+      if (await pageDoc(payload, 'review')) return 'already there, left alone'
+      const repo = repoPage('review')
+      await payload.create({ collection: 'pages', depth: 0, overrideAccess: true, data: pageToDoc(repo, { title: repo.name, sortOrder: 2 }) as never })
+      return 'applied'
+    },
+  },
+  {
+    id: 'v1.7.0-privacy-questionnaire',
+    describe: 'The privacy policy gains a section on the new patient questionnaire (for Lorna to approve)',
+    async apply(payload) {
+      const doc = await pageDoc(payload, 'privacy-policy')
+      const rows = doc?.sections ?? []
+      const i = rows.findIndex((r) => (r.content ?? []).some((c) => c.fieldId === 'f60'))
+      if (!doc || i < 0) return 'no privacy policy section in the dashboard'
+      const row = rows[i]
+      if (row.template.includes('{{f64}}') || (row.content ?? []).some((c) => c.fieldId === 'f64')) return 'already has the questionnaire section, left alone'
+      if (!row.template.includes('<h2>{{f60}}</h2>')) return 'the policy has been restructured, left alone (add the section by hand)'
+      const repo = repoPage('privacy-policy').sections[0]
+      const fresh = partToSectionDoc(repo).content
+      const added = fresh.filter((c) => ['f64', 'f65', 'f66', 'f67'].includes(c.fieldId))
+      const content = (row.content ?? []).map((c) => {
+        // the contact section moves from 14 to 15, only if its heading is still the standard one
+        if (c.fieldId === 'f60' && /^14\. Changes to this policy/.test(String(c.text ?? ''))) return { ...c, ...(fresh.find((f) => f.fieldId === 'f60') ?? {}) }
+        if (c.fieldId === 'f2') return { ...c, ...(fresh.find((f) => f.fieldId === 'f2') ?? {}) }
+        return c
+      })
+      const sections = rows.map((r, n) => (n === i
+        ? { ...r, template: r.template.replace('<h2>{{f60}}</h2>', '<h2>{{f64}}</h2><p>{{f65}}</p><p>{{f66}}</p><p>{{f67}}</p><h2>{{f60}}</h2>'), content: plainRows([...content, ...added]) }
+        : { ...r, content: plainRows(r.content ?? []) }))
       await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
       return 'applied'
     },

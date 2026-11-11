@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
-import { Modal, Notice } from '../ui/fields'
+import { Modal, Notice, Toggle, Field, TextInput, TextArea } from '../ui/fields'
 import { when } from '../lib/format'
 
 const API = '/api/dashboard/bookings'
@@ -25,8 +25,14 @@ export type BookingData = {
   pricing: { appointment: number; deposit: number }
   booking: { startDate: string; minNoticeHours: number; weeksAhead: number; days: number[]; startTimes: string[]; dayNames: string[]; standard: { days: number[]; startTimes: string[] }; custom: boolean }
   bookings: Booking[]
+  questionnaire: { enabled: boolean; byRef: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }> }
   blocks: { day: string; time: string | null; note: string }[]
-  special: { enabled: boolean; price: number; regular: number; from: string; to: string; max: number; used: number; showing: boolean }
+  special: {
+    enabled: boolean; price: number; regular: number; from: string; to: string; max: number; used: number; showing: boolean
+    popup: boolean; showAfter: number; heading: string; body: string
+    standard: { enabled: boolean; popup: boolean; from: string; to: string; showAfter: number; heading: string; body: string }
+    custom: boolean
+  }
   schedule: Day[]
 }
 
@@ -39,6 +45,7 @@ const ERR: Record<string, string> = {
   no_ape_days: 'There are no booking days between those dates.',
   no_days: 'Please tick at least one day.',
   no_times: 'Please add at least one start time (up to 12).',
+  invalid_delay: 'Show after must be a number of seconds between 0 and 60.',
 }
 const errText = (e?: string) => (e && ERR[e]) || 'Something went wrong. Please try again, or contact GYA if it keeps happening.'
 const money = (n: number) => `$${Number(n).toLocaleString('en-AU')}`
@@ -124,7 +131,21 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
 
   async function update(b: Booking, change: { status?: Booking['status']; depositPaid?: boolean }, done: string) {
     setBusy(b.ref)
-    try { await call('POST', { action: 'booking', ref: b.ref, ...change }); toast(done, 'good'); await reload() } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
+    try {
+      const r = await call('POST', { action: 'booking', ref: b.ref, ...change })
+      let msg = done
+      if (change.status === 'confirmed' && r.welcome) msg += r.welcome.sent ? ' The welcome pack and questionnaire link have been emailed to the patient.' : (r.welcome.reason === 'already sent' || r.welcome.reason === 'sent at request time' ? '' : ` The welcome email was not sent (${r.welcome.reason}).`)
+      toast(msg, r.welcome && !r.welcome.sent && r.welcome.reason !== 'already sent' && r.welcome.reason !== 'sent at request time' && r.welcome.reason !== 'off' ? 'bad' : 'good'); await reload()
+    } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
+  }
+  async function resendWelcome(b: Booking) {
+    setBusy(b.ref)
+    try {
+      const res = await fetch('/api/dashboard/questionnaires', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'welcome', ref: b.ref }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.ok) throw new Error(j.reason ? `The welcome email could not be sent (${j.reason}).` : errText(j.error))
+      toast(`The welcome pack and a fresh questionnaire link have been emailed to ${b.name}.`, 'good'); await reload()
+    } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
 
   function csv() {
@@ -165,9 +186,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
         </div>
         <div className="table-wrap">
           <table className="table bookings-table">
-            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th>{data.questionnaire?.enabled ? <th>Questionnaire</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {!shown.length ? <tr><td colSpan={7} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
+              {!shown.length ? <tr><td colSpan={8} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
               {shown.map((b) => (
                 <React.Fragment key={b.ref}>
                   <tr>
@@ -177,15 +198,17 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
                     <td>{b.status === 'cancelled' ? <span className="muted">-</span> : b.depositPaid ? <span className="chip good">Received</span> : <span className="chip grey">Not yet</span>}</td>
+                    {data.questionnaire?.enabled ? <td>{(() => { const qs = data.questionnaire.byRef[b.ref]; return b.status === 'cancelled' ? <span className="muted">-</span> : !qs ? <span className="chip grey">Not sent yet</span> : qs.status === 'submitted' ? <span className="chip good">Received</span> : <span className="chip warn">Not yet received</span> })()}</td> : null}
                     <td className="row-actions">
                       {b.status === 'requested' ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
                       {b.status !== 'cancelled' && !b.depositPaid ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { depositPaid: true }, 'Deposit marked as received.')}>Deposit received</button> : null}
                       {b.status !== 'cancelled' ? <button className="btn small danger" disabled={busy === b.ref} onClick={() => setAsk(b)}>Cancel booking</button> : null}
                       {b.status === 'cancelled' ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { status: 'requested' }, 'Booking restored. Please confirm it again.')}>Restore</button> : null}
+                      {data.questionnaire?.enabled && b.status === 'confirmed' ? <button className="btn small ghost" disabled={busy === b.ref} onClick={() => resendWelcome(b)}>{data.questionnaire.byRef[b.ref] ? 'Resend welcome email' : 'Send welcome email'}</button> : null}
                     </td>
                   </tr>
                   {open === b.ref ? (
-                    <tr><td colSpan={7} style={{ background: '#fafbfc' }}>
+                    <tr><td colSpan={8} style={{ background: '#fafbfc' }}>
                       <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}. Deposit and cancellation policy accepted.</p>
                       {b.depositPaid && b.status !== 'cancelled' ? <button className="btn small ghost" style={{ marginTop: 8 }} onClick={() => update(b, { depositPaid: false }, 'Deposit marked as not received.')}>Undo deposit received</button> : null}
@@ -204,7 +227,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
           <li>You get an email at the APE inbox, and the request shows here as <b>To confirm</b>. The time is held, so nobody else can book it online.</li>
           <li>Block the time in Core Practice and enter the patient.</li>
           <li>Reply to the patient to confirm and send the new patient information pack.</li>
-          <li>Press <b>Mark confirmed</b>. When the deposit arrives, press <b>Deposit received</b>.</li>
+          <li>Press <b>Mark confirmed</b>.{data.questionnaire?.enabled ? ' The website then emails the patient the welcome pack and their questionnaire link.' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>
         </ol>
         <p className="help" style={{ margin: 0 }}>{data.deposit.mode === 'link'
           ? `Patients pay the ${money(data.deposit.amount)} deposit through the payment link in their email. Check the payment has arrived before confirming.`
@@ -388,11 +411,30 @@ export function AvailabilityScreen({ initial }: { initial: BookingData | null })
 
 // ================================================================ Opening special
 export function SpecialScreen({ initial }: { initial: BookingData | null }) {
-  const { data, error } = useBookingData(initial)
-  if (!data) return <div className="panel"><p className="empty">{error || 'Loading...'}</p></div>
+  const toast = useToast()
+  const { data, error, reload } = useBookingData(initial)
+  const [form, setForm] = useState<{ enabled: boolean; popup: boolean; from: string; to: string; showAfter: string; heading: string; body: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (data && !form) setForm({ enabled: data.special.enabled, popup: data.special.popup, from: data.special.from, to: data.special.to, showAfter: String(data.special.showAfter), heading: data.special.heading, body: data.special.body })
+  }, [data, form])
+  if (!data || !form) return <div className="panel"><p className="empty">{error || 'Loading...'}</p></div>
   const s = data.special
   const specials = data.bookings.filter((b) => b.special)
   const left = Math.max(0, s.max - s.used)
+  const set = (k: keyof typeof form, v: string | boolean) => setForm({ ...form, [k]: v })
+  async function save() {
+    setBusy(true)
+    try {
+      await call('POST', { action: 'special', enabled: form!.enabled, popup: form!.popup, from: form!.from, to: form!.to, showAfter: form!.showAfter, heading: form!.heading, body: form!.body })
+      toast('Saved. The website uses it straight away.', 'good'); await reload()
+    } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy(false) }
+  }
+  async function standard() {
+    setBusy(true)
+    try { await call('POST', { action: 'special', enabled: null }); toast('Back to the standard settings.', 'good'); setForm(null); await reload() } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy(false) }
+  }
+  const preview = form.body.replace('{price}', money(s.price)).replace('{regular}', money(s.regular)).replace('{dates}', 'the special dates')
   return (
     <>
       <SetupNotices data={data} />
@@ -409,9 +451,31 @@ export function SpecialScreen({ initial }: { initial: BookingData | null }) {
         ) : <p>The opening special is switched off.</p>}
         <p>{s.showing
           ? 'The ribbon on the homepage, the pop-up, the note in the FAQs and the price labels on Book Now are showing, because a special time is still free.'
-          : 'The ribbon, pop-up and special price labels are hidden on the website, because no special time is free (all places are used, the times are taken or blocked, or the dates are less than 24 hours away).'}</p>
-        <p className="help" style={{ margin: 0 }}>It switches itself off once {s.max} are booked or the special dates have passed, so you do not need to do anything. A cancelled special booking frees its place. To change the price, dates or number of places, please contact GYA (offers on a dental website must state the price, what is included and the dates).</p>
+          : 'The ribbon, pop-up and special price labels are hidden on the website, because no special time is free (all places are used, the times are taken or blocked, the dates are less than 24 hours away, or the special is switched off).'}</p>
+        <p className="help" style={{ margin: 0 }}>It switches itself off once {s.max} are booked or the special dates have passed. A cancelled special booking frees its place. To change the price or the number of places, please contact GYA (an offer on a dental website must state its price, what is included and its dates exactly).</p>
       </div>
+
+      <div className="panel">
+        <h2>Settings and the pop-up</h2>
+        <p className="help">Saved changes apply on the website straight away (no Publish needed). The pop-up shows once per visit on the homepage, about {form.showAfter || '0.8'} seconds after it opens, and not again for 7 days after someone closes it.</p>
+        <div className="grid-2">
+          <Toggle label="Opening special on" checked={form.enabled} onChange={(v) => set('enabled', v)} help="Off hides the special everywhere and every time is the usual price." />
+          <Toggle label="Show the pop-up on the homepage" checked={form.popup} onChange={(v) => set('popup', v)} help="The ribbon and the price labels still show while the special is on." />
+          <Field label="Special dates: first day" htmlFor="sp-from"><input id="sp-from" className="input" type="date" value={form.from} onChange={(e) => set('from', e.target.value)} /></Field>
+          <Field label="Special dates: last day" htmlFor="sp-to"><input id="sp-to" className="input" type="date" value={form.to} onChange={(e) => set('to', e.target.value)} /></Field>
+          <Field label="Show the pop-up after (seconds)" htmlFor="sp-delay" help="0.8 is the standard. 0 shows it at once."><input id="sp-delay" className="input" type="number" min={0} max={60} step={0.1} value={form.showAfter} onChange={(e) => set('showAfter', e.target.value)} /></Field>
+          <TextInput label="Pop-up heading" value={form.heading} onChange={(v) => set('heading', v)} maxLength={120} />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <TextArea label="Pop-up wording" value={form.body} onChange={(v) => set('body', v)} rows={4}
+              help={<>Write {'{price}'}, {'{regular}'} and {'{dates}'} where the special price, the usual price and the dates should go, so they always match the booking system. The wording must state the price, what is included and the dates, with nothing that hurries people. Preview: <i>{preview}</i></>} />
+          </div>
+        </div>
+        <div className="actions" style={{ marginTop: 12 }}>
+          <button className="btn primary" disabled={busy} onClick={save}>Save</button>
+          {s.custom ? <button className="btn" disabled={busy} onClick={standard}>Use the standard settings</button> : null}
+        </div>
+      </div>
+
       <div className="panel">
         <h2>Special bookings</h2>
         {!specials.length ? <p className="empty">None yet.</p> : (

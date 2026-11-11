@@ -21,7 +21,8 @@ Bookings and availability are live (the Book Now page reads them from the API); 
 someone presses **Publish website**.
 
 For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md`. This release's handover
-(env vars, Stripe go-live, the email audit and the post-launch scoping): `docs/HANDOVER-v1.6.0.md`.
+(env vars, Stripe go-live, the email audit): `docs/HANDOVER-v1.6.0.md`. v1.7.0: `docs/GO-LIVE-DOMAIN.md`,
+`docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`.
 
 ## Vercel environment variables (v1.6.0)
 
@@ -40,7 +41,9 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `DASHBOARD_EDITORS` | Production | `lorna-gladwin1@hotmail.co.uk,reception@thecaringbahdentists.com.au,reception@thecronulladentists.com.au,theanxiouspatientexperience@gmail.com` | **add** |
 | `DEPOSIT_PAYMENT_URL` | Production (test link in Preview) | The $100 Stripe Payment Link, `https://buy.stripe.com/...` | add when Stripe is ready |
 | `STRIPE_WEBHOOK_SECRET` | Production | `whsec_...` from the Stripe webhook (see Stripe go-live steps) | optional, recommended |
-| `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://the-final-domain.com.au`, no trailing slash. Leave unset on vercel.app. | at go-live |
+| `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
+| `QUESTIONNAIRE_ENABLED` | Production, Preview | `true` switches on the welcome email and online questionnaire. Leave unset until Lorna approves the originals and the privacy wording. | v1.7.0, leave unset |
+| `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Never change it once answers exist; keep a copy outside Vercel. | v1.7.0, add with the flag |
 | `BOOKING_BCC` | optional | Extra copies of each request | optional |
 | `ALLOW_FIRST_USER` | | Only for the very first login. | **delete** if still there |
 | `ADMIN_PASSWORD` | | Not used since v1.5.0 | **delete** if still there |
@@ -77,6 +80,57 @@ Each booking sends two emails through `src/lib/email.ts` (SMTP2GO if `SMTP2GO_AP
 The booking is saved before the emails are sent, so a failed email never loses a booking (it shows under Bookings).
 Before v1.6.0 only Resend was wired up and its variables were never added, so the live booking form could not send.
 
+## New Patient Information Pack (v1.7.0, switched off until approved)
+
+How it works for a patient, matching what Rowayne told Lorna: when the team presses **Mark confirmed** (or, if Site
+Settings says so, when the request arrives), the website emails the patient the welcome pack (attached and linked)
+and a private link to the online questionnaire. The link is a long random token tied to that booking, works until
+7 days after the appointment, and once submitted shows a thank-you page. Answers are checked, **encrypted in the
+app (AES-256-GCM, `QUESTIONNAIRE_ENCRYPTION_KEY`)** and saved in the site's own Neon database; the team is emailed
+that a questionnaire has arrived (reference, first name, appointment date, never answers). The questionnaire pages
+carry no analytics or tracking, are `noindex`, `no-store`, send no referrer, and are rate limited.
+
+- **Who can read answers**: only logins with **Can view patient questionnaires** (Users, GYA ticks it for the people
+  Lorna nominates; off for everyone by default, GYA administrators included). Every open, print, review, delete and
+  refused attempt is written to the access log (Questionnaires > Access log, GYA).
+- **Dashboard**: Questionnaires (list with Reviewed ticks, open one laid out like the form, Print / Save as PDF,
+  Delete for GYA with a typed confirmation), Questions and emails (the sections, questions, collection notice,
+  thank-you, welcome email and welcome pack PDF, all content, no code), Bookings shows Questionnaire received / not
+  yet and a Resend welcome email button, the Dashboard home counts questionnaires to review.
+- **Retention**: `retainUntil` is 7 years after the appointment, or the patient's 25th birthday if a date-of-birth
+  question shows they were under 18, whichever is later. Nothing is deleted automatically; GYA deletes on the
+  practice's instruction after that date.
+- **Placeholders**: until Lorna's originals are loaded, the questionnaire and welcome pack are GYA placeholders,
+  clearly marked (`public/downloads/*PLACEHOLDER.pdf`, the placeholder questions in `src/lib/questionnaire.ts`).
+  Loading the real ones is dashboard work: Questionnaires > Questions and emails.
+- **Switching on**: Lorna approves the questions, the collection notice (Questions and emails), the welcome email
+  wording and the privacy policy's questionnaire section; then Vercel gets `QUESTIONNAIRE_ENABLED=true` and
+  `QUESTIONNAIRE_ENCRYPTION_KEY`, and a redeploy. Test with `docs/TEST-BOOKING.md`.
+- Code: `src/lib/questionnaire.ts`, `src/lib/crypto.ts`, `src/app/(site)/questionnaire/[token]/`,
+  `src/app/api/questionnaire/submit`, `src/app/api/dashboard/questionnaires`, `src/sitekit/collections/Questionnaires.ts`,
+  `src/sitekit/globals/Questionnaire.ts`, migration `20261111_013051_v170_questionnaire`.
+
+## Google review page (v1.7.0)
+
+`/review/` is for QR codes, emails and text messages: `noindex`, not in any menu or the footer, not in the sitemap.
+Every star (1 to 5) and the button do the same thing: open the "Taking you to Google now" pop-up and go to the one
+link in Site Settings > Google review link after about 1.5 seconds (Go now and a fallback link are there too). No
+rating is stored or branched on, because selectively inviting only happy patients to Google is prohibited by Google's
+review policy and treated as misleading by the ACCC. A private feedback line (mailto the APE inbox) shows to everyone
+before they choose anything. With no link set, the page says reviews are coming soon. Wording is edited like any page
+(dashboard menu > Review page); QR codes in `deliverables/qr/ape-review-qr*`. Setting up the Google Business Profile:
+`docs/GOOGLE-BUSINESS-PROFILE.md`.
+
+## Opening special pop-up (v1.7.0)
+
+Shows on the first open of the homepage about 0.8 seconds after the page is interactive (no scrolling needed), once
+per browser session, and not again for 7 days after it is closed. Storage reads and writes are wrapped, so a browser
+that blocks storage still gets it once per page view with no errors. Focus moves into it, Esc and the close button
+work, focus returns afterwards and the page behind does not scroll. It exists only on the homepage. On/off, the
+dates, **Show the pop-up after (seconds)**, the heading and the wording (with `{price}`, `{regular}`, `{dates}`) are
+under Opening special in the dashboard and apply straight away (`ape_meta`, key `special`); the price and the number
+of places stay in `content/booking.json` (GYA).
+
 ## Stripe
 
 - The site never holds Stripe API keys. The deposit is a **Stripe Payment Link** (`DEPOSIT_PAYMENT_URL`); the
@@ -97,6 +151,7 @@ dashboard (/admin)  ->  Neon Postgres  ->  "Publish website"  ->  Vercel deploy 
     1. payload migrate          dashboard tables up to date
     2. seed --if-empty          the first time only: load content/ into the dashboard
     2b. content-updates         this release's changes to dashboard content, only where the client has not edited it
+                                (v1.7.0: the review page and the privacy policy's questionnaire section)
     2c. dashboard-logins        DASHBOARD_EDITORS: add missing logins and email their password links
     3. pull-content             dashboard -> content/*.json (skipped until the content has been imported)
     4. render-site              content/*.json -> public/*.html, sitemap.xml, robots.txt, assets/site-config.js
@@ -124,9 +179,11 @@ content/                 the site's content (JSON); the build overwrites it from
 src/dashboard/           the /admin dashboard: screens, editors, styles (brand.ts and the colours at the top of dashboard.css are the APE parts)
 src/dashboard/render.ts  pages to HTML, for the build and for the page editor (so the editor shows what goes live)
 src/app/(dashboard)/     /admin routes            src/app/(payload)/   Payload's own screens at /cms (GYA only)
+src/app/(site)/          the private patient questionnaire pages (/questionnaire/<token>), no tracking
 src/app/api/             availability, booking, stripe/webhook, dashboard/bookings, dashboard/forgot-password, dashboard/pages, publish-site, import-content, import-media
 src/booking/core.ts      booking rules, schedule, opening special, database
 src/lib/email.ts         sending email (SMTP2GO or Resend)      src/lib/stripe.ts  webhook signature check
+src/lib/questionnaire.ts the welcome email, private links, encrypted answers, access and logging   src/lib/crypto.ts
 src/sitekit/releases.ts  content changes a release makes to the dashboard (never over the client's edits)
 src/sitekit/             Payload collections and Site Settings, import and pull (sync.ts)
 src/proxy.ts             clean URLs, trailing slash, 404, dashboard redirects
@@ -180,7 +237,10 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | Email key and verified sender | `SMTP2GO_API_KEY`, `BOOKING_FROM` (launch blocker) |
 | Deposit payment link | `DEPOSIT_PAYMENT_URL` (Stripe account owner to set up) |
 | Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
-| Domain | `NEXT_PUBLIC_SERVER_URL`, QR code |
+| Domain: theanxiouspatientexperience.com.au at VentraIP | `docs/GO-LIVE-DOMAIN.md` (waiting on VentraIP access) |
+| Lorna's questionnaire and welcome pack, welcome email wording, privacy sign-off | Questionnaires > Questions and emails; feature off until then |
+| Google Business Profile option and admin email | `docs/GOOGLE-BUSINESS-PROFILE.md` |
+| Google review link | Site Settings > Google review link (after the profile exists) |
 | GA4 / Meta Pixel IDs | Site Settings > Tracking (GYA only) |
 
 ## Go-live checklist
@@ -207,7 +267,7 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 
 - Two-way sync with Core Practice (not wanted: bookings are entered by hand).
 - Automatic emails when a booking is confirmed or cancelled (the team emails the patient).
-- The New Patient Information Pack online (scoped in `docs/HANDOVER-v1.6.0.md`).
+- The New Patient Information Pack is built but switched off (`QUESTIONNAIRE_ENABLED`) until Lorna's originals and wording are approved.
 - Changing the fee, deposit or opening special from the dashboard (GYA changes `content/booking.json`, because offers
   must state price, inclusions and dates).
 - One-off extra sessions on a single date (the weekly times and blocks cover leave and regular days).

@@ -401,3 +401,20 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
   .bookings-table td { border: 0; padding: 4px 12px; }
   .bookings-table td.empty { padding: 16px 12px; }
 }
+
+/* v1.7.0: patient questionnaires */
+.q-print-title { font-size: 24px; margin: 0 0 18px; }
+.q-print-section { margin: 0 0 22px; padding: 0 0 6px; border-bottom: 1px solid #e6e8ec; }
+.q-print-section h2 { font-size: 16px; margin: 0 0 12px; color: #284858; }
+.q-answers { margin: 0; display: grid; gap: 10px; }
+.q-answer { display: grid; grid-template-columns: minmax(200px, 38%) 1fr; gap: 6px 18px; align-items: start; }
+.q-answer dt { color: #5b6672; font-size: 13.5px; }
+.q-answer dd { margin: 0; color: #1b2a35; font-weight: 500; }
+.q-answer-list { margin: 0; padding-left: 18px; }
+.q-edit { border: 1px solid #e6e8ec; border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; background: #fafbfc; }
+@media (max-width: 700px) { .q-answer { grid-template-columns: 1fr; gap: 2px; } }
+@media print {
+  .pd-side, .pd-top, .no-print, .q-print-head .actions { display: none !important; }
+  .pd-main { margin: 0; padding: 0; } .pd-wrap { max-width: none; } .panel { border: 0; box-shadow: none; padding: 0; }
+  .q-print-head { margin-bottom: 12pt; } .q-answer { break-inside: avoid; }
+}

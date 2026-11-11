@@ -73,6 +73,8 @@ export interface Config {
     media: Media;
     redirects: Redirect;
     users: User;
+    questionnaires: Questionnaire;
+    'questionnaire-log': QuestionnaireLog;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -87,6 +89,8 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    questionnaires: QuestionnairesSelect<false> | QuestionnairesSelect<true>;
+    'questionnaire-log': QuestionnaireLogSelect<false> | QuestionnaireLogSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -101,11 +105,13 @@ export interface Config {
     seo: Seo;
     'site-settings': SiteSetting;
     'site-status': SiteStatus;
+    questionnaire: Questionnaire1;
   };
   globalsSelect: {
     seo: SeoSelect<false> | SeoSelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'site-status': SiteStatusSelect<false> | SiteStatusSelect<true>;
+    questionnaire: QuestionnaireSelect<false> | QuestionnaireSelect<true>;
   };
   locale: null;
   widgets: {
@@ -368,6 +374,10 @@ export interface User {
    * Editors can change wording, photos, posts and SEO. Administrators also manage users, redirects and tracking IDs.
    */
   role: 'admin' | 'editor';
+  /**
+   * Off for everyone until given, GYA administrators included. Lorna nominates who has it. Every view is logged.
+   */
+  canViewQuestionnaires?: boolean | null;
   mustChangePassword?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -388,6 +398,45 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaires".
+ */
+export interface Questionnaire {
+  id: number;
+  bookingRef: string;
+  patientName?: string | null;
+  appointmentAt?: string | null;
+  tokenHash: string;
+  expiresAt: string;
+  status: 'sent' | 'submitted' | 'expired';
+  sentAt?: string | null;
+  sentCount?: number | null;
+  submittedAt?: string | null;
+  sealed?: string | null;
+  reviewed?: boolean | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  retainUntil?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaire-log".
+ */
+export interface QuestionnaireLog {
+  id: number;
+  at: string;
+  userId?: string | null;
+  userEmail: string;
+  action: 'viewed' | 'printed' | 'reviewed' | 'unreviewed' | 'deleted' | 'denied' | 'resent';
+  bookingRef?: string | null;
+  questionnaire?: string | null;
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -528,6 +577,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'questionnaires';
+        value: number | Questionnaire;
+      } | null)
+    | ({
+        relationTo: 'questionnaire-log';
+        value: number | QuestionnaireLog;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -708,6 +765,7 @@ export interface RedirectsSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
+  canViewQuestionnaires?: T;
   mustChangePassword?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -726,6 +784,43 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaires_select".
+ */
+export interface QuestionnairesSelect<T extends boolean = true> {
+  bookingRef?: T;
+  patientName?: T;
+  appointmentAt?: T;
+  tokenHash?: T;
+  expiresAt?: T;
+  status?: T;
+  sentAt?: T;
+  sentCount?: T;
+  submittedAt?: T;
+  sealed?: T;
+  reviewed?: T;
+  reviewedBy?: T;
+  reviewedAt?: T;
+  retainUntil?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaire-log_select".
+ */
+export interface QuestionnaireLogSelect<T extends boolean = true> {
+  at?: T;
+  userId?: T;
+  userEmail?: T;
+  action?: T;
+  bookingRef?: T;
+  questionnaire?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -848,6 +943,22 @@ export interface SiteSetting {
         id?: string | null;
       }[]
     | null;
+  /**
+   * The "Ask for reviews" link from the Google Business Profile (https://g.page/r/.../review). The /review/ page says "coming soon" until this is filled in.
+   */
+  googleReviewLink?: string | null;
+  questionnaire?: {
+    sendWhen?: ('confirmed' | 'requested') | null;
+    /**
+     * Who is told when a patient submits. Empty uses the booking notification address. The email never contains answers.
+     */
+    notifyEmails?:
+      | {
+          address: string;
+          id?: string | null;
+        }[]
+      | null;
+  };
   tracking?: {
     ga4?: string | null;
     metaPixel?: string | null;
@@ -865,6 +976,49 @@ export interface SiteStatus {
   lastPublishedAt?: string | null;
   lastPublishBy?: string | null;
   imported?: boolean | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * The new patient questionnaire, its collection notice, the welcome email and the welcome pack file.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaire".
+ */
+export interface Questionnaire1 {
+  id: number;
+  title?: string | null;
+  intro?: string | null;
+  collectionNotice?: string | null;
+  consentLabel?: string | null;
+  sections?:
+    | {
+        heading: string;
+        description?: string | null;
+        questions?:
+          | {
+              label: string;
+              type:
+                'text' | 'textarea' | 'yesno' | 'choice' | 'multi' | 'scale' | 'date' | 'dob' | 'signature' | 'note';
+              options?: string | null;
+              help?: string | null;
+              required?: boolean | null;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  thankYou?: string | null;
+  /**
+   * Lorna's original welcome pack. Attached to the welcome email and offered as a download.
+   */
+  welcomePack?: (number | null) | Media;
+  welcomeSubject?: string | null;
+  /**
+   * Write {first} for the patient's first name, {when} for the appointment, {link} for the questionnaire link and {pack} for the welcome pack link. No health details in the email.
+   */
+  welcomeBody?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -906,6 +1060,18 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         address?: T;
         id?: T;
       };
+  googleReviewLink?: T;
+  questionnaire?:
+    | T
+    | {
+        sendWhen?: T;
+        notifyEmails?:
+          | T
+          | {
+              address?: T;
+              id?: T;
+            };
+      };
   tracking?:
     | T
     | {
@@ -925,6 +1091,40 @@ export interface SiteStatusSelect<T extends boolean = true> {
   lastPublishedAt?: T;
   lastPublishBy?: T;
   imported?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "questionnaire_select".
+ */
+export interface QuestionnaireSelect<T extends boolean = true> {
+  title?: T;
+  intro?: T;
+  collectionNotice?: T;
+  consentLabel?: T;
+  sections?:
+    | T
+    | {
+        heading?: T;
+        description?: T;
+        questions?:
+          | T
+          | {
+              label?: T;
+              type?: T;
+              options?: T;
+              help?: T;
+              required?: T;
+              id?: T;
+            };
+        id?: T;
+      };
+  thankYou?: T;
+  welcomePack?: T;
+  welcomeSubject?: T;
+  welcomeBody?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

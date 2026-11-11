@@ -11,7 +11,7 @@ export function SeoPreview() {
 
   return (
     <div className="tnc-serp">
-      <span className="tnc-serp__url">the-anxious-patient-experience.vercel.app{path}</span>
+      <span className="tnc-serp__url">{(process.env.NEXT_PUBLIC_SERVER_URL || 'https://theanxiouspatientexperience.com.au').replace(/^https?:\/\//, '').replace(/\/+$/, '')}{path}</span>
       <span className="tnc-serp__title">{title || fallbackTitle}</span>
       <span className="tnc-serp__desc">
         {description || 'Add a description so Google shows the wording you want here.'}

@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react'
 import { api } from '../lib/client'
-import { Notice, TextArea, TextInput, Toggle, useUnsavedWarning } from '../ui/fields'
+import { Notice, Select, TextArea, TextInput, Toggle, useUnsavedWarning } from '../ui/fields'
 import { ImageSlot } from '../ui/MediaPicker'
 import { PublishButton } from '../ui/PublishButton'
 import { useToast } from '../ui/Toast'
@@ -19,6 +19,8 @@ export type SettingsState = {
   clinic: { name: string; street: string; suburb: string; state: string; postcode: string; mapsUrl: string }
   bookingRecipients: string[]
   tracking: { ga4: string; metaPixel: string }
+  googleReviewLink: string
+  questionnaire: { sendWhen: 'confirmed' | 'requested'; notifyEmails: string[] }
   seo: { defaultTitle: string; defaultDescription: string; defaultOgImage: string; defaultOgImageMedia: number | string | null; noindexSite: boolean }
 }
 
@@ -50,8 +52,10 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
     for (const [label, v] of [['APE enquiries email', s.apeEmail], ['General practice enquiries email', s.receptionEmail]] as const) {
       if (v.trim() && !EMAIL.test(v.trim())) { toast(`The ${label} does not look right.`, 'bad'); return }
     }
-    const bad = s.bookingRecipients.filter((e) => e.trim() && !EMAIL.test(e.trim()))
+    const bad = [...s.bookingRecipients, ...s.questionnaire.notifyEmails].filter((e) => e.trim() && !EMAIL.test(e.trim()))
     if (bad.length) { toast(`This address does not look right: ${bad[0]}`, 'bad'); return }
+    const link = s.googleReviewLink.trim()
+    if (link && !/^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(link)) { toast('The Google review link should be the "Ask for reviews" link from the Business Profile (it starts with https://g.page/ or https://search.google.com/).', 'bad'); return }
     setBusy(true)
     try {
       const settings: Record<string, unknown> = {
@@ -59,6 +63,8 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
         apeEmail: s.apeEmail.trim(),
         receptionEmail: s.receptionEmail.trim(),
         clinic: Object.fromEntries(Object.entries(s.clinic).map(([k, v]) => [k, v.trim()])),
+        googleReviewLink: link,
+        questionnaire: { sendWhen: s.questionnaire.sendWhen, notifyEmails: s.questionnaire.notifyEmails.map((a) => a.trim()).filter(Boolean).map((address) => ({ address })) },
       }
       if (isAdmin) {
         settings.bookingRecipients = s.bookingRecipients.map((a) => a.trim()).filter(Boolean).map((address) => ({ address }))
@@ -108,6 +114,25 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
           <Notice tone="info" icon={Icon.info()}>
             <p>The days and times patients can book are under <a href="/admin/availability">Availability</a>, where you also block leave. The appointment fee, deposit and opening special are set by GYA, because offers on a dental website must state the price, inclusions and dates.</p>
           </Notice>
+        </Panel>
+
+        <Panel id="reviews" title="Google review page" intro="The page at /review/ for QR codes, emails and text messages. It is not in the menu and search engines do not list it. Every star and the button go to this one link; until it is filled in, the page says reviews are coming soon.">
+          <TextInput label="Google review link" value={s.googleReviewLink} onChange={(v) => set({ googleReviewLink: v })} placeholder="https://g.page/r/.../review" help="From the Google Business Profile: Ask for reviews. Takes effect when you publish." />
+        </Panel>
+
+        <Panel id="questionnaire" title="Welcome pack and questionnaire" intro="How the New Patient Information Pack reaches patients, and who is told when a questionnaire comes in. The questions and the emails themselves are under Questionnaires, Questions and emails.">
+          <Select label="Send the welcome pack when" value={s.questionnaire.sendWhen} onChange={(v) => set({ questionnaire: { ...s.questionnaire, sendWhen: v === 'requested' ? 'requested' : 'confirmed' } })}
+            options={[{ value: 'confirmed', label: 'a booking is confirmed (recommended)' }, { value: 'requested', label: 'a booking request is received' }]}
+            help="Confirmed means nobody gets a pack for a time that is not yet confirmed." />
+          <p className="help" style={{ marginBottom: 8 }}><b>Questionnaire notifications.</b> Who gets the "questionnaire received" email (reference, first name and appointment date only, never answers). Empty uses the booking request address.</p>
+          {s.questionnaire.notifyEmails.map((r, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input className="input" aria-label={`Notification address ${i + 1}`} value={r}
+                onChange={(e) => set({ questionnaire: { ...s.questionnaire, notifyEmails: s.questionnaire.notifyEmails.map((x, n) => (n === i ? e.target.value : x)) } })} />
+              <button className="btn small danger" onClick={() => set({ questionnaire: { ...s.questionnaire, notifyEmails: s.questionnaire.notifyEmails.filter((_x, n) => n !== i) } })}>{Icon.trash()} Remove</button>
+            </div>
+          ))}
+          <button className="btn small" onClick={() => set({ questionnaire: { ...s.questionnaire, notifyEmails: [...s.questionnaire.notifyEmails, ''] } })}>{Icon.plus()} Add an address</button>
         </Panel>
 
         <Panel id="seo" title="Search engine defaults" intro="Used by any page or post that does not set its own. Each page's own title and description are on its SEO tab.">

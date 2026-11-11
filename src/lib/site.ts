@@ -44,10 +44,19 @@ export function telOf(phone: string): string {
   return d.startsWith('+') ? d : d.startsWith('0') ? `+61${d.slice(1)}` : d
 }
 
-/** The site's own address: NEXT_PUBLIC_SERVER_URL, else Site Settings. No trailing slash. */
+/** The site's own address, no trailing slash: NEXT_PUBLIC_SERVER_URL (the domain at go-live), else on a Vercel preview
+ *  that preview's own address, else the project's production address Vercel reports, else the Site Settings default. */
 export function originOf(s: SiteSettings): string {
-  return String(process.env.NEXT_PUBLIC_SERVER_URL || s.siteUrl || '').replace(/\/+$/, '')
+  const env = process.env
+  const pick = env.NEXT_PUBLIC_SERVER_URL
+    || (env.VERCEL_ENV === 'preview' && env.VERCEL_BRANCH_URL ? `https://${env.VERCEL_BRANCH_URL}` : '')
+    || (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : '')
+    || s.siteUrl || ''
+  return String(pick).replace(/\/+$/, '')
 }
+
+/** Preview deployments are never indexed, whatever the SEO settings say. */
+export const isPreviewDeploy = () => process.env.VERCEL_ENV === 'preview'
 
 /** The ?v= on the stylesheet and scripts, so browsers fetch them again after an update. */
 export function assetVersion(): string {
@@ -133,6 +142,7 @@ export function tokensFor(s: SiteSettings, opts: { blog?: boolean } = {}): Recor
     schema: `<script type="application/ld+json">${JSON.stringify(schema)}</script>`,
     analytics: analyticsTags(s.tracking || {}),
     origin: originOf(s),
+    googleReviewLink: esc(String(s.googleReviewLink || '')),
     v: assetVersion(),
     blogNav: blog ? '<li><a href="/blog/">Blog</a></li>' : '',
     blogFooter: blog ? '<li><a href="/blog/">Blog</a></li>' : '',

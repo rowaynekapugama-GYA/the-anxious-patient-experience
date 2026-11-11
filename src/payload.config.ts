@@ -10,6 +10,8 @@ import { Media } from './sitekit/collections/Media'
 import { Pages } from './sitekit/collections/Pages'
 import { Posts, Categories } from './sitekit/collections/Posts'
 import { Redirects } from './sitekit/collections/Redirects'
+import { Questionnaires, QuestionnaireLog } from './sitekit/collections/Questionnaires'
+import { Questionnaire } from './sitekit/globals/Questionnaire'
 import { SiteSettings } from './sitekit/globals/SiteSettings'
 import { Seo } from './sitekit/globals/Seo'
 import { SiteStatus } from './sitekit/globals/SiteStatus'
@@ -46,8 +48,8 @@ export default buildConfig({
     },
   },
   // the order here is the order of the menu down the left hand side
-  collections: [Pages, Posts, Categories, Media, Redirects, Users],
-  globals: [Seo, SiteSettings, SiteStatus],
+  collections: [Pages, Posts, Categories, Media, Redirects, Users, Questionnaires, QuestionnaireLog],
+  globals: [Seo, SiteSettings, SiteStatus, Questionnaire],
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL || '' },
     push: false,

@@ -11,7 +11,8 @@ export const Media: CollectionConfig = {
   },
   access: { read: anyone, create: adminOrEditor, update: adminOrEditor, delete: adminOrEditor },
   upload: {
-    mimeTypes: ['image/*'],
+    // v1.7.0: PDFs too, for the welcome pack (the Media Library grid shows photos only)
+    mimeTypes: ['image/*', 'application/pdf'],
     // One resized master. Uploads are converted to WebP at 2400px and served
     // with next/image unoptimized, so they never hit the optimisation cap.
     formatOptions: { format: 'webp', options: { quality: 80 } },

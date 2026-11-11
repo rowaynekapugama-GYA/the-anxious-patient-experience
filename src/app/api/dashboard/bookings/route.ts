@@ -7,9 +7,13 @@
  *   POST {action:'block', from, to?, time?, note?}       block a day, a range of days or one time
  *   POST {action:'unblock', day, time?}
  *   POST {action:'schedule', days, startTimes}           the weekly booking times (null puts back the standard ones)
+ *   POST {action:'special', enabled?, popup?, from?, to?, showAfter?, heading?, body?}   the opening special's switches,
+ *                                                        dates and pop-up wording (null puts back the standard ones)
  */
 import { routeUser } from '@/dashboard/lib/routeAuth'
 import * as core from '@/booking/core'
+import { questionnaireEnabled, onBookingConfirmed, statusByRef } from '@/lib/questionnaire'
+import type { Payload } from 'payload'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,7 +33,7 @@ function bookingRow(r: Record<string, any>, tz: string) {
   }
 }
 
-async function data(now: number) {
+async function data(now: number, payload: Payload) {
   const { cfg, state } = await core.readState()
   const tz = cfg.booking.timeZone
   const o = cfg.openingSpecial
@@ -82,17 +86,23 @@ async function data(now: number) {
       custom: !!state.schedule,
     },
     bookings,
+    questionnaire: { enabled: questionnaireEnabled(), byRef: questionnaireEnabled() ? await statusByRef(payload) : {} },
     blocks: state.blocks.filter((b) => b.day >= today),
-    special: { enabled: !!o.enabled, price: o.price, regular: cfg.pricing.appointment, from: o.from, to: o.to, max: o.maxBookings, used: state.specialUsed, showing: pub.special.active },
+    special: {
+      enabled: !!o.enabled, price: o.price, regular: cfg.pricing.appointment, from: o.from, to: o.to, max: o.maxBookings, used: state.specialUsed, showing: pub.special.active,
+      popup: !!o.popup, showAfter: pub.special.showAfter, heading: pub.special.heading, body: pub.special.body,
+      standard: { enabled: !!base.openingSpecial.enabled, popup: !!base.openingSpecial.popup, from: base.openingSpecial.from, to: base.openingSpecial.to, ...core.POPUP_DEFAULTS },
+      custom: d ? !!(await core.readSpecial(d).catch(() => null)) : false,
+    },
     schedule,
   }
 }
 
 export async function GET(req: Request) {
-  const { user } = await routeUser(req)
+  const { user, payload } = await routeUser(req)
   if (!user) return core.send(401, { ok: false, error: 'signed_out' })
   try {
-    return core.send(200, await data(Date.now()))
+    return core.send(200, await data(Date.now(), payload))
   } catch (err) {
     console.error('bookings: error', (err as Error).message)
     return core.send(500, { ok: false, error: 'server_error' })
@@ -100,7 +110,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { user } = await routeUser(req)
+  const { user, payload } = await routeUser(req)
   if (!user) return core.send(401, { ok: false, error: 'signed_out' })
   let body: Record<string, unknown>
   try { body = await core.readBody(req) } catch { return core.send(400, { ok: false, error: 'invalid' }) }
@@ -110,7 +120,7 @@ export async function POST(req: Request) {
   try {
     const base = core.loadConfig()
     await core.ensureSchema(d, base)
-    const cfg = core.loadConfig(await core.readSchedule(d))
+    const cfg = core.loadConfig(await core.readOverrides(d))
 
     if (action === 'booking') {
       const ref = core.clean(body.ref, 20)
@@ -122,14 +132,21 @@ export async function POST(req: Request) {
       }
       if (body.depositPaid !== undefined) { params.push(!!body.depositPaid); sets.push(`deposit_paid = $${params.length}`) }
       if (!sets.length) return core.send(400, { ok: false, error: 'invalid' })
+      let row: Record<string, any> | undefined
       try {
-        const r = await d.query(`UPDATE ape_bookings SET ${sets.join(', ')}, updated_at = now() WHERE ref = $1 RETURNING ref`, params)
+        const r = await d.query(`UPDATE ape_bookings SET ${sets.join(', ')}, updated_at = now() WHERE ref = $1 RETURNING ref, name, email, slot_start, status`, params)
         if (!r.length) return core.send(404, { ok: false, error: 'not_found' })
+        row = r[0]
       } catch (err) {
         if (/unique|duplicate/i.test((err as Error).message)) return core.send(409, { ok: false, error: 'taken' })
         throw err
       }
-      return core.send(200, { ok: true })
+      // v1.7.0: Mark confirmed sends the welcome pack and questionnaire link (unless Site Settings sends them at request time)
+      let welcome: { sent: boolean; reason?: string } | undefined
+      if (body.status === 'confirmed' && row && questionnaireEnabled()) {
+        welcome = await onBookingConfirmed(payload, { ref: row.ref, name: row.name, email: row.email, slot_start: row.slot_start })
+      }
+      return core.send(200, { ok: true, welcome })
     }
 
     if (action === 'block') {
@@ -176,6 +193,27 @@ export async function POST(req: Request) {
       if (!days.length) return core.send(400, { ok: false, error: 'no_days' })
       if (!times.length || times.length > 12) return core.send(400, { ok: false, error: 'no_times' })
       await d.query(`INSERT INTO ape_meta (key, value) VALUES ('schedule', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [JSON.stringify({ days, startTimes: times })])
+      return core.send(200, { ok: true })
+    }
+
+    if (action === 'special') {
+      if (body.enabled === null) {
+        await d.query(`DELETE FROM ape_meta WHERE key = 'special'`)
+        return core.send(200, { ok: true })
+      }
+      const from = core.clean(body.from, 10)
+      const to = core.clean(body.to, 10)
+      if ((from && !core.isDay(from)) || (to && !core.isDay(to)) || (from && to && to < from)) return core.send(400, { ok: false, error: 'invalid_dates' })
+      const showAfter = body.showAfter === '' || body.showAfter === undefined ? undefined : Number(body.showAfter)
+      if (showAfter !== undefined && !(Number.isFinite(showAfter) && showAfter >= 0 && showAfter <= 60)) return core.send(400, { ok: false, error: 'invalid_delay' })
+      const v: core.SpecialSettings = {
+        enabled: body.enabled === undefined ? undefined : !!body.enabled,
+        popup: body.popup === undefined ? undefined : !!body.popup,
+        from: from || undefined, to: to || undefined, showAfter,
+        heading: core.oneLine(core.clean(body.heading, 120)) || undefined,
+        body: core.clean(body.body, 600) || undefined,
+      }
+      await d.query(`INSERT INTO ape_meta (key, value) VALUES ('special', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [JSON.stringify(v)])
       return core.send(200, { ok: true })
     }
 

@@ -12,7 +12,7 @@ import './load-env'
 import fs from 'node:fs'
 import path from 'node:path'
 import { getChrome, getPages, getRedirects, getSeoDefaults, seoInfoFrom } from '../src/lib/content'
-import { getSettings, pageTokens, tokensFor, originOf } from '../src/lib/site'
+import { getSettings, pageTokens, tokensFor, originOf, isPreviewDeploy } from '../src/lib/site'
 import { renderPageHtml } from '../src/dashboard/render'
 import { getPosts } from '../src/lib/blog'
 import { renderBlog } from '../src/lib/blogPages'
@@ -23,7 +23,7 @@ const out = path.resolve(process.argv[2] || path.join(root, 'public'))
 const manifestPath = path.join(out, '.generated.json')
 
 const settings = getSettings()
-const seo = getSeoDefaults()
+const seo = { ...getSeoDefaults(), noindexSite: getSeoDefaults().noindexSite || isPreviewDeploy() }
 const tokens = tokensFor(settings)
 const origin = originOf(settings)
 const chrome = getChrome()

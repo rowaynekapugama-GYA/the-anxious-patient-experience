@@ -1,5 +1,66 @@
 # Changelog
 
+## 1.7.0 (11 Nov 2026): pop-up on first open, domain prep, New Patient Information Pack, Google review page
+
+Lorna's email of 10 Nov 2026 and Rowayne's reply. Update to the existing repo (after v1.6.0 `20532bd`). Lorna's
+questionnaire and welcome pack are still to come, so that system ships built, tested and **switched off**, with
+clearly marked placeholders.
+
+### What changed
+- **Offer pop-up shows on first open.** Cause: it only fired after 9 seconds or 30% scroll, and once shown it was
+  remembered in localStorage for ever, so anyone who had seen it once (Lorna had) never saw it again. Now: about 0.8
+  seconds after the homepage is interactive, no scroll needed, once per browser session, not again for 7 days after
+  it is closed, every storage call wrapped (private mode and in-app browsers still get it once per page view, no
+  errors). Focus moves in, Esc and close work, focus returns, the page behind does not scroll. Only on the homepage.
+  New dashboard settings under Opening special: special on/off, pop-up on/off, dates, **Show the pop-up after
+  (seconds)** (default 0.8), heading and wording with `{price}`, `{regular}`, `{dates}`; saved in `ape_meta`
+  (`special`), applied straight away. The offer wording states the price, what is included and the dates, with no
+  urgency words (unchanged).
+- **Domain prepared, no DNS changed**: `docs/GO-LIVE-DOMAIN.md` (Vercel domains, VentraIP records, keep MX/SPF/DKIM
+  untouched, nameserver check, links to update, SMTP2GO domain-sending option for later, go-live checklist). Origin
+  now follows `NEXT_PUBLIC_SERVER_URL`, else the preview's own address, else Vercel's production address; **preview
+  deployments render noindex with `Disallow: /`** by environment. Dashboard SEO previews show the real domain. QR codes
+  regenerated for `theanxiouspatientexperience.com.au` (the vercel.app code kept as `*-staging`), plus a review page QR.
+- **New Patient Information Pack** (off until `QUESTIONNAIRE_ENABLED=true`): welcome email on Mark confirmed (or on
+  request, Site Settings), welcome pack attached and linked, private one-use questionnaire link valid to 7 days after
+  the appointment, questionnaire pages in the site's style with no analytics, answers validated, **encrypted
+  (AES-256-GCM, `QUESTIONNAIRE_ENCRYPTION_KEY`)** and stored in Neon, notification email with reference, first name and
+  date only, dashboard Questionnaires (list, open laid out like the form, Print, Reviewed, GYA-only Delete with typed
+  confirmation, access log), **Can view patient questionnaires** per-user permission (off for everyone by default,
+  every view and refusal logged), Questionnaire column and Resend welcome email in Bookings, count on the Dashboard,
+  Questions and emails editor (sections, questions, types, collection notice, thank-you, welcome email, welcome pack
+  PDF upload), Site Settings: send when, notification list. Retention 7 years or to age 25. Placeholder questionnaire
+  and welcome pack PDFs in `public/downloads/`. Collection notice and consent tick on the form; privacy policy gains
+  section 14 on the questionnaire (for Lorna to approve). Payload migration `20261111_013051_v170_questionnaire`.
+- **Google review page** `/review/`: noindex, out of menus, footer and sitemap. Every star and the button open the same
+  "Taking you to Google now" pop-up (progress bar, Go now, fallback link) and go to the one **Google review link** in
+  Site Settings after about 1.5 seconds; no rating stored or branched on; private feedback line shown to everyone
+  first; "coming soon" while the link is empty. Editable as a page (menu: Review page). Added to the live dashboard
+  by a release update.
+- **Stripe**: unchanged Payment Link approach confirmed (reference already passed as `client_reference_id`);
+  `docs/TEST-BOOKING.md` step-by-step test with a results table.
+- **Google Business Profile**: `docs/GOOGLE-BUSINESS-PROFILE.md` (existing-profile check, eligibility options with a
+  recommendation for a practitioner listing, paste-ready AHPRA-compliant content, set-up and hand-over steps). Nothing
+  created or submitted.
+- Media Library accepts PDFs (for the welcome pack); the photo grid shows images only.
+- Docs: README, `docs/HOW-TO-UPDATE.md` (questionnaires, access, reviews, the pop-up settings), `.env.example`.
+
+### Vercel environment variables
+New: `QUESTIONNAIRE_ENABLED` (leave unset until approved), `QUESTIONNAIRE_ENCRYPTION_KEY` (32 bytes base64, Sensitive,
+never change once answers exist, back it up). At go-live: `NEXT_PUBLIC_SERVER_URL=https://theanxiouspatientexperience.com.au`.
+Still outstanding from v1.6.0: `SMTP2GO_API_KEY`, `BOOKING_FROM`, `BOOKING_NOTIFY_EMAIL`, `DASHBOARD_EDITORS`;
+delete `ALLOW_FIRST_USER`, `ADMIN_PASSWORD`, `BOOKING_NOTIFY_TO`.
+
+### Checked
+`tsc` clean; `npm ci && npm run build` with the flag unset and set to true; `npm run qa` passing; Chromium: pop-up on
+first load (desktop 1061 ms, mobile), not again after dismissal, again after 8 simulated days, once per session,
+with storage blocked, never on Book Now, privacy, review or questionnaire pages, no console errors; booking, Mark
+confirmed, welcome email with the PDF attached, questionnaire submitted at 390 px with no horizontal scroll, link
+refused afterwards, notification without answers, raw row unreadable, access refused and logged without the
+permission, decrypted with it, Reviewed, log; review page: all five stars and the button same link, redirect at
+about 1.5 s, Esc cancels, fallback link, coming soon with no link, noindex, not in sitemap, no rating branching;
+banned-words and secrets scans clean, no em dashes.
+
 ## 1.6.0 (9 Nov 2026): pre-launch, client feedback round 2
 
 Lorna's email of 9 Nov 2026 and Rowayne's brief "Client feedback round 2". Update to the existing repo. Lorna has

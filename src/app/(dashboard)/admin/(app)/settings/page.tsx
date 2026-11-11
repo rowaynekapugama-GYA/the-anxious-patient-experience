@@ -26,6 +26,11 @@ export default async function SettingsPage() {
           ? ((g.bookingRecipients as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? [])
           : [],
         tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel) } : { ga4: '', metaPixel: '' },
+        googleReviewLink: str(g.googleReviewLink),
+        questionnaire: {
+          sendWhen: g.questionnaire?.sendWhen === 'requested' ? 'requested' : 'confirmed',
+          notifyEmails: ((g.questionnaire?.notifyEmails as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? []),
+        },
         seo: {
           defaultTitle: str(seo.defaultTitle), defaultDescription: str(seo.defaultDescription),
           defaultOgImage: mediaUrl(seo.defaultOgImage) ?? '',

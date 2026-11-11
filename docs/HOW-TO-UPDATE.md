@@ -58,10 +58,46 @@ Under **Booking times**, tick the days and add or remove start times, then press
 the new times on Book Now straight away. Bookings already made keep their time. **Use the standard times** puts back
 Wednesdays at 9:00 am, 10:20 am and 11:40 am.
 
+## Questionnaires (the New Patient Information Pack)
+This is switched off until the questionnaire, the welcome email wording and the privacy wording are approved. Once
+on, when you press **Mark confirmed** on a booking the website emails the patient the welcome pack and a private
+link to the online questionnaire (you can change this to "when a request arrives" under Site Settings). The link
+works once, until a week after the appointment.
+
+### Knowing when one arrives
+The people under Site Settings, **Questionnaire notifications**, get an email with the booking reference, first name
+and appointment date (never the answers). The Questionnaires item in the menu shows how many are waiting to be
+reviewed, and the booking's row under Bookings shows **Received**.
+
+### Reading a questionnaire
+Open **Questionnaires**, press **Open** on the entry, read it, then press **Mark reviewed**. **Print / Save as PDF**
+makes a copy for the clinical record. You can only open questionnaires if your login has been given access: Lorna
+decides who, and GYA switches it on for each person (Users, **Can view patient questionnaires**). Every time a
+questionnaire is opened, a record is kept of who and when.
+
+### Giving someone access
+Email GYA with the person's login email address. Access is off for everyone, including GYA, until it is given.
+
+### Changing the questions, the notice or the emails
+Questionnaires > **Questions and emails**: the sections and questions (same order and wording as the paper
+version), the collection notice, the thank-you message, the welcome email wording and the welcome pack PDF. Saved
+changes apply straight away. **Resend welcome email** on a confirmed booking sends the pack and a fresh link again.
+
+## Google reviews
+The page at **/review/** is for QR codes and messages (it is not in the menu). Every star and the button go to the
+same Google review link, which lives under Site Settings, **Google review link**. Until the Google Business Profile
+exists and that link is filled in, the page says reviews are coming soon. The wording is edited from the **Review
+page** item in the menu, like any page, then Publish website.
+
 ## Opening special
 The **Opening special** page shows how many of the six $250 places are used and whether the special is showing on the
-website. It switches itself off once six are booked or the special dates have passed. You do not need to do anything.
-To change the price, dates or number of places, please ask GYA.
+website. It switches itself off once six are booked or the special dates have passed. The price and the number of
+places are set by GYA.
+
+### The pop-up
+Opening special > **Settings and the pop-up**: switch the special or the pop-up on or off, change the dates, set
+how many seconds after the homepage opens it appears (0.8 is standard), and edit its heading and wording. It shows
+once per visit and not again for 7 days after someone closes it. Saved changes apply straight away.
 
 ## Changing words on a page
 1. Click **Pages**, then the page (for example **Home**).

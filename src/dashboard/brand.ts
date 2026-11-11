@@ -4,7 +4,8 @@
  */
 export const BRAND = {
   name: 'The Anxious Patient Experience',
-  domain: 'the-anxious-patient-experience.vercel.app',
+  /** shown in the SEO previews; follows NEXT_PUBLIC_SERVER_URL at go-live */
+  domain: (process.env.NEXT_PUBLIC_SERVER_URL || 'https://theanxiouspatientexperience.com.au').replace(/^https?:\/\//, '').replace(/\/+$/, ''),
   /** shown on the dark sidebar and on the dark strip at the top of the sign in card */
   logoOnDark: '/images/ape-logo.webp',
   favicon: '/icon.svg',

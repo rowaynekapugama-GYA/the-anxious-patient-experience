@@ -28,16 +28,28 @@ export type Cfg = {
 }
 
 export type Schedule = { days: number[]; startTimes: string[] }
+/** What the dashboard can change about the opening special (Opening special screen). Price and places stay in
+ *  content/booking.json (GYA), because an offer must state its price and conditions exactly. */
+export type SpecialSettings = { enabled?: boolean; popup?: boolean; from?: string; to?: string; showAfter?: number; heading?: string; body?: string }
+export type Overrides = { schedule?: Schedule | null; special?: SpecialSettings | null }
+export const POPUP_DEFAULTS = { showAfter: 0.8, heading: 'A gentle welcome for our first six patients', body: 'To welcome our first patients, the full 70-minute Anxious New Patient Experience is {price} instead of {regular} for appointments on {dates}. Health fund rebates are still available, and a $100 deposit secures your time.' }
 
-/** The settings, with the weekly times saved in the dashboard on top (null: the ones in content/booking.json). */
-export function loadConfig(schedule?: Schedule | null): Cfg {
+/** The settings, with what the dashboard has saved on top (the weekly times, the opening special's switches, dates and
+ *  pop-up wording). Null or nothing: the ones in content/booking.json. */
+export function loadConfig(overrides?: Schedule | Overrides | null): Cfg {
   const b = bookingJson as BookingConfig
   const s = mergeSettings(savedSettings as Record<string, unknown>)
   const { pricing, openingSpecial, ...booking } = b
+  const o: Overrides = overrides && 'days' in overrides ? { schedule: overrides as Schedule } : (overrides as Overrides | null) || {}
+  const schedule = o.schedule
+  const sp = o.special || {}
+  const special = { ...openingSpecial, ...POPUP_DEFAULTS, ...Object.fromEntries(Object.entries(sp).filter(([, v]) => v !== undefined && v !== null && v !== '')) }
+  if (!isDay(special.from)) special.from = openingSpecial.from
+  if (!isDay(special.to)) special.to = openingSpecial.to
   return {
     booking: { ...booking, ...(schedule ? { days: schedule.days, startTimes: schedule.startTimes } : {}) },
     pricing,
-    openingSpecial,
+    openingSpecial: special,
     contact: { phone: s.phone, apeEmail: s.apeEmail, receptionEmail: s.receptionEmail },
     clinic: { name: s.clinic.name, street: s.clinic.street, suburb: `${s.clinic.suburb} ${s.clinic.state} ${s.clinic.postcode}` },
     bookingRecipients: Array.isArray(s.bookingRecipients) ? s.bookingRecipients : [],
@@ -147,6 +159,9 @@ export function availability(cfg: Cfg, state: State, now: number) {
     special: {
       active: slots.some((s) => s.special),
       popup: !!o.popup,
+      showAfter: Number.isFinite(Number(o.showAfter)) ? Math.max(0, Number(o.showAfter)) : POPUP_DEFAULTS.showAfter,
+      heading: o.heading || POPUP_DEFAULTS.heading,
+      body: o.body || POPUP_DEFAULTS.body,
       price: o.price,
       regular: cfg.pricing.appointment,
       from: o.from,
@@ -251,6 +266,23 @@ export async function readSchedule(d: Db): Promise<Schedule | null> {
   return null
 }
 
+/** The opening special switches, dates and pop-up wording saved in the dashboard, if any. */
+export async function readSpecial(d: Db): Promise<SpecialSettings | null> {
+  const r = await d.query<{ value: string }>(`SELECT value FROM ape_meta WHERE key = 'special'`)
+  if (!r[0]) return null
+  try {
+    const v = JSON.parse(r[0].value) as SpecialSettings
+    return v && typeof v === 'object' ? v : null
+  } catch {
+    return null
+  }
+}
+/** Everything the dashboard can change, in one read. */
+export async function readOverrides(d: Db): Promise<Overrides> {
+  const [schedule, special] = await Promise.all([readSchedule(d), readSpecial(d)])
+  return { schedule, special }
+}
+
 /** Settings and what is in the database, ready for availability(). */
 export async function readState(): Promise<{ cfg: Cfg; state: State }> {
   const base = loadConfig()
@@ -265,7 +297,7 @@ export async function readState(): Promise<{ cfg: Cfg; state: State }> {
     d.query(`SELECT to_char(day, 'YYYY-MM-DD') AS day, time, note FROM ape_blocks WHERE day >= current_date - 2 ORDER BY day, time NULLS FIRST`),
     d.query(`SELECT slot_start FROM ape_bookings WHERE status <> 'cancelled' AND slot_start >= now() - interval '2 days'`),
     d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE special AND status <> 'cancelled'`),
-    readSchedule(d),
+    readOverrides(d),
   ])
   return {
     cfg: loadConfig(schedule),
@@ -274,7 +306,7 @@ export async function readState(): Promise<{ cfg: Cfg; state: State }> {
       blocks: blocks.map((r) => ({ day: r.day, time: r.time || null, note: r.note || '' })),
       taken: new Set(taken.map((r) => new Date(r.slot_start).toISOString())),
       specialUsed: Number(used[0]?.n) || 0,
-      schedule,
+      schedule: schedule.schedule || null,
     },
   }
 }

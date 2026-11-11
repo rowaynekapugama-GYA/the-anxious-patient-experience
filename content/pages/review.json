@@ -1,0 +1,109 @@
+{
+  "slug": "review",
+  "name": "Review page",
+  "path": "/review/",
+  "group": "Legal and practice information",
+  "meta": {
+    "title": "Share your experience | The Anxious Patient Experience™",
+    "description": "Leave a Google review for The Anxious Patient Experience™.",
+    "ogImage": "/images/social-share-armchair.jpg",
+    "noindex": true
+  },
+  "head": "<!DOCTYPE html><!--viDmWcPHUl0dHAXOGGqe8--><html lang=\"en-AU\" class=\"__variable_398cc5 __variable_052c8a\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><script>document.documentElement.classList.add('js');setTimeout(function(){var d=document.documentElement;if(!d.classList.contains('js-ready'))d.classList.remove('js')},3000)</script><link rel=\"preload\" href=\"/assets/fonts/01f11ea540e3939a-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/0a002f5319e6b358-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/3db8134653b57583-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/7ba2591d4d0cdc48-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/a191b9bac6f8600d-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"preload\" href=\"/assets/fonts/e8bd9fc08858c4b1-s.p.woff2\" as=\"font\" crossorigin=\"\" type=\"font/woff2\"/><link rel=\"stylesheet\" href=\"/assets/site.css?v={{site:v}}\"/><meta name=\"theme-color\" content=\"#F7F4EF\"/><title>{{seo:title}}</title><meta name=\"description\" content=\"{{seo:description}}\"/><meta name=\"application-name\" content=\"The Anxious Patient Experience™\"/>{{seo:robots}}<link rel=\"canonical\" href=\"{{seo:url}}\"/><meta property=\"og:title\" content=\"{{seo:title}}\"/><meta property=\"og:description\" content=\"{{seo:description}}\"/><meta property=\"og:url\" content=\"{{seo:url}}\"/><meta property=\"og:site_name\" content=\"The Anxious Patient Experience™\"/><meta property=\"og:locale\" content=\"en_AU\"/><meta property=\"og:image\" content=\"{{seo:ogImage}}\"/>{{seo:ogImageExtra}}<meta property=\"og:type\" content=\"website\"/><meta name=\"twitter:card\" content=\"summary_large_image\"/><meta name=\"twitter:title\" content=\"{{seo:title}}\"/><meta name=\"twitter:description\" content=\"{{seo:description}}\"/><meta name=\"twitter:image\" content=\"{{seo:ogImage}}\"/><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" sizes=\"any\"/><link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\"/>{{site:analytics}}</head><body class=\"plain-page\"><a class=\"skip-link\" href=\"#main\">Skip to content</a><header class=\"site-header\"><div class=\"wrap nav\"><a class=\"logo\" aria-label=\"The Anxious Patient Experience™\" href=\"/\"><img class=\"logo-tile logo-img\" src=\"/images/ape-logo.webp\" width=\"62\" height=\"62\" alt=\"\"/></a><nav class=\"nav-main\" aria-label=\"Main\"><ul class=\"nav-links\"><li><a href=\"/#understanding\" data-section=\"understanding\">The Experience</a></li><li><a href=\"/#who-is-it-for\" data-section=\"who-is-it-for\">Who It’s For</a></li><li><a href=\"/#meet-the-team\" data-section=\"meet-the-team\">Meet the Team</a></li><li><a href=\"/#faqs\" data-section=\"faqs\">FAQs</a></li>{{site:blogNav}}</ul></nav><a class=\"btn nav-book\" href=\"/book-now/\">Book Now</a><button class=\"burger\" type=\"button\" aria-label=\"Open menu\" aria-expanded=\"false\" aria-controls=\"mobile-menu\"><span></span><span></span><span></span></button></div><nav id=\"mobile-menu\" class=\"mobile-menu wrap\" aria-label=\"Menu\"><ul><li><a href=\"/#understanding\" data-section=\"understanding\">The Experience</a></li><li><a href=\"/#who-is-it-for\" data-section=\"who-is-it-for\">Who It’s For</a></li><li><a href=\"/#meet-the-team\" data-section=\"meet-the-team\">Meet the Team</a></li><li><a href=\"/#faqs\" data-section=\"faqs\">FAQs</a></li>{{site:blogNav}}<li class=\"menu-book\"><a class=\"btn\" href=\"/book-now/\">Book Now</a></li></ul></nav></header><main id=\"main\">",
+  "sections": [
+    {
+      "key": "s1",
+      "kind": "hero",
+      "label": "Review page",
+      "tag": "section",
+      "attrs": {
+        "class": "hero-simple legal-page"
+      },
+      "template": "<div class=\"wrap prose legal review-page\" data-review=\"\" data-review-link=\"{{site:googleReviewLink}}\"><p class=\"eyebrow\">{{f1}}</p><h1>{{f2}}</h1><p class=\"legal-lead\">{{f3}}</p><div class=\"review-ask\" data-review-ask=\"\" hidden=\"\"><p class=\"review-stars-label\" id=\"review-stars-label\">{{f4}}</p><div class=\"review-stars\" role=\"group\" aria-labelledby=\"review-stars-label\"><button type=\"button\" class=\"star\" data-review-go=\"\" aria-label=\"1 star: leave a Google review\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z\"/></svg></button><button type=\"button\" class=\"star\" data-review-go=\"\" aria-label=\"2 stars: leave a Google review\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z\"/></svg></button><button type=\"button\" class=\"star\" data-review-go=\"\" aria-label=\"3 stars: leave a Google review\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z\"/></svg></button><button type=\"button\" class=\"star\" data-review-go=\"\" aria-label=\"4 stars: leave a Google review\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z\"/></svg></button><button type=\"button\" class=\"star\" data-review-go=\"\" aria-label=\"5 stars: leave a Google review\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z\"/></svg></button></div><p class=\"actions\"><button type=\"button\" class=\"btn\" data-review-go=\"\">{{f5}}</button></p></div><div class=\"review-soon\" data-review-soon=\"\" hidden=\"\"><h2>{{f7}}</h2><p>{{f8}}</p></div><p class=\"review-private\">{{f6}}</p><p class=\"review-small\">{{f13}}</p><dialog class=\"special-pop review-pop\" id=\"review-pop\" aria-labelledby=\"review-pop-title\"><div class=\"special-pop-inner\" tabindex=\"-1\"><p class=\"eyebrow\">Google reviews</p><h2 id=\"review-pop-title\">{{f9}}</h2><p class=\"special-pop-body\">{{f10}}</p><div class=\"review-progress\" aria-hidden=\"true\"><span></span></div><div class=\"special-pop-actions\"><a class=\"btn\" data-review-link-out=\"\" href=\"#\" rel=\"noopener\">{{f11}}</a><a class=\"review-fallback\" data-review-link-out=\"\" href=\"#\" rel=\"noopener\">{{f12}}</a></div><button type=\"button\" class=\"special-pop-x\" data-close=\"\" aria-label=\"Close\"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M4 4l8 8M12 4l-8 8\"></path></svg></button></div></dialog></div>",
+      "fields": [
+        {
+          "id": "f1",
+          "label": "Eyebrow",
+          "type": "richtext",
+          "value": "Thank you for visiting"
+        },
+        {
+          "id": "f2",
+          "label": "Main heading",
+          "type": "richtext",
+          "value": "How was your visit?"
+        },
+        {
+          "id": "f3",
+          "label": "Lead paragraph",
+          "type": "richtext",
+          "value": "If you have a moment, we would be grateful for a Google review. A few honest words about your experience help other people who feel nervous about the dentist know what to expect."
+        },
+        {
+          "id": "f4",
+          "label": "Star rating label",
+          "type": "richtext",
+          "value": "Tap a star to leave your review on Google"
+        },
+        {
+          "id": "f5",
+          "label": "Button",
+          "type": "richtext",
+          "value": "Leave a Google review"
+        },
+        {
+          "id": "f6",
+          "label": "Private feedback line",
+          "type": "richtext",
+          "value": "Prefer to share something privately with the team? <a href=\"mailto:{{site:apeEmail}}\">Send us a message</a> and it comes straight to us."
+        },
+        {
+          "id": "f7",
+          "label": "Coming soon heading",
+          "type": "richtext",
+          "value": "Our Google page is nearly ready."
+        },
+        {
+          "id": "f8",
+          "label": "Coming soon text",
+          "type": "richtext",
+          "value": "Thank you for wanting to share your experience. Reviews will open here very soon. In the meantime, you are welcome to <a href=\"mailto:{{site:apeEmail}}\">send the team a message</a>."
+        },
+        {
+          "id": "f9",
+          "label": "Pop-up heading",
+          "type": "richtext",
+          "value": "Taking you to Google now"
+        },
+        {
+          "id": "f10",
+          "label": "Pop-up text",
+          "type": "richtext",
+          "value": "You will see our page open in a moment. We would love you to choose a star rating and add a few words about your visit. Thank you for taking the time."
+        },
+        {
+          "id": "f11",
+          "label": "Pop-up button",
+          "type": "richtext",
+          "value": "Go now"
+        },
+        {
+          "id": "f12",
+          "label": "Pop-up fallback link",
+          "type": "richtext",
+          "value": "Taking too long? Tap here"
+        },
+        {
+          "id": "f13",
+          "label": "Small print",
+          "type": "richtext",
+          "value": "Reviews are published by Google under its own terms. Please do not include health details you would rather keep private."
+        }
+      ]
+    }
+  ],
+  "order": [
+    "section:0"
+  ],
+  "tail": "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"MedicalOrganization\",\"name\":\"The Anxious Patient Experience™\",\"url\":\"{{site:origin}}\",\"logo\":\"{{site:origin}}/images/ape-logo.png\",\"description\":\"A nervous-system-aware approach to dental care.\"}</script><script src=\"/assets/site.js?v={{site:v}}\" defer></script></body></html>"
+}

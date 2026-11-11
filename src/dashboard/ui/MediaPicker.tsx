@@ -16,7 +16,7 @@ export function useMediaList(open: boolean) {
   const load = useCallback(async (p = 1) => {
     setLoading(true)
     try {
-      const res = await api<{ docs: MediaDoc[]; hasNextPage: boolean }>(`/api/media?limit=60&page=${p}&sort=-createdAt&depth=0`)
+      const res = await api<{ docs: MediaDoc[]; hasNextPage: boolean }>(`/api/media?limit=60&page=${p}&sort=-createdAt&depth=0&where[mimeType][like]=image`)
       setDocs((d) => (p === 1 ? res.docs : [...d, ...res.docs]))
       setMore(res.hasNextPage)
       setPage(p)

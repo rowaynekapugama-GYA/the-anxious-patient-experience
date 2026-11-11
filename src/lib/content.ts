@@ -62,5 +62,5 @@ export type BookingConfig = {
   weeksAhead: number
   initialBlockedDates: string[]
   pricing: { appointment: number; deposit: number }
-  openingSpecial: { enabled: boolean; price: number; from: string; to: string; maxBookings: number; popup: boolean }
+  openingSpecial: { enabled: boolean; price: number; from: string; to: string; maxBookings: number; popup: boolean; showAfter?: number; heading?: string; body?: string }
 }

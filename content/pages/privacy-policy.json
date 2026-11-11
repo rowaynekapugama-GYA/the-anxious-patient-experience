@@ -19,7 +19,7 @@
       "attrs": {
         "class": "hero-simple legal-page"
       },
-      "template": "<div class=\"wrap prose legal\"><h1>{{f1}}</h1><p class=\"legal-updated\">{{f2}}</p><p class=\"legal-lead\">{{f3}}</p><h2>{{f4}}</h2><ul><li>{{f5}}</li><li>{{f6}}</li><li>{{f7}}</li><li>{{f8}}</li><li>{{f9}}</li><li>{{f10}}</li></ul><div class=\"bio-more\" id=\"privacy-more\"><div class=\"bio-more-inner\"><h2>{{f11}}</h2><p>{{f12}}</p><p>{{f13}}</p><h2>{{f14}}</h2><p>{{f15}}</p><p>{{f16}}</p><p>{{f17}}</p><p>{{f18}}</p><h2>{{f19}}</h2><p>{{f20}}</p><h2>{{f21}}</h2><p>{{f22}}</p><ul><li>{{f23}}</li><li>{{f24}}</li><li>{{f25}}</li><li>{{f26}}</li><li>{{f27}}</li><li>{{f28}}</li></ul><p>{{f29}}</p><h2>{{f30}}</h2><p>{{f31}}</p><ul><li>{{f32}}</li><li>{{f33}}</li><li>{{f34}}</li><li>{{f35}}</li><li>{{f36}}</li></ul><p>{{f37}}</p><h2>{{f38}}</h2><p>{{f39}}</p><h2>{{f40}}</h2><p>{{f41}}</p><p>{{f42}}</p><h2>{{f43}}</h2><p>{{f44}}</p><h2>{{f45}}</h2><p>{{f46}}</p><p>{{f47}}</p><h2>{{f48}}</h2><p>{{f49}}</p><h2>{{f50}}</h2><p>{{f51}}</p><h2>{{f52}}</h2><p>{{f53}}</p><h2>{{f54}}</h2><p>{{f55}}</p><p>{{f56}}</p><ul><li>{{f57}}</li><li>{{f58}}</li><li>{{f59}}</li></ul><h2>{{f60}}</h2><p>{{f61}}</p><p>{{f62}}</p><p>{{f63}}</p></div></div><button type=\"button\" class=\"read-more\" aria-expanded=\"true\" aria-controls=\"privacy-more\" hidden=\"\"><span class=\"read-more-label\">Read less</span><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6l4 4 4-4\"></path></svg></button></div>",
+      "template": "<div class=\"wrap prose legal\"><h1>{{f1}}</h1><p class=\"legal-updated\">{{f2}}</p><p class=\"legal-lead\">{{f3}}</p><h2>{{f4}}</h2><ul><li>{{f5}}</li><li>{{f6}}</li><li>{{f7}}</li><li>{{f8}}</li><li>{{f9}}</li><li>{{f10}}</li></ul><div class=\"bio-more\" id=\"privacy-more\"><div class=\"bio-more-inner\"><h2>{{f11}}</h2><p>{{f12}}</p><p>{{f13}}</p><h2>{{f14}}</h2><p>{{f15}}</p><p>{{f16}}</p><p>{{f17}}</p><p>{{f18}}</p><h2>{{f19}}</h2><p>{{f20}}</p><h2>{{f21}}</h2><p>{{f22}}</p><ul><li>{{f23}}</li><li>{{f24}}</li><li>{{f25}}</li><li>{{f26}}</li><li>{{f27}}</li><li>{{f28}}</li></ul><p>{{f29}}</p><h2>{{f30}}</h2><p>{{f31}}</p><ul><li>{{f32}}</li><li>{{f33}}</li><li>{{f34}}</li><li>{{f35}}</li><li>{{f36}}</li></ul><p>{{f37}}</p><h2>{{f38}}</h2><p>{{f39}}</p><h2>{{f40}}</h2><p>{{f41}}</p><p>{{f42}}</p><h2>{{f43}}</h2><p>{{f44}}</p><h2>{{f45}}</h2><p>{{f46}}</p><p>{{f47}}</p><h2>{{f48}}</h2><p>{{f49}}</p><h2>{{f50}}</h2><p>{{f51}}</p><h2>{{f52}}</h2><p>{{f53}}</p><h2>{{f54}}</h2><p>{{f55}}</p><p>{{f56}}</p><ul><li>{{f57}}</li><li>{{f58}}</li><li>{{f59}}</li></ul><h2>{{f64}}</h2><p>{{f65}}</p><p>{{f66}}</p><p>{{f67}}</p><h2>{{f60}}</h2><p>{{f61}}</p><p>{{f62}}</p><p>{{f63}}</p></div></div><button type=\"button\" class=\"read-more\" aria-expanded=\"true\" aria-controls=\"privacy-more\" hidden=\"\"><span class=\"read-more-label\">Read less</span><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6l4 4 4-4\"></path></svg></button></div>",
       "fields": [
         {
           "id": "f1",
@@ -31,7 +31,7 @@
           "id": "f2",
           "label": "Paragraph",
           "type": "richtext",
-          "value": "Last updated: 9 November 2026"
+          "value": "Last updated: 11 November 2026"
         },
         {
           "id": "f3",
@@ -379,7 +379,7 @@
           "id": "f60",
           "label": "Heading",
           "type": "richtext",
-          "value": "14. Changes to this policy and how to contact us"
+          "value": "15. Changes to this policy and how to contact us"
         },
         {
           "id": "f61",
@@ -398,6 +398,30 @@
           "label": "Paragraph",
           "type": "richtext",
           "value": "If you need an interpreter, you can contact the Translating and Interpreting Service on 131 450."
+        },
+        {
+          "id": "f64",
+          "label": "Section 14 heading",
+          "type": "richtext",
+          "value": "14. Your new patient questionnaire"
+        },
+        {
+          "id": "f65",
+          "label": "Section 14 paragraph 1",
+          "type": "richtext",
+          "value": "Before your first appointment we may email you a welcome pack and a private link to an online new patient questionnaire. The link is unique to your booking, works once and stops working a week after your appointment. The questionnaire asks for health information and about your experience of dental care, so that we can plan your visit safely and make it as comfortable as possible. Answering is voluntary: you can leave any question blank and talk it through with us in person instead."
+        },
+        {
+          "id": "f66",
+          "label": "Section 14 paragraph 2",
+          "type": "richtext",
+          "value": "Your answers are encrypted before they are stored, held in our website’s own database in Australia, and never sent by email, shared with advertising or analytics services, or used for any purpose other than your care. Only the named team members who look after your care can open them, and every time a questionnaire is opened a record is kept of who opened it and when. The team is told that a questionnaire has arrived by an email that contains only your booking reference, first name and appointment date."
+        },
+        {
+          "id": "f67",
+          "label": "Section 14 paragraph 3",
+          "type": "richtext",
+          "value": "Questionnaire answers are health records, so we keep them for at least 7 years after your last appointment (or until you turn 25 if you were under 18), after which they are securely deleted. You can ask to see or correct your answers, or ask us about them, using the contact details below."
         }
       ]
     }
