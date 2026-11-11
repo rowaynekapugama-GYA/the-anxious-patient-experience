@@ -123,8 +123,9 @@ No browser signed in to Google was available in the build session, so nothing wa
 
 ## 5. After verification
 
-1. Business Profile > Business Profile settings > People and access: add the email Lorna nominates as **Primary
-   owner** and move rowayne@gyaclients.com to **Manager**.
+1. Business Profile > Business Profile settings > People and access: add **theanxiouspatientexperience@gmail.com**
+   (confirmed by Lorna on 11 Nov 2026 as the listing's owner) as **Primary owner** and move rowayne@gyaclients.com
+   to **Manager**. GYA sets the listing up first, then transfers ownership and stays on as Manager.
 2. Copy the "Ask for reviews" link (Home > Ask for reviews, a `https://g.page/r/.../review` address) into the
    website: dashboard > Site Settings > Google review link, Save, Publish website. The `/review/` page then goes
    live (until then it says reviews are coming soon). Print `deliverables/qr/ape-review-qr.png` for the front desk.
@@ -136,8 +137,9 @@ No browser signed in to Google was available in the build session, so nothing wa
 
 ## Questions for Lorna (needed before step 4)
 
-1. Do all APE appointments happen at 13 Cronulla Street, and is there APE signage there?
-2. Which email should own the profile?
+1. Do all APE appointments happen at 13 Cronulla Street, and is there APE signage there? **(the only thing holding
+   up the listing as at 11 Nov 2026)**
+2. Which email should own the profile? **Answered: theanxiouspatientexperience@gmail.com.**
 3. Is she happy with a practitioner listing in her own name (option b), or would she rather use the Cronulla
    Dentists' existing profile for reviews (option c)?
 4. Entrance details and parking for the map pin and attributes.

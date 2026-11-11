@@ -16,12 +16,13 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 export type Booking = {
   ref: string; start: string; day: string; time: string; when: string; name: string; email: string; phone: string
   notes: string; price: number; special: boolean; status: 'requested' | 'confirmed' | 'cancelled'; depositPaid: boolean; createdAt: string
+  deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null }
 }
 type Slot = { time: string; label: string; start: string; status: 'open' | 'booked' | 'blocked' | 'closed'; note: string; booking: { ref: string; name: string; status: string } | null }
 type Day = { day: string; label: string; special: boolean; blocked: { note: string } | null; slots: Slot[] }
 export type BookingData = {
   ok: boolean; database: boolean; email: boolean
-  deposit: { mode: 'link' | 'later'; amount: number }
+  deposit: { mode: 'paypal' | 'later'; amount: number; env: 'sandbox' | 'live' | null }
   pricing: { appointment: number; deposit: number }
   booking: { startDate: string; minNoticeHours: number; weeksAhead: number; days: number[]; startTimes: string[]; dayNames: string[]; standard: { days: number[]; startTimes: string[] }; custom: boolean }
   bookings: Booking[]
@@ -46,6 +47,8 @@ const ERR: Record<string, string> = {
   no_days: 'Please tick at least one day.',
   no_times: 'Please add at least one start time (up to 12).',
   invalid_delay: 'Show after must be a number of seconds between 0 and 60.',
+  already_paid: 'This deposit was paid through PayPal, so there is nothing to mark.',
+  paid_by_paypal: 'This deposit was paid through PayPal. Refunds are done in PayPal and show here by themselves.',
 }
 const errText = (e?: string) => (e && ERR[e]) || 'Something went wrong. Please try again, or contact GYA if it keeps happening.'
 const money = (n: number) => `$${Number(n).toLocaleString('en-AU')}`
@@ -94,7 +97,7 @@ function Confirm({ title, children, yes, danger, onYes, onClose }: { title: stri
 }
 
 // ================================================================ Bookings
-type Filter = 'upcoming' | 'todo' | 'past' | 'cancelled' | 'all'
+type Filter = 'upcoming' | 'todo' | 'unpaid' | 'past' | 'cancelled' | 'all'
 
 export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   const toast = useToast()
@@ -103,6 +106,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [ask, setAsk] = useState<Booking | null>(null)
+  const [manual, setManual] = useState<{ b: Booking; note: string } | null>(null)
   const [busy, setBusy] = useState('')
   const now = Date.now()
 
@@ -115,6 +119,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       past: b.filter((x) => new Date(x.start).getTime() < now && x.status !== 'cancelled').length,
       cancelled: b.filter((x) => x.status === 'cancelled').length,
       all: b.length,
+      unpaid: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid).length,
       deposits: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid).length,
     }
   }, [data, now])
@@ -125,11 +130,12 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       : filter === 'cancelled' ? b.status === 'cancelled'
         : filter === 'past' ? !future && b.status !== 'cancelled'
           : filter === 'todo' ? future && b.status === 'requested'
-            : future && b.status !== 'cancelled'
+            : filter === 'unpaid' ? future && b.status !== 'cancelled' && !b.depositPaid
+              : future && b.status !== 'cancelled'
     return ok && (!q || `${b.name} ${b.email} ${b.phone} ${b.ref} ${b.notes}`.toLowerCase().includes(q.toLowerCase()))
   }).sort((a, b) => (filter === 'past' || filter === 'cancelled' ? (a.start < b.start ? 1 : -1) : (a.start < b.start ? -1 : 1))), [data, filter, q, now])
 
-  async function update(b: Booking, change: { status?: Booking['status']; depositPaid?: boolean }, done: string) {
+  async function update(b: Booking, change: { status?: Booking['status']; depositPaid?: boolean; note?: string }, done: string) {
     setBusy(b.ref)
     try {
       const r = await call('POST', { action: 'booking', ref: b.ref, ...change })
@@ -160,6 +166,11 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   }
 
   if (!data) return <div className="panel"><p className="empty">{error || 'Loading bookings...'}</p></div>
+  const depositChip = (b: Booking) => b.deposit.status === 'paid' ? <span className="chip good" title={b.deposit.captureId || ''}>Received</span>
+    : b.deposit.status === 'manual' ? <span className="chip good" title={b.deposit.note}>Received (manual)</span>
+      : b.deposit.status === 'refunded' ? <span className="chip grey">Refunded</span>
+        : b.deposit.status === 'failed' ? <span className="chip warn" title={b.deposit.note}>Failed</span>
+          : <span className="chip grey">Not paid</span>
   const statusChip = (b: Booking) => b.status === 'confirmed' ? <span className="chip good">Confirmed</span>
     : b.status === 'cancelled' ? <span className="chip grey">Cancelled</span> : <span className="chip warn">To confirm</span>
 
@@ -176,7 +187,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       <div className="panel">
         <div className="actions" style={{ marginBottom: 12 }}>
           <div className="tabs bookings-filters" style={{ margin: 0, border: 0 }} role="tablist" aria-label="Which bookings">
-            {([['upcoming', 'Upcoming'], ['todo', 'To confirm'], ['past', 'Past'], ['cancelled', 'Cancelled'], ['all', 'All']] as [Filter, string][]).map(([k, l]) => (
+            {([['upcoming', 'Upcoming'], ['todo', 'To confirm'], ['unpaid', 'Deposit not paid'], ['past', 'Past'], ['cancelled', 'Cancelled'], ['all', 'All']] as [Filter, string][]).map(([k, l]) => (
               <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l} ({counts[k]})</button>
             ))}
           </div>
@@ -197,11 +208,11 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td>{b.phone ? <><a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`}>{b.phone}</a><br /></> : null}<a href={`mailto:${b.email}`}>{b.email}</a></td>
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
-                    <td>{b.status === 'cancelled' ? <span className="muted">-</span> : b.depositPaid ? <span className="chip good">Received</span> : <span className="chip grey">Not yet</span>}</td>
+                    <td>{b.status === 'cancelled' && !b.depositPaid ? <span className="muted">-</span> : depositChip(b)}</td>
                     {data.questionnaire?.enabled ? <td>{(() => { const qs = data.questionnaire.byRef[b.ref]; return b.status === 'cancelled' ? <span className="muted">-</span> : !qs ? <span className="chip grey">Not sent yet</span> : qs.status === 'submitted' ? <span className="chip good">Received</span> : <span className="chip warn">Not yet received</span> })()}</td> : null}
                     <td className="row-actions">
                       {b.status === 'requested' ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
-                      {b.status !== 'cancelled' && !b.depositPaid ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { depositPaid: true }, 'Deposit marked as received.')}>Deposit received</button> : null}
+                      {b.status !== 'cancelled' && !b.depositPaid ? <button className="btn small" disabled={busy === b.ref} onClick={() => setManual({ b, note: '' })}>Mark received manually</button> : null}
                       {b.status !== 'cancelled' ? <button className="btn small danger" disabled={busy === b.ref} onClick={() => setAsk(b)}>Cancel booking</button> : null}
                       {b.status === 'cancelled' ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { status: 'requested' }, 'Booking restored. Please confirm it again.')}>Restore</button> : null}
                       {data.questionnaire?.enabled && b.status === 'confirmed' ? <button className="btn small ghost" disabled={busy === b.ref} onClick={() => resendWelcome(b)}>{data.questionnaire.byRef[b.ref] ? 'Resend welcome email' : 'Send welcome email'}</button> : null}
@@ -211,7 +222,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <tr><td colSpan={8} style={{ background: '#fafbfc' }}>
                       <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}. Deposit and cancellation policy accepted.</p>
-                      {b.depositPaid && b.status !== 'cancelled' ? <button className="btn small ghost" style={{ marginTop: 8 }} onClick={() => update(b, { depositPaid: false }, 'Deposit marked as not received.')}>Undo deposit received</button> : null}
+                      <p className="help" style={{ margin: '6px 0 0' }}><b>Deposit:</b> {b.deposit.label}{b.deposit.amount ? `, ${money(b.deposit.amount)}` : ''}{b.deposit.paidAt ? `, ${when(b.deposit.paidAt)}` : ''}{b.deposit.captureId ? `, PayPal transaction ${b.deposit.captureId}` : ''}{b.deposit.note ? `. ${b.deposit.note}` : ''}
+                        {b.deposit.paypalUrl ? <> <a href={b.deposit.paypalUrl} target="_blank" rel="noopener">View in PayPal</a></> : null}</p>
+                      {b.deposit.status === 'manual' && b.status !== 'cancelled' ? <button className="btn small ghost" style={{ marginTop: 8 }} onClick={() => update(b, { depositPaid: false }, 'Deposit marked as not received.')}>Undo manual mark</button> : null}
                     </td></tr>
                   ) : null}
                 </React.Fragment>
@@ -229,17 +242,26 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
           <li>Reply to the patient to confirm and send the new patient information pack.</li>
           <li>Press <b>Mark confirmed</b>.{data.questionnaire?.enabled ? ' The website then emails the patient the welcome pack and their questionnaire link.' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>
         </ol>
-        <p className="help" style={{ margin: 0 }}>{data.deposit.mode === 'link'
-          ? `Patients pay the ${money(data.deposit.amount)} deposit through the payment link in their email. Check the payment has arrived before confirming.`
-          : `There is no online payment link yet, so patients are told the ${money(data.deposit.amount)} deposit details will come with their confirmation.`}
+        <p className="help" style={{ margin: 0 }}>{data.deposit.mode === 'paypal'
+          ? `Patients pay the ${money(data.deposit.amount)} deposit through PayPal (or a card) in the booking flow, or later through the private link in their email. When it is paid, the deposit column ticks itself and you get a "Deposit received" email. Nothing needs checking in PayPal; refunds are done there and show here as Refunded.${data.deposit.env === 'sandbox' ? ' (PayPal is in sandbox mode: test payments only.)' : ''}`
+          : `There is no online payment set up yet, so patients are told the ${money(data.deposit.amount)} deposit details will come with their confirmation.`}
         {' '}If a patient cancels, press Cancel booking and the time opens up on the website again.</p>
       </div>
 
+      {manual ? (
+        <Modal title="Mark the deposit as received by hand" onClose={() => setManual(null)} narrow footer={<>
+          <button className="btn" onClick={() => setManual(null)}>Back</button>
+          <button className="btn primary" disabled={busy === manual.b.ref} onClick={() => { const m = manual; setManual(null); update(m.b, { depositPaid: true, note: m.note }, 'Deposit marked as received.') }}>Mark received</button>
+        </>}>
+          <p><b>{manual.b.name}</b>, {manual.b.when}. Use this only for a deposit taken another way (bank transfer, phone, in person). PayPal payments tick themselves.</p>
+          <TextInput label="How it was paid (optional note)" value={manual.note} onChange={(v) => setManual({ ...manual, note: v })} maxLength={200} />
+        </Modal>
+      ) : null}
       {ask ? (
         <Confirm title="Cancel this booking?" yes="Cancel booking" danger onClose={() => setAsk(null)}
           onYes={() => update(ask, { status: 'cancelled' }, `${ask.name}'s booking is cancelled and the time is open again.`)}>
           <p><b>{ask.name}</b>, {ask.when}.</p>
-          <p className="help">The time opens up on the website again{ask.special ? ', and the opening special place is freed' : ''}. Please let the patient know yourself; the website does not email them.</p>
+          <p className="help">The time opens up on the website again{ask.special ? ', and the opening special place is freed' : ''}. Please let the patient know yourself; the website does not email them.{ask.deposit.status === 'paid' ? ' Their deposit was paid through PayPal: refund it in PayPal if the policy allows, and it will show here as Refunded.' : ''}</p>
         </Confirm>
       ) : null}
     </>

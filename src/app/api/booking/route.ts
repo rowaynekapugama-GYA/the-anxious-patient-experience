@@ -6,18 +6,22 @@
  *   1. checks the time again on the server (listed day and time, from the start date, at least 24 hours away,
  *      not blocked, not already requested), works out the fee (opening special or standard) and saves the booking,
  *      all in one locked step so two people can never get the same time or more than the special allows;
- *   2. emails the request to the APE inbox and an acknowledgement to the patient (with the deposit payment link if
- *      DEPOSIT_PAYMENT_URL is set).
+ *   2. emails the request to the APE inbox and an acknowledgement to the patient (with a private "pay your deposit"
+ *      link when PayPal is set up, in case they do not pay in the booking flow itself).
+ *   3. v1.8.0: when PayPal is set up (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET), the browser then shows the PayPal
+ *      buttons for the $100 deposit; /api/paypal/order and /api/paypal/capture do the payment and mark the booking.
  * The APE team then blocks the time in Core Practice, confirms with the patient and marks it confirmed under
  * Bookings in the dashboard (/admin/bookings).
  *
  * Environment variables: DATABASE_URL, SMTP2GO_API_KEY or RESEND_API_KEY, and BOOKING_FROM (required);
- * BOOKING_NOTIFY_EMAIL (or BOOKING_NOTIFY_TO), BOOKING_BCC, DEPOSIT_PAYMENT_URL (optional). See .env.example.
+ * BOOKING_NOTIFY_EMAIL (or BOOKING_NOTIFY_TO), BOOKING_BCC, PAYPAL_* (optional). See .env.example.
  * Who gets the request: Site Settings > Who receives booking requests, else BOOKING_NOTIFY_EMAIL, else the APE inbox.
  */
 import crypto from 'node:crypto'
 import * as core from '@/booking/core'
 import { questionnaireEnabled, onBookingRequested } from '@/lib/questionnaire'
+import * as deposit from '@/booking/deposit'
+import { paypalConfigured, paypalClientId } from '@/lib/paypal'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,20 +34,6 @@ function table(rows: [string, string][]): string {
     + '</table>'
 }
 const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
-
-/** The payment link with the booking reference and email filled in (Stripe Payment Links read these two). */
-function depositLink(ref: string, email: string): string {
-  const base = process.env.DEPOSIT_PAYMENT_URL
-  if (!base) return ''
-  try {
-    const u = new URL(base)
-    u.searchParams.set('client_reference_id', ref)
-    u.searchParams.set('prefilled_email', email)
-    return u.toString()
-  } catch {
-    return base
-  }
-}
 
 const INSERT = `
   INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special)
@@ -123,8 +113,11 @@ export async function POST(req: Request) {
   const fee = special
     ? `${core.money(price)} opening special (normally ${core.money(cfg.pricing.appointment)}). Health fund rebates available.`
     : `${core.money(price)}. Health fund rebates available.`
-  const link = depositLink(ref, email)
-  const deposit = cfg.pricing.deposit
+  // v1.8.0: a private pay link for this booking (shown in the flow and in the email), only when PayPal is set up
+  const paypal = paypalConfigured()
+  const payToken = paypal ? await deposit.issuePayToken(d, ref).catch(() => '') : ''
+  const link = payToken ? deposit.payLinkFor(payToken) : ''
+  const depositAmt = cfg.pricing.deposit
   const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
   const notifyTo = cfg.bookingRecipients.length ? cfg.bookingRecipients
     : list(process.env.BOOKING_NOTIFY_EMAIL || process.env.BOOKING_NOTIFY_TO || core.DEFAULT_NOTIFY_TO)
@@ -137,7 +130,7 @@ export async function POST(req: Request) {
     ['Requested time', when],
     ['Appointment', `${TM}: New Patient Appointment (70 minutes)`],
     ['Fee', fee],
-    ['Deposit', link ? `${core.money(deposit)}: payment link sent to the patient (check payment before confirming)` : `${core.money(deposit)}: no payment link set up yet, send deposit details with the confirmation`],
+    ['Deposit', paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
     ['Location', clinicLine],
     ['Name', name],
     ['Email', email],
@@ -173,8 +166,8 @@ export async function POST(req: Request) {
     `Thank you for your booking request for ${TM} New Patient Appointment.`,
     `Requested time: ${when}\nLocation: ${clinicLine}\nFee: ${fee}\nReference: ${ref}`,
     link
-      ? `To secure your time, please pay your ${core.money(deposit)} deposit here: ${link}`
-      : `A ${core.money(deposit)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
+      ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${link}`
+      : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
     'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
     `If anything changes or you have a question, simply reply to this email or call us on ${clinicPhone}.`,
     `Warm regards,\n${TM} team`,
@@ -202,5 +195,8 @@ export async function POST(req: Request) {
       console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
     }
   }
-  return core.send(200, { ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit, depositUrl: link, notified, ackSent })
+  return core.send(200, {
+    ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: depositAmt, notified, ackSent,
+    ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD' } } : {}),
+  })
 }

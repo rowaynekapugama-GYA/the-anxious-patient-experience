@@ -3,7 +3,8 @@
  * Payload sign-in as the rest of /admin).
  *
  *   GET                                               bookings, blocked days and times, the schedule, the special
- *   POST {action:'booking', ref, status?, depositPaid?}  status: requested | confirmed | cancelled
+ *   POST {action:'booking', ref, status?, depositPaid?, note?}  status: requested | confirmed | cancelled; depositPaid marks
+ *                                                        the deposit received (or not) by hand, with an optional note
  *   POST {action:'block', from, to?, time?, note?}       block a day, a range of days or one time
  *   POST {action:'unblock', day, time?}
  *   POST {action:'schedule', days, startTimes}           the weekly booking times (null puts back the standard ones)
@@ -14,6 +15,8 @@ import { routeUser } from '@/dashboard/lib/routeAuth'
 import * as core from '@/booking/core'
 import { questionnaireEnabled, onBookingConfirmed, statusByRef } from '@/lib/questionnaire'
 import type { Payload } from 'payload'
+import * as deposit from '@/booking/deposit'
+import { paypalConfigured, paypalEnv } from '@/lib/paypal'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,6 +32,7 @@ function bookingRow(r: Record<string, any>, tz: string) {
     when: core.fmtDateTime(start, tz, true),
     name: r.name, email: r.email, phone: r.phone, notes: r.notes,
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
+    deposit: deposit.depositView(r as Partial<deposit.BookingRow>),
     createdAt: new Date(r.created_at).toISOString(),
   }
 }
@@ -76,7 +80,7 @@ async function data(now: number, payload: Payload) {
     ok: true,
     database: state.db,
     email: core.emailConfigured(),
-    deposit: { mode: process.env.DEPOSIT_PAYMENT_URL ? 'link' : 'later', amount: cfg.pricing.deposit },
+    deposit: { mode: paypalConfigured() ? 'paypal' : 'later', amount: cfg.pricing.deposit, env: paypalConfigured() ? paypalEnv() : null },
     pricing: cfg.pricing,
     booking: {
       startDate: cfg.booking.startDate, minNoticeHours: cfg.booking.minNoticeHours, weeksAhead: cfg.booking.weeksAhead,
@@ -130,7 +134,12 @@ export async function POST(req: Request) {
         if (!['requested', 'confirmed', 'cancelled'].includes(String(body.status))) return core.send(400, { ok: false, error: 'invalid' })
         params.push(body.status); sets.push(`status = $${params.length}`)
       }
-      if (body.depositPaid !== undefined) { params.push(!!body.depositPaid); sets.push(`deposit_paid = $${params.length}`) }
+      // the deposit by hand (v1.8.0): a note and who did it, never over a PayPal payment
+      if (body.depositPaid !== undefined) {
+        const ok = await deposit.setManual(d, ref, !!body.depositPaid, core.oneLine(core.clean(body.note, 200)), String(user.email))
+        if (!ok) return core.send(409, { ok: false, error: body.depositPaid ? 'already_paid' : 'paid_by_paypal' })
+        if (!sets.length) return core.send(200, { ok: true })
+      }
       if (!sets.length) return core.send(400, { ok: false, error: 'invalid' })
       let row: Record<string, any> | undefined
       try {

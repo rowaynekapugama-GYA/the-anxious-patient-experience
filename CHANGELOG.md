@@ -1,5 +1,57 @@
 # Changelog
 
+## 1.8.0 (11 Nov 2026): the $100 deposit paid through PayPal inside Book Now
+
+Lorna's email of 11 Nov 2026 (Andy is setting up the PayPal business account) and Rowayne's brief. Update to the
+existing repo (after v1.7.0 `4b868fa`, the build that went live on theanxiouspatientexperience.com.au). The deposit
+moves from a Stripe Payment Link to **PayPal Checkout built into the booking flow**, so the team never has to open
+PayPal to check a deposit: it shows in the dashboard and in the emails.
+
+### What changed
+- **Book Now**: after the booking request is sent, the same step shows "Pay your $100 deposit", the deposit and
+  cancellation terms (verbatim, as before) and the PayPal buttons (PayPal, or debit/credit card as a guest). The
+  server creates the order (Orders v2, amount from `content/booking.json`, `custom_id` = booking reference,
+  description "The Anxious Patient Experience deposit", brand name set, shipping off) and captures it on approval;
+  the booking is marked **Deposit received** with the PayPal capture id, and "Deposit received" emails go to the
+  patient and the APE inbox. **Pay later** or a closed window leaves the booking **Not paid**; the patient's email
+  and the confirmation screen carry a private **Pay your deposit** link (`/book-now/pay/?t=...`, 14 days or until
+  paid, noindex, no-store). The browser never sets an amount; it only passes the booking's pay token.
+- **Webhook** `/api/paypal/webhook`: verified with PayPal's verify-webhook-signature against `PAYPAL_WEBHOOK_ID`,
+  idempotent by event id (`ape_paypal_events`). `PAYMENT.CAPTURE.COMPLETED` marks paid (backup for the capture
+  call), `PAYMENT.CAPTURE.DENIED` marks failed, `PAYMENT.CAPTURE.REFUNDED` marks **Refunded**. A forged or unsigned
+  event gets 400 and changes nothing; a replay changes nothing.
+- **Dashboard**: deposit status on every booking (Not paid, Received, Received (manual), Refunded, Failed), a
+  **Deposit not paid** filter, the PayPal transaction and **View in PayPal** on the booking row, **Mark received
+  manually** with a note (refused over a PayPal payment) and Undo, a **Deposits not paid** count on the home screen.
+  Mark confirmed and the welcome email are unchanged.
+- **Switch-over safety**: without `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` the deposit step is not offered and
+  Book Now behaves exactly as v1.7.0 (checked). Stripe code removed (`src/lib/stripe.ts`, `/api/stripe/webhook`).
+- **Database**: new columns on `ape_bookings` (`deposit_status`, `deposit_amount`, `deposit_paid_at`,
+  `deposit_note`, `paypal_order_id`, `paypal_capture_id`, `pay_token_hash`, `pay_token_expires`) and the
+  `ape_paypal_events` table, added on first use like the rest of the booking tables; existing ticked deposits
+  become "manual".
+- **Logo files** for PayPal in `brand/paypal/` (square 1000 and 250, horizontal 1200 x 400, header 750 x 90, small
+  190 x 60; PNG and JPG), exported from the 512 px master (no vector original exists), with a note on which goes
+  where. Also delivered as `ape-logo-files-2026-11-11.zip`.
+- Docs: `docs/PAYPAL-SETUP.md` (for Andy, including the safe hand-over of credentials), `docs/TEST-BOOKING.md`
+  rewritten for PayPal, README, `docs/HOW-TO-UPDATE.md`, `.env.example`; `docs/GOOGLE-BUSINESS-PROFILE.md` records
+  theanxiouspatientexperience@gmail.com as the listing's Primary owner (GYA stays on as Manager).
+
+### Vercel environment variables
+Add (Preview = sandbox app, Production = live app): `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`
+(Sensitive), `PAYPAL_WEBHOOK_ID`. Delete once PayPal is live: `DEPOSIT_PAYMENT_URL`, `STRIPE_WEBHOOK_SECRET`.
+Everything else as v1.7.0.
+
+### Checked
+`tsc` clean; `npm ci && npm run build` from the zipped tree without PayPal variables; `npm run qa`; banned-words and
+secret scans clean (the PayPal secret appears nowhere in the repo or the client bundle). Against a local stand-in for
+PayPal's API and JS SDK: booking and payment in the flow (PayPal and card buttons), cancel then Pay later, payment
+through the emailed link in a fresh browser, used and wrong links refused, repeat capture and repeat order with a
+used token refused, both "Deposit received" emails, webhook forged/unsigned 400 with no change, completed replay no
+change and no email, refund marks Refunded, refund replay ignored, denied marks Failed, manual mark and the refusals
+over PayPal payments; with no PayPal variables Book Now behaves as v1.7.0. Real sandbox and live runs follow
+`docs/TEST-BOOKING.md` once Andy's credentials are in.
+
 ## 1.7.0 (11 Nov 2026): pop-up on first open, domain prep, New Patient Information Pack, Google review page
 
 Lorna's email of 10 Nov 2026 and Rowayne's reply. Update to the existing repo (after v1.6.0 `20532bd`). Lorna's

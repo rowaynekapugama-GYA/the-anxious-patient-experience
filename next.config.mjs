@@ -19,6 +19,7 @@ const nextConfig = {
     '/api/import-media': ['./docs/build-notes/*', './public/images/**/*'],
     '/admin/**/*': ['./content/**/*', './package.json'],
     '/questionnaire/**/*': ['./content/**/*', './public/downloads/*'],
+    '/book-now/pay': ['./content/**/*'],
     '/api/dashboard/**/*': ['./content/**/*', './public/downloads/*'],
     '/api/booking': ['./content/**/*', './public/downloads/*'],
   },
@@ -43,6 +44,7 @@ const nextConfig = {
       { source: '/admin', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'no-store' }] },
       { source: '/cms/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       // the patient questionnaire pages: never indexed, never cached, no referrer sent anywhere
+      { source: '/book-now/pay', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
       { source: '/questionnaire/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
     ]
   },

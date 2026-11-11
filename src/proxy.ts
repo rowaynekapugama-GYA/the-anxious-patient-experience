@@ -18,6 +18,7 @@ const norm = (p: string) => '/' + p.trim().replace(/^https?:\/\/[^/]+/i, '').rep
 const REDIRECTS = new Map<string, R>((site.redirects as R[]).filter((r) => r.from && r.to).map((r) => [norm(r.from), r]))
 
 const APP = /^\/(admin|cms|api|_next|questionnaire)(\/|$)/
+const PAY = /^\/book-now\/pay\/?$/
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|assets/|images/).*)'],
@@ -36,6 +37,8 @@ export async function proxy(req: NextRequest) {
     return NextResponse.rewrite(new URL(p.slice(0, -1) + url.search, url.origin))
   }
   if (p === '/admin/') return NextResponse.redirect(new URL('/admin' + url.search, url.origin), 308)
+  // the private "pay your deposit" page (v1.8.0) is a Next.js page, with or without the trailing slash
+  if (PAY.test(p)) return p.endsWith('/') ? NextResponse.rewrite(new URL('/book-now/pay' + url.search, url.origin)) : NextResponse.next()
   if (APP.test(p)) return NextResponse.next()
 
   const r = REDIRECTS.get(p.endsWith('/') ? p : p + '/')

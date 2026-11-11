@@ -4,7 +4,7 @@
    assets/site-config.js (window.APE_CONFIG).
    Booking (3 Nov 2026): times and prices come from /api/availability/ and requests go to /api/booking/, which saves
    them for the dashboard (/admin/) and emails the APE inbox. The team confirms by hand; nothing connects to Core
-   Practice. The deposit is paid through DEPOSIT_PAYMENT_URL once it is set up in Vercel. */
+   Practice. The $100 deposit is paid through PayPal inside the flow once PayPal is set up in Vercel (v1.8.0). */
 (function () {
   'use strict';
 
@@ -310,8 +310,9 @@
      Times and prices come from the booking system (/api/availability/): blocked days, times already requested and
      anything under 24 hours away are left out, and each time carries its fee ($250 opening special or $350).
      "Send booking request" posts to /api/booking/, which checks everything again, saves the request and emails the
-     APE inbox and the patient. The deposit is paid through a payment link once one is set up (deposit.mode 'link');
-     until then the patient is told the deposit details come with their confirmation (deposit.mode 'later'). */
+     APE inbox and the patient. With PayPal set up (deposit.mode 'paypal'), the PayPal buttons then take the $100
+     deposit right here (/api/paypal/order and /api/paypal/capture mark the booking paid); until then the patient is told
+     the deposit details come with their confirmation (deposit.mode 'later'). */
   var bookingEl = document.getElementById('booking');
   if (!bookingEl) return;
   var flowBox = bookingEl.parentNode;
@@ -341,11 +342,19 @@
     feeSpecial: function (p, r) { return 'Fee: ' + moneyStr(p) + ' opening special (usually ' + moneyStr(r) + '). Health fund rebates available.'; },
     feeStandard: function (p) { return 'Fee: ' + moneyStr(p) + '. Health fund rebates available.'; },
     depositLater: 'Deposit details will be sent with your confirmation.',
-    depositLink: 'After you send your request, you can pay the $100 deposit securely online.',
+    depositPaypal: 'Next you can pay the $100 deposit securely with PayPal or a debit or credit card. You do not need a PayPal account.',
     sendLater: 'Send booking request',
-    sendLink: 'Send request and pay deposit',
-    payNow: 'Pay your $100 deposit',
-    payNote: 'The payment page opens in a new tab. Your reference is filled in for you.',
+    sendPaypal: 'Send request and pay deposit',
+    payHeading: 'Pay your $100 deposit',
+    payIntro: 'Your time is held. Paying the deposit now secures it; the deposit comes off the cost of your appointment.',
+    payLoading: 'Loading secure payment options',
+    payCancelled: 'No payment was taken. You can try again, or pay later using the link in your email.',
+    payFail: 'Sorry, the payment could not be completed. Nothing has been charged. Please try again, or pay later using the link in your email.',
+    payLater: 'Pay later',
+    payLaterNote: 'Your booking request has been sent and the private payment link is in your email for 14 days.',
+    paidLine: 'Your $100 deposit has been received. Thank you.',
+    unpaidLine: 'Your $100 deposit has not been paid yet. You can pay it securely here:',
+    unpaidLink: 'Pay your deposit',
     specialCard: function (when) { return 'for our first six patients, for appointments on ' + when + '. Health fund rebates are still available.'; }
   };
 
@@ -373,7 +382,7 @@
 
   var state = { step: 1, loading: true, loadError: false, slots: [], special: null, deposit: { mode: 'later', amount: 100 },
     slot: null, details: { name: '', email: '', phone: '', notes: '', website: '' }, consent: false, errors: {}, ack: false,
-    ref: '', price: null, wasSpecial: false, depositUrl: '', sending: false };
+    ref: '', price: null, wasSpecial: false, payment: null, paid: false, payState: 'idle', sending: false };
 
   function loadSlots(then) {
     state.loading = true;
@@ -465,27 +474,41 @@
         '</div><div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to1">' + UI.back + '</button><button type="submit" class="btn">' + UI.cont + '</button></div></form>';
     }
     if (s === 3) {
-      var link = state.deposit.mode === 'link';
-      h += '<div><h3>' + t(COPY.steps[2]) + '</h3><div class="policy" role="region" aria-label="Deposit and cancellation policy"><ul>' +
-        COPY.policy.items.map(function (p) { return '<li><strong>' + t(p.lead) + '</strong> ' + t(p.text) + '</li>'; }).join('') +
-        '</ul></div><label class="check"><input type="checkbox" required' + (state.ack ? ' checked' : '') + '><span>' + t(COPY.policy.checkbox) + '</span></label>' +
-        chosenHtml(' style="margin-top:0"') +
-        (state.errors.send ? '<p class="err send-err" role="alert">' + esc(state.errors.send) + '</p>' : '') +
-        '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2"' + (state.sending ? ' disabled' : '') + '>' + UI.back + '</button>' +
-        '<button type="button" class="btn" data-act="pay"' + (state.ack && !state.sending ? ' aria-disabled="false"' : ' disabled aria-disabled="true"') + (state.sending ? ' aria-busy="true"' : '') + '>' +
-        (state.sending ? esc(UI.sending) + '…' : esc(link ? UI.sendLink : UI.sendLater)) + '</button></div>' +
-        '<p class="integration-note">' + esc(link ? UI.depositLink : UI.depositLater) + '</p></div>';
+      var paypal = state.deposit.mode === 'paypal';
+      if (state.ref && state.payment && !state.paid) {
+        /* the request is sent; now the deposit, right here */
+        h += '<div class="deposit-step"><h3>' + esc(UI.payHeading) + '</h3><p>' + esc(UI.payIntro) + '</p>' +
+          '<div class="policy" role="region" aria-label="Deposit and cancellation policy"><ul>' +
+          COPY.policy.items.map(function (p) { return '<li><strong>' + t(p.lead) + '</strong> ' + t(p.text) + '</li>'; }).join('') + '</ul></div>' +
+          chosenHtml(' style="margin-top:0"') +
+          '<div class="paypal-buttons" id="paypal-buttons" aria-live="polite"></div>' +
+          (state.payState === 'loading' ? '<p class="pay-later" data-loading>' + esc(UI.payLoading) + '</p>' : '') +
+          (state.payState === 'cancelled' ? '<p class="pay-later" role="status">' + esc(UI.payCancelled) + '</p>' : '') +
+          (state.payState === 'error' ? '<p class="err send-err" role="alert">' + esc(UI.payFail) + '</p>' : '') +
+          '<p class="pay-later">' + esc(UI.payLaterNote) + ' <button type="button" class="btn btn-ghost" data-act="later">' + esc(UI.payLater) + '</button></p></div>';
+      } else {
+        h += '<div><h3>' + t(COPY.steps[2]) + '</h3><div class="policy" role="region" aria-label="Deposit and cancellation policy"><ul>' +
+          COPY.policy.items.map(function (p) { return '<li><strong>' + t(p.lead) + '</strong> ' + t(p.text) + '</li>'; }).join('') +
+          '</ul></div><label class="check"><input type="checkbox" required' + (state.ack ? ' checked' : '') + '><span>' + t(COPY.policy.checkbox) + '</span></label>' +
+          chosenHtml(' style="margin-top:0"') +
+          (state.errors.send ? '<p class="err send-err" role="alert">' + esc(state.errors.send) + '</p>' : '') +
+          '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2"' + (state.sending ? ' disabled' : '') + '>' + UI.back + '</button>' +
+          '<button type="button" class="btn" data-act="pay"' + (state.ack && !state.sending ? ' aria-disabled="false"' : ' disabled aria-disabled="true"') + (state.sending ? ' aria-busy="true"' : '') + '>' +
+          (state.sending ? esc(UI.sending) + '…' : esc(paypal ? UI.sendPaypal : UI.sendLater)) + '</button></div>' +
+          '<p class="integration-note">' + esc(paypal ? UI.depositPaypal : UI.depositLater) + '</p></div>';
+      }
     }
     if (s === 4) {
+      var depositLine = state.paid ? '<p class="confirm-deposit paid">' + esc(UI.paidLine) + '</p>'
+        : state.payment ? '<p class="confirm-deposit">' + esc(UI.unpaidLine) + ' <a class="btn" href="' + esc(state.payment.payUrl) + '">' + esc(UI.unpaidLink) + '</a></p>'
+          : '<p class="confirm-deposit">' + esc(UI.depositLater) + '</p>';
       h += '<div class="confirm"><h3>' + t(COPY.confirmation.heading) + '</h3>' +
         (state.slot ? '<p class="summary">' + esc(fmtDay(state.slot.start) + ', ' + fmtTime(state.slot.start) + (state.ref ? ' · ' + state.ref : '')) +
           (CLINIC ? '<span class="chosen-clinic">' + clinicLine() + '</span>' : '') +
           '<span class="chosen-fee">' + esc(feeLine(state.price, state.wasSpecial)) + '</span></p>' : '') +
-        (state.depositUrl ? '<p class="pay-deposit"><a class="btn" href="' + esc(state.depositUrl) + '" target="_blank" rel="noopener">' + esc(UI.payNow) +
-          '<span class="sr-only"> (opens in a new tab)</span></a><span class="pay-note">' + esc(UI.payNote) + '</span></p>' : '') +
+        depositLine +
         '<p>' + t(COPY.confirmation.body) + '</p><p class="accent">' + t(COPY.confirmation.accent) + '</p>' +
-        '<p class="confirm-next">' + t(COPY.confirmation.next) + '</p>' +
-        (state.depositUrl ? '' : '<p class="confirm-deposit">' + esc(UI.depositLater) + '</p>') + '</div>';
+        '<p class="confirm-next">' + t(COPY.confirmation.next) + '</p></div>';
     }
     return h;
   }
@@ -527,6 +550,7 @@
     var a = act.getAttribute('data-act');
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) go(2);
+    if (a === 'later' && state.ref) go(4);
     if (a === 'pay' && state.ack && !state.sending) {
       if (!bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
       submitRequest();
@@ -542,7 +566,7 @@
     var payload = { slotStart: state.slot.start, name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim(), notes: d.notes.trim(),
       website: d.website, consent: state.consent, policy: state.ack };
     var request = window.APE_BOOKING_PREVIEW
-      ? Promise.resolve({ ok: true, ref: 'APE-PREVIEW', price: state.slot.price, special: state.slot.special, depositUrl: '' })
+      ? Promise.resolve({ ok: true, ref: 'APE-PREVIEW', price: state.slot.price, special: state.slot.special })
       : fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
           .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
     request.then(function (res) {
@@ -551,7 +575,9 @@
         state.ref = res.ref || '';
         state.price = res.price != null ? res.price : state.slot.price;
         state.wasSpecial = !!res.special;
-        state.depositUrl = res.depositUrl || '';
+        state.payment = res.payment && res.payment.provider === 'paypal' && res.payment.token && res.payment.clientId ? res.payment : null;
+        state.paid = false;
+        if (state.payment) { state.payState = 'loading'; render(true); mountPaypal(); return; }
         go(4);
         return;
       }
@@ -565,6 +591,50 @@
       render(false);
     });
   }
+  /* The PayPal buttons for the deposit (v1.8.0). The order is created and captured by the server, which also marks
+     the booking paid and emails both sides; the browser only passes the booking's private pay token. */
+  var paypalSdk = null;
+  function loadPaypalSdk(clientId) {
+    if (window.paypal) return Promise.resolve(window.paypal);
+    if (paypalSdk) return paypalSdk;
+    paypalSdk = new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = (window.APE_PAYPAL_SDK || 'https://www.paypal.com/sdk/js') + '?client-id=' + encodeURIComponent(clientId) + '&currency=AUD&intent=capture&enable-funding=card&disable-funding=paylater,venmo&components=buttons&locale=en_AU';
+      sc.async = true;
+      sc.onload = function () { if (window.paypal) resolve(window.paypal); else reject(new Error('no sdk')); };
+      sc.onerror = function () { reject(new Error('sdk failed')); };
+      document.head.appendChild(sc);
+    });
+    return paypalSdk;
+  }
+  function mountPaypal() {
+    var pay = state.payment;
+    if (!pay) return;
+    loadPaypalSdk(pay.clientId).then(function (pp) {
+      var box = document.getElementById('paypal-buttons');
+      if (!box || !state.payment || state.paid) return;
+      box.innerHTML = '';
+      return pp.Buttons({
+        style: { layout: 'vertical', shape: 'pill', color: 'gold', label: 'pay' },
+        createOrder: function () {
+          return fetch('/api/paypal/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pay.token }) })
+            .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.id) throw new Error(j.error || 'order'); return j.id; }); });
+        },
+        onApprove: function (data) {
+          return fetch('/api/paypal/capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pay.token, orderId: data.orderID }) })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) {
+              if (r.ok && j.ok) { state.paid = true; state.payState = 'idle'; go(4); return; }
+              state.payState = 'error'; render(false); mountPaypal();
+            }); });
+        },
+        onCancel: function () { state.payState = 'cancelled'; render(false); mountPaypal(); },
+        onError: function () { state.payState = 'error'; render(false); mountPaypal(); }
+      }).render(box).then(function () {
+        if (state.payState === 'loading') { state.payState = 'idle'; var note = flowBox.querySelector('[data-loading]'); if (note) note.remove(); }
+      });
+    }).catch(function () { state.payState = 'error'; render(false); });
+  }
+
   flowBox.addEventListener('input', function (ev) {
     var el = ev.target;
     if (el.name && state.details.hasOwnProperty(el.name)) state.details[el.name] = el.value;

@@ -13,6 +13,7 @@ import { Pool, type PoolClient } from 'pg'
 import bookingJson from '../../content/booking.json'
 import savedSettings from '../../content/site-settings.json'
 import { mergeSettings } from '@/lib/site'
+import { paypalConfigured } from '@/lib/paypal'
 import type { BookingConfig } from '@/lib/content'
 
 export const TM = 'The Anxious Patient Experience™'
@@ -169,7 +170,7 @@ export function availability(cfg: Cfg, state: State, now: number) {
       days: [...new Set(slots.filter((s) => s.special).map((s) => s.day))],
     },
     pricing: { appointment: cfg.pricing.appointment, deposit: cfg.pricing.deposit },
-    deposit: { mode: process.env.DEPOSIT_PAYMENT_URL ? 'link' : 'later', amount: cfg.pricing.deposit },
+    deposit: { mode: paypalConfigured() ? 'paypal' : 'later', amount: cfg.pricing.deposit },
   }
 }
 
@@ -236,6 +237,22 @@ const SCHEMA = [
      created_at timestamptz NOT NULL DEFAULT now())`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ape_blocks_day_time ON ape_blocks (day, (coalesce(time, '')))`,
   `CREATE TABLE IF NOT EXISTS ape_meta (key text PRIMARY KEY, value text NOT NULL DEFAULT '')`,
+  // v1.8.0: the deposit paid through PayPal inside Book Now
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_status text NOT NULL DEFAULT 'unpaid'`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_amount numeric(10,2)`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_paid_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_note text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS paypal_order_id text`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS paypal_capture_id text`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS pay_token_hash text`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS pay_token_expires timestamptz`,
+  `UPDATE ape_bookings SET deposit_status = 'manual' WHERE deposit_paid AND deposit_status = 'unpaid'`,
+  `CREATE INDEX IF NOT EXISTS ape_bookings_pay_token ON ape_bookings (pay_token_hash)`,
+  `CREATE TABLE IF NOT EXISTS ape_paypal_events (
+     event_id text PRIMARY KEY,
+     event_type text NOT NULL,
+     ref text,
+     received_at timestamptz NOT NULL DEFAULT now())`,
 ]
 
 export function ensureSchema(d: Db, cfg: Cfg): Promise<void> {

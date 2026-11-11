@@ -21,7 +21,7 @@ Bookings and availability are live (the Book Now page reads them from the API); 
 someone presses **Publish website**.
 
 For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md`. This release's handover
-(env vars, Stripe go-live, the email audit): `docs/HANDOVER-v1.6.0.md`. v1.7.0: `docs/GO-LIVE-DOMAIN.md`,
+(env vars, the email audit; its Stripe section is superseded by PayPal in v1.8.0): `docs/HANDOVER-v1.6.0.md`. v1.7.0: `docs/GO-LIVE-DOMAIN.md`,
 `docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`.
 
 ## Vercel environment variables (v1.6.0)
@@ -39,8 +39,11 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `BOOKING_FROM` | Production, Preview | `The Anxious Patient Experience <bookings@VERIFIED-DOMAIN>`: a sender on a domain verified in SMTP2GO. Not a gmail.com address. | **add** |
 | `BOOKING_NOTIFY_EMAIL` | Production, Preview | `theanxiouspatientexperience@gmail.com` (comma separate for more) | **add** |
 | `DASHBOARD_EDITORS` | Production | `lorna-gladwin1@hotmail.co.uk,reception@thecaringbahdentists.com.au,reception@thecronulladentists.com.au,theanxiouspatientexperience@gmail.com` | **add** |
-| `DEPOSIT_PAYMENT_URL` | Production (test link in Preview) | The $100 Stripe Payment Link, `https://buy.stripe.com/...` | add when Stripe is ready |
-| `STRIPE_WEBHOOK_SECRET` | Production | `whsec_...` from the Stripe webhook (see Stripe go-live steps) | optional, recommended |
+| `PAYPAL_ENV` | Preview `sandbox`, Production `live` | Which PayPal environment the credentials belong to | v1.8.0 |
+| `PAYPAL_CLIENT_ID` | Preview (sandbox app), Production (live app) | The REST app's Client ID | v1.8.0, add when Andy's app exists |
+| `PAYPAL_CLIENT_SECRET` | Preview, Production | The REST app's Secret, Sensitive | v1.8.0 |
+| `PAYPAL_WEBHOOK_ID` | Preview, Production | The webhook created in the same app | v1.8.0 |
+| `DEPOSIT_PAYMENT_URL`, `STRIPE_WEBHOOK_SECRET` | | Stripe, replaced by PayPal in v1.8.0 | **delete** if present |
 | `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
 | `QUESTIONNAIRE_ENABLED` | Production, Preview | `true` switches on the welcome email and online questionnaire. Leave unset until Lorna approves the originals and the privacy wording. | v1.7.0, leave unset |
 | `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Never change it once answers exist; keep a copy outside Vercel. | v1.7.0, add with the flag |
@@ -131,16 +134,23 @@ dates, **Show the pop-up after (seconds)**, the heading and the wording (with `{
 under Opening special in the dashboard and apply straight away (`ape_meta`, key `special`); the price and the number
 of places stay in `content/booking.json` (GYA).
 
-## Stripe
+## PayPal deposit (v1.8.0)
 
-- The site never holds Stripe API keys. The deposit is a **Stripe Payment Link** (`DEPOSIT_PAYMENT_URL`); the
-  booking adds `client_reference_id` (the booking reference) and `prefilled_email`.
-- Optional webhook: `POST /api/stripe/webhook`, verified with `STRIPE_WEBHOOK_SECRET` (Stripe-Signature, 5 minute
-  tolerance). On `checkout.session.completed` or `checkout.session.async_payment_succeeded` with a paid session and an
-  `APE-XXXXXX` reference, the booking's Deposit received is ticked. A bad signature gets 400; a database error gets
-  500 so Stripe retries.
-- **Bank and payout details belong in the Stripe Dashboard only** (Settings > Bank accounts and currencies), never in
-  this repo, Vercel or an email. Go-live steps: `docs/HANDOVER-v1.6.0.md`.
+- The patient pays the $100 deposit **inside Book Now** with PayPal Checkout (PayPal or a debit/credit card, guest
+  checkout). Server side with the Orders v2 REST API (`src/lib/paypal.ts`): the server creates the order (amount from
+  `content/booking.json`, `custom_id` = booking reference, brand name set, shipping off), captures it when the patient
+  approves (`/api/paypal/capture`), marks the booking **Deposit received** with the capture id, and emails "Deposit
+  received" to the patient and the APE inbox. The browser only ever passes the booking's private pay token.
+- Unpaid: the booking stays **Not paid**; the patient email carries a private **Pay your deposit** link
+  (`/book-now/pay/?t=...`, 14 days or until paid, noindex). The confirmation screen offers it too.
+- `/api/paypal/webhook`: verified with PayPal (`PAYPAL_WEBHOOK_ID`), idempotent by event id (`ape_paypal_events`).
+  `PAYMENT.CAPTURE.COMPLETED` marks paid, `DENIED` marks failed, `REFUNDED` marks **Refunded**.
+- Dashboard: deposit status on every booking (Not paid, Received, Received (manual), Refunded, Failed), a **Deposit
+  not paid** filter, View in PayPal, **Mark deposit received manually** with a note, and a Deposits not paid count on
+  the home screen.
+- Without `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` the deposit step is not offered and Book Now behaves exactly as
+  before. Bank and payout details live in the PayPal account only. Set-up for Andy: `docs/PAYPAL-SETUP.md`; the test
+  script: `docs/TEST-BOOKING.md`.
 
 ## How it works
 
@@ -180,9 +190,10 @@ src/dashboard/           the /admin dashboard: screens, editors, styles (brand.t
 src/dashboard/render.ts  pages to HTML, for the build and for the page editor (so the editor shows what goes live)
 src/app/(dashboard)/     /admin routes            src/app/(payload)/   Payload's own screens at /cms (GYA only)
 src/app/(site)/          the private patient questionnaire pages (/questionnaire/<token>), no tracking
-src/app/api/             availability, booking, stripe/webhook, dashboard/bookings, dashboard/forgot-password, dashboard/pages, publish-site, import-content, import-media
-src/booking/core.ts      booking rules, schedule, opening special, database
-src/lib/email.ts         sending email (SMTP2GO or Resend)      src/lib/stripe.ts  webhook signature check
+src/app/api/             availability, booking, paypal/order, paypal/capture, paypal/webhook, dashboard/bookings, dashboard/forgot-password, dashboard/pages, publish-site, import-content, import-media
+src/booking/core.ts      booking rules, schedule, opening special, database (deposit columns in ape_bookings)
+src/lib/email.ts         sending email (SMTP2GO or Resend)      src/lib/paypal.ts  PayPal Orders v2 and webhook verification
+src/booking/deposit.ts   the deposit on a booking: pay tokens, captures, refunds, manual marks, the receipt emails
 src/lib/questionnaire.ts the welcome email, private links, encrypted answers, access and logging   src/lib/crypto.ts
 src/sitekit/releases.ts  content changes a release makes to the dashboard (never over the client's edits)
 src/sitekit/             Payload collections and Site Settings, import and pull (sync.ts)
@@ -235,7 +246,7 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | Item | Where |
 |---|---|
 | Email key and verified sender | `SMTP2GO_API_KEY`, `BOOKING_FROM` (launch blocker) |
-| Deposit payment link | `DEPOSIT_PAYMENT_URL` (Stripe account owner to set up) |
+| PayPal credentials | `PAYPAL_*` in Vercel once Andy's app and webhook exist (`docs/PAYPAL-SETUP.md`) |
 | Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
 | Domain: theanxiouspatientexperience.com.au at VentraIP | `docs/GO-LIVE-DOMAIN.md` (waiting on VentraIP access) |
 | Lorna's questionnaire and welcome pack, welcome email wording, privacy sign-off | Questionnaires > Questions and emails; feature off until then |
@@ -251,11 +262,10 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 - [ ] All four logins received their password email and signed in once
 - [ ] Test booking: request email at the APE inbox, acknowledgement at the patient's address (check junk), shows
       under Bookings; then cancelled
-- [ ] Stripe: test Payment Link paid with 4242 4242 4242 4242; Deposit received ticked (if the webhook is set up);
-      then the live link and live webhook (docs/HANDOVER-v1.6.0.md)
-- [ ] Payout bank account entered and verified in the Stripe Dashboard by the account owner
+- [ ] PayPal: sandbox run of docs/TEST-BOOKING.md on the preview, then one live $100 booking refunded in PayPal
+- [ ] Payout bank account linked and confirmed in the PayPal business account by the account owner
 - [ ] Privacy Policy: legal entity and Privacy Officer confirmed by Lorna
-- [ ] Book Now hero "pay your deposit online in four simple steps" true only once the payment link exists
+- [ ] Book Now hero "pay your deposit online in four simple steps" true once the PayPal variables are in
 - [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
 - [ ] New copy signed off (CHANGELOG 1.5.0, 1.4.0, 1.3.0)
 - [ ] `NEXT_PUBLIC_SERVER_URL` set to the domain; QR regenerated if the flyer is not yet printed; GA4 added

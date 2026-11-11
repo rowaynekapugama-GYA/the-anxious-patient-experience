@@ -30,8 +30,14 @@ change on the website straight away.
    Bookings in the menu is how many are waiting). The time is held, so nobody else can book it online.
 2. Block the time in Core Practice and enter the patient.
 3. Reply to the patient to confirm and send the new patient information pack.
-4. Press **Mark confirmed**. When the patient pays the deposit online, **Deposit received** ticks itself (Stripe
-   tells the website). If they pay another way, press **Deposit received** yourself.
+4. Press **Mark confirmed**. The deposit looks after itself: patients pay the $100 on the website with PayPal or a
+   card, the booking shows **Received** and you get a "Deposit received" email. You never need to open PayPal to
+   check. If a patient has not paid, the booking sits under the **Deposit not paid** filter and their email has a
+   private pay link that works for 14 days. If someone pays another way, press **Mark deposit received manually**
+   and add a note.
+
+### Refunds
+Refunds are done in PayPal (Activity > the payment > Refund). The booking then shows **Refunded** here by itself.
 
 Click a patient's name to see their note. **Download for Excel (CSV)** saves the list.
 

@@ -71,7 +71,7 @@ Checked 11 Nov 2026 with `grep -rn "vercel.app" src content public/assets script
 | The Cronulla Dentists website | same | GYA |
 | QR codes | `deliverables/qr/ape-flyer-qr*.png/svg` already point at `https://theanxiouspatientexperience.com.au/?utm_source=flyer&utm_medium=qr&utm_campaign=ape_launch` (regenerated 11 Nov 2026). The old vercel.app code is kept as `ape-flyer-qr-staging.*` and keeps working. Print the domain version. | GYA to send; Lorna's designer to use |
 | Review page QR | `deliverables/qr/ape-review-qr*` points at `https://theanxiouspatientexperience.com.au/review/` | after the Google review link is in Site Settings |
-| Stripe Payment Link | "After payment" confirmation page address, if it points at the site (and the webhook address, `docs/TEST-BOOKING.md`) | Stripe account owner with GYA |
+| PayPal webhook | the live webhook address uses the domain (`docs/PAYPAL-SETUP.md`, step 4) | Andy with GYA |
 | Google Business Profile | website and appointment links (`docs/GOOGLE-BUSINESS-PROFILE.md`) | GYA |
 | Social profiles, email signatures | the new address | practice |
 

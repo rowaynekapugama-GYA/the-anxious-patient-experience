@@ -24,6 +24,7 @@ export default async function Home() {
   const d = db()
   const bookings = d ? await d.query(`SELECT ref, name, slot_start, status, special FROM ape_bookings WHERE status <> 'cancelled' AND slot_start >= now() ORDER BY (status = 'requested') DESC, slot_start LIMIT 5`).catch(() => []) : []
   const toConfirm = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
+  const unpaid = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status <> 'cancelled' AND NOT deposit_paid AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
   const pages = await payload.find({ collection: 'pages', where: { isChrome: { not_equals: true } }, limit: 5, sort: '-updatedAt', depth: 0, overrideAccess: true, select: { title: true, updatedAt: true } })
   const posts = await payload.find({ collection: 'posts', limit: 5, sort: '-updatedAt', depth: 0, overrideAccess: true, select: { title: true, updatedAt: true, _status: true } })
   const counts = {
@@ -74,6 +75,7 @@ export default async function Home() {
         <div className="stat"><b>{counts.posts}</b><span>Published posts</span></div>
         <div className="stat"><b>{counts.drafts}</b><span>Draft posts</span></div>
         <div className="stat"><b>{toConfirm}</b><span>Bookings to confirm</span></div>
+        <div className="stat"><b>{unpaid}</b><span>Deposits not paid</span></div>
         {toReview !== null ? <div className="stat"><b>{toReview}</b><span>Questionnaires to review</span></div> : null}
       </div>
 
