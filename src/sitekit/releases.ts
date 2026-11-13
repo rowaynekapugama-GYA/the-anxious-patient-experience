@@ -120,4 +120,23 @@ export const UPDATES: Update[] = [
       return 'applied'
     },
   },
+  {
+    id: 'v1.8.3-booking-recipients',
+    describe: 'Who receives booking emails shows the address that gets them today, so the practice can see and change it',
+    async apply(payload) {
+      const core = await import('@/booking/core')
+      const { resolveTeam } = await import('@/lib/recipients')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      // once only: if the practice later empties the list on purpose, it stays empty
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.8.3-booking-recipients', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { bookingRecipients?: { address?: string }[] }
+      if ((s.bookingRecipients ?? []).some((r) => r?.address)) return 'already has a list, left alone'
+      const today = resolveTeam([]).list
+      await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingRecipients: today.map((address) => ({ address })) } as never })
+      return `set to ${today.join(', ')} (the address booking emails already go to)`
+    },
+  },
 ]

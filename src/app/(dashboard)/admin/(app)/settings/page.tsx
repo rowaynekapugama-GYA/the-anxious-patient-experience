@@ -2,6 +2,7 @@ import { payloadClient, requireUser } from '@/dashboard/lib/server'
 import { SettingsForm } from '@/dashboard/editors/SettingsForm'
 import { mediaUrl } from '@/sitekit/sync'
 import { mergeSettings } from '@/lib/site'
+import { resolveTeam } from '@/lib/recipients'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Site Settings' }
@@ -22,9 +23,10 @@ export default async function SettingsPage() {
       <SettingsForm isAdmin={isAdmin} initial={{
         phone: str(m.phone), apeEmail: str(m.apeEmail), receptionEmail: str(m.receptionEmail),
         clinic: { name: str(m.clinic?.name), street: str(m.clinic?.street), suburb: str(m.clinic?.suburb), state: str(m.clinic?.state), postcode: str(m.clinic?.postcode), mapsUrl: str(m.clinic?.mapsUrl) },
-        bookingRecipients: isAdmin
-          ? ((g.bookingRecipients as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? [])
-          : [],
+        bookingRecipients: ((g.bookingRecipients as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? []),
+        recipientsFallback: resolveTeam([]).list,
+        gyaDeliveryNotice: isAdmin ? g.gyaDeliveryNotice !== false : true,
+        gyaNoticeTo: isAdmin ? str(g.gyaNoticeTo) : '',
         tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel) } : { ga4: '', metaPixel: '' },
         googleReviewLink: str(g.googleReviewLink),
         questionnaire: {

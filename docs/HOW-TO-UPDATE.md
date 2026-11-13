@@ -21,6 +21,23 @@ Changes to wording, photos, posts and settings are saved in the dashboard first,
 press **Publish website** (the website updates in about two minutes). Bookings and availability are different: they
 change on the website straight away.
 
+## Emails and logins
+
+**What the team gets.** Every new booking request, deposit received and questionnaire received email goes to the
+people under **Site Settings > Who receives booking emails** (at first, theanxiouspatientexperience@gmail.com). To add
+or remove someone, change the list and press **Save settings**; it applies to the next booking, no need to publish.
+Replying to a booking email replies to the patient. The subject starts with the reference, for example "New booking
+request APE-1A2B3C", so it is easy to search for.
+
+**If an email could not be sent.** The booking is always saved. The website tries again after a minute; if it still
+fails, the booking shows an amber **Email not sent** note under Bookings with **Resend to patient** or **Resend to team**.
+The Emails column shows a tick for each email that went out. The dashboard home says "Emails: working", or how many
+failed in the last week.
+
+**Forgotten your password?** On the sign-in page press **Forgotten your password?** and enter your email. The link
+works once and lasts an hour; you get a "Your password was changed" email afterwards. If nothing arrives within a few
+minutes, check junk mail, then call GYA on 1300 889 840.
+
 ## Bookings
 
 ### When a booking request comes in

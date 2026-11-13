@@ -17,6 +17,7 @@ import { questionnaireEnabled, onBookingConfirmed, statusByRef } from '@/lib/que
 import type { Payload } from 'payload'
 import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalEnv } from '@/lib/paypal'
+import * as emails from '@/booking/emails'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,6 +35,8 @@ function bookingRow(r: Record<string, any>, tz: string) {
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
     deposit: deposit.depositView(r as Partial<deposit.BookingRow>),
     createdAt: new Date(r.created_at).toISOString(),
+    // v1.8.3: '' (before v1.8.3) | sent | retry | failed
+    emails: { patient: String(r.email_patient || ''), team: String(r.email_team || '') },
   }
 }
 
@@ -45,6 +48,8 @@ async function data(now: number, payload: Payload) {
   const base = core.loadConfig()
   let bookings: ReturnType<typeof bookingRow>[] = []
   if (d) {
+    // a booking email that failed a minute or more ago is tried once more before the list is shown (v1.8.3)
+    await emails.retryDue(d, cfg).catch((err) => console.error('bookings: email retry failed', (err as Error).message))
     const rows = await d.query(`SELECT * FROM ape_bookings WHERE slot_start >= now() - interval '60 days' ORDER BY slot_start, created_at`)
     bookings = rows.map((r) => bookingRow(r, tz))
   }
@@ -125,6 +130,17 @@ export async function POST(req: Request) {
     const base = core.loadConfig()
     await core.ensureSchema(d, base)
     const cfg = core.loadConfig(await core.readOverrides(d))
+
+    // v1.8.3: Resend to patient / Resend to team, from the amber "Email not sent" flag
+    if (action === 'resend-email') {
+      const ref = core.clean(body.ref, 20)
+      const to = String(body.to) === 'team' ? 'team' : 'patient'
+      const r = await emails.sendBookingEmails(d, cfg, ref, [to], 'final')
+      const res = r[to]
+      if (!res) return core.send(404, { ok: false, error: 'not_found' })
+      if (!res.ok) return core.send(502, { ok: false, error: 'email_failed', detail: res.error })
+      return core.send(200, { ok: true, id: res.id })
+    }
 
     if (action === 'booking') {
       const ref = core.clean(body.ref, 20)

@@ -32,7 +32,8 @@ export function emailConfigured(): boolean {
   return !!emailProvider() && !!process.env.BOOKING_FROM
 }
 
-export async function sendEmail(msg: Email): Promise<void> {
+/** Send one email. Returns the provider's message ID (SMTP2GO email_id) when it gives one. */
+export async function sendEmail(msg: Email): Promise<{ id: string }> {
   const from = msg.from || process.env.BOOKING_FROM || ''
   const provider = emailProvider()
   if (!provider || !from) throw new Error('email is not set up (SMTP2GO_API_KEY or RESEND_API_KEY, and BOOKING_FROM)')
@@ -51,12 +52,12 @@ export async function sendEmail(msg: Email): Promise<void> {
         ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, fileblob: a.content.toString('base64'), mimetype: a.mimetype })) } : {}),
       }),
     })
-    const body = await r.json().catch(() => ({})) as { data?: { succeeded?: number; failed?: number; failures?: unknown[]; error?: string } }
+    const body = await r.json().catch(() => ({})) as { data?: { succeeded?: number; failed?: number; failures?: unknown[]; error?: string; email_id?: string } }
     // SMTP2GO can answer 200 and still report a failed recipient
     if (!r.ok || !body.data || (body.data.failed ?? 0) > 0 || !(body.data.succeeded ?? 0)) {
       throw new Error(`SMTP2GO ${r.status}: ${JSON.stringify(body).slice(0, 300)}`)
     }
-    return
+    return { id: String(body.data.email_id || '') }
   }
   const r = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
     method: 'POST',
@@ -67,6 +68,8 @@ export async function sendEmail(msg: Email): Promise<void> {
     }),
   })
   if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 300)}`)
+  const j = await r.json().catch(() => ({})) as { id?: string }
+  return { id: String(j.id || '') }
 }
 
 /** The website's own address for links in emails: NEXT_PUBLIC_SERVER_URL, else Vercel's production address. */

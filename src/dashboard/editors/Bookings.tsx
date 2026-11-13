@@ -17,6 +17,8 @@ export type Booking = {
   ref: string; start: string; day: string; time: string; when: string; name: string; email: string; phone: string
   notes: string; price: number; special: boolean; status: 'requested' | 'confirmed' | 'cancelled'; depositPaid: boolean; createdAt: string
   deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null }
+  /** v1.8.3: '' (before v1.8.3) | sent | retry | failed */
+  emails: { patient: string; team: string }
 }
 type Slot = { time: string; label: string; start: string; status: 'open' | 'booked' | 'blocked' | 'closed'; note: string; booking: { ref: string; name: string; status: string } | null }
 type Day = { day: string; label: string; special: boolean; blocked: { note: string } | null; slots: Slot[] }
@@ -144,6 +146,15 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       toast(msg, r.welcome && !r.welcome.sent && r.welcome.reason !== 'already sent' && r.welcome.reason !== 'sent at request time' && r.welcome.reason !== 'off' ? 'bad' : 'good'); await reload()
     } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
+  async function resendEmail(b: Booking, to: 'patient' | 'team') {
+    setBusy(b.ref)
+    try {
+      const res = await fetch('/api/dashboard/bookings', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend-email', ref: b.ref, to }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.ok) throw new Error(j.detail ? `The email still could not be sent: ${j.detail}` : errText(j.error))
+      toast(to === 'team' ? 'The booking email has been sent to the team.' : `The booking email has been sent to ${b.name}.`, 'good'); await reload()
+    } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
+  }
   async function resendWelcome(b: Booking) {
     setBusy(b.ref)
     try {
@@ -171,6 +182,11 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       : b.deposit.status === 'refunded' ? <span className="chip grey">Refunded</span>
         : b.deposit.status === 'failed' ? <span className="chip warn" title={b.deposit.note}>Failed</span>
           : <span className="chip grey">Not paid</span>
+  const tick = (state: string, who: string) => state === 'sent' ? <span className="tick ok" title={`Email to ${who} sent`}>{Icon.check()}<span className="sr-only">{who} sent</span></span>
+    : state === 'failed' ? <span className="tick bad" title={`Email to ${who} not sent`}>!<span className="sr-only">{who} not sent</span></span>
+      : state === 'retry' ? <span className="tick wait" title={`Email to ${who} failed once, trying again`}>...<span className="sr-only">{who} retrying</span></span>
+        : <span className="tick none" title="Sent before email tracking began">-</span>
+  const emailCell = (b: Booking) => <span className="ticks">{tick(b.emails.patient, 'patient')}<small>Patient</small>{tick(b.emails.team, 'team')}<small>Team</small></span>
   const statusChip = (b: Booking) => b.status === 'confirmed' ? <span className="chip good">Confirmed</span>
     : b.status === 'cancelled' ? <span className="chip grey">Cancelled</span> : <span className="chip warn">To confirm</span>
 
@@ -197,9 +213,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
         </div>
         <div className="table-wrap">
           <table className="table bookings-table">
-            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th>{data.questionnaire?.enabled ? <th>Questionnaire</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Emails</th>{data.questionnaire?.enabled ? <th>Questionnaire</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {!shown.length ? <tr><td colSpan={8} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
+              {!shown.length ? <tr><td colSpan={9} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
               {shown.map((b) => (
                 <React.Fragment key={b.ref}>
                   <tr>
@@ -209,6 +225,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
                     <td>{b.status === 'cancelled' && !b.depositPaid ? <span className="muted">-</span> : depositChip(b)}</td>
+                    <td className="email-ticks">{emailCell(b)}</td>
                     {data.questionnaire?.enabled ? <td>{(() => { const qs = data.questionnaire.byRef[b.ref]; return b.status === 'cancelled' ? <span className="muted">-</span> : !qs ? <span className="chip grey">Not sent yet</span> : qs.status === 'submitted' ? <span className="chip good">Received</span> : <span className="chip warn">Not yet received</span> })()}</td> : null}
                     <td className="row-actions">
                       {b.status === 'requested' ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
@@ -218,8 +235,16 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                       {data.questionnaire?.enabled && b.status === 'confirmed' ? <button className="btn small ghost" disabled={busy === b.ref} onClick={() => resendWelcome(b)}>{data.questionnaire.byRef[b.ref] ? 'Resend welcome email' : 'Send welcome email'}</button> : null}
                     </td>
                   </tr>
+                  {b.emails.patient === 'failed' || b.emails.team === 'failed' ? (
+                    <tr className="email-flag-row"><td colSpan={9}>
+                      <div className="email-flag" role="alert">{Icon.warn()}<span><b>Email not sent:</b> {[b.emails.team === 'failed' ? 'the new booking email to the team' : '', b.emails.patient === 'failed' ? `the booking email to ${b.name}` : ''].filter(Boolean).join(' and ')} could not be sent, even after trying again. The booking itself is saved.</span>
+                        {b.emails.patient === 'failed' ? <button className="btn small" disabled={busy === b.ref} onClick={() => resendEmail(b, 'patient')}>Resend to patient</button> : null}
+                        {b.emails.team === 'failed' ? <button className="btn small" disabled={busy === b.ref} onClick={() => resendEmail(b, 'team')}>Resend to team</button> : null}
+                      </div>
+                    </td></tr>
+                  ) : null}
                   {open === b.ref ? (
-                    <tr><td colSpan={8} style={{ background: '#fafbfc' }}>
+                    <tr><td colSpan={9} style={{ background: '#fafbfc' }}>
                       <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}. Deposit and cancellation policy accepted.</p>
                       <p className="help" style={{ margin: '6px 0 0' }}><b>Deposit:</b> {b.deposit.label}{b.deposit.amount ? `, ${money(b.deposit.amount)}` : ''}{b.deposit.paidAt ? `, ${when(b.deposit.paidAt)}` : ''}{b.deposit.captureId ? `, PayPal transaction ${b.deposit.captureId}` : ''}{b.deposit.note ? `. ${b.deposit.note}` : ''}

@@ -8,7 +8,7 @@
 import crypto from 'node:crypto'
 import * as core from './core'
 import { newToken, hashToken } from '@/lib/crypto'
-import { sendEmail, siteOrigin } from '@/lib/email'
+import { siteOrigin } from '@/lib/email'
 import { paypalActivityUrl, siteOriginFallback } from '@/lib/paypal'
 
 export const PAY_LINK_DAYS = 14
@@ -99,29 +99,43 @@ export function depositView(row: Partial<BookingRow>) {
 
 const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
 
-/** "Deposit received": a short note to the patient and to the APE inbox, once, when PayPal confirms the payment. */
-export async function sendDepositReceived(cfg: core.Cfg, row: BookingRow, amount: number, captureId: string): Promise<void> {
-  if (!core.emailConfigured()) return
+/** The two "Deposit received" emails (patient and team), also used for test emails. */
+export function depositEmails(cfg: core.Cfg, row: Pick<BookingRow, 'ref' | 'slot_start' | 'name' | 'email'>, amount: number, captureId: string, apeInbox: string, team: string[], o: { test?: boolean } = {}) {
   const tz = cfg.booking.timeZone
   const when = `${core.fmtDateTime(new Date(row.slot_start), tz, true)} (Sydney time)`
-  const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
-  const notifyTo = cfg.bookingRecipients.length ? cfg.bookingRecipients : list(process.env.BOOKING_NOTIFY_EMAIL || process.env.BOOKING_NOTIFY_TO || core.DEFAULT_NOTIFY_TO)
-  const apeInbox = cfg.contact.apeEmail || core.DEFAULT_NOTIFY_TO
   const first = row.name.split(' ')[0]
+  const t = o.test ? ['TEST EMAIL with sample details, no payment was made.'] : []
   const patient = [
+    ...t,
     `Hi ${first},`,
     `Thank you, your ${core.money(amount)} deposit has been received for your ${core.TM} New Patient Appointment.`,
     `Requested time: ${when}\nReference: ${row.ref}\nPayPal transaction: ${captureId}`,
     'The APE team will be in touch to confirm your appointment. If anything changes, simply reply to this email.',
     `Warm regards,\n${core.TM} team`,
   ]
-  const team = [
+  const teamLines = [
+    ...t,
     `Deposit received for ${row.ref} (${row.name}, ${when}): ${core.money(amount)} through PayPal, transaction ${captureId}.`,
     'The booking shows Deposit received in the dashboard. Nothing to do in PayPal.',
   ]
+  const pre = o.test ? '[TEST] ' : ''
+  return {
+    patient: { to: [row.email], reply_to: apeInbox, subject: `${pre}Deposit received | ${core.TM}`, text: patient.join('\n\n'), html: patient.map(para).join('') },
+    team: { to: team, reply_to: row.email, subject: `${pre}Deposit received ${row.ref}, ${core.fmtDateTime(new Date(row.slot_start), tz, false)}`, text: teamLines.join('\n\n'), html: teamLines.map(para).join('') },
+  }
+}
+
+/** "Deposit received": a short note to the patient and to the team list, once, when PayPal confirms the payment. */
+export async function sendDepositReceived(cfg: core.Cfg, row: BookingRow, amount: number, captureId: string): Promise<void> {
+  if (!core.emailConfigured()) return
+  // loaded here, not at the top, because src/booking/emails.ts imports this file
+  const { liveRecipients } = await import('@/lib/recipients')
+  const { deliver } = await import('@/lib/mailer')
+  const live = await liveRecipients()
+  const m = depositEmails(cfg, row, amount, captureId, live.apeInbox, live.team.list)
   await Promise.all([
-    sendEmail({ to: [row.email], reply_to: apeInbox, subject: `Deposit received | ${core.TM}`, text: patient.join('\n\n'), html: patient.map(para).join('') }).catch((err) => console.error('deposit: patient email failed', row.ref, (err as Error).message)),
-    sendEmail({ to: notifyTo, subject: `Deposit received: ${row.ref}, ${row.name}`, text: team.join('\n\n'), html: team.map(para).join('') }).catch((err) => console.error('deposit: team email failed', row.ref, (err as Error).message)),
+    deliver('deposit-patient', m.patient, { ref: row.ref }),
+    deliver('deposit-team', m.team, { ref: row.ref }),
   ])
 }
 

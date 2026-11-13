@@ -150,7 +150,7 @@ export function ResetForm({ token }: { token: string }) {
     if (pw !== pw2) { setErr('The two passwords do not match.'); return }
     setBusy(true)
     try {
-      await api('/api/users/reset-password', { method: 'POST', body: { token, password: pw } })
+      await api('/api/dashboard/reset-password', { method: 'POST', body: { token, password: pw } })
       window.location.href = '/admin'
     } catch {
       setErr('This link has expired or has already been used. Ask for a new one below.')

@@ -448,3 +448,31 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
 .team-link { border-top: 1px solid var(--pd-line); padding-top: 12px; margin-top: 4px; }
 .pe-panel .sec.is-focus { outline: 2px solid var(--pd-blue-dark); outline-offset: -1px; }
 @media (max-width: 600px) { .team-list-edit { grid-template-columns: 1fr 1fr; gap: 10px; } .team-card.add button { min-height: 160px; } }
+
+/* ---------- Booking email ticks and the "Email not sent" flag (v1.8.3) ---------- */
+.email-ticks .ticks { display: inline-grid; grid-template-columns: auto auto; gap: 2px 6px; align-items: center; font-size: 12px; color: var(--pd-muted); }
+.tick { display: inline-flex; width: 18px; height: 18px; border-radius: 50%; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.tick svg { width: 12px; height: 12px; }
+.tick.ok { background: var(--pd-good-bg); color: var(--pd-good); }
+.tick.bad { background: #fde7c7; color: #8a5300; }
+.tick.wait { background: #eef0f3; color: #4b5560; }
+.tick.none { color: #9aa3ab; }
+.email-flag-row td { background: #fff6e6 !important; border-top: 0; }
+.email-flag { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: #7a4a00; font-size: 14px; }
+.email-flag svg { width: 18px; height: 18px; flex: none; color: #b26a00; }
+.email-flag > span { flex: 1; min-width: 240px; }
+.email-status-line { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: -6px 0 16px; }
+.email-status-line .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pd-good); }
+.email-status-line.bad .dot { background: #d98b00; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+.kv dt { color: var(--pd-muted); }
+.kv dd { margin: 0; font-weight: 500; word-break: break-word; }
+.ok-text { color: var(--pd-good); font-weight: 600; }
+.bad-text { color: var(--pd-bad); font-weight: 600; }
+.test-types { columns: 2; column-gap: 24px; margin: 6px 0 14px; }
+.test-types label { display: flex; gap: 8px; align-items: center; break-inside: avoid; margin-bottom: 6px; font-weight: 400; }
+@media (max-width: 700px) { .test-types { columns: 1; } }
+.table.compact th, .table.compact td { padding: 7px 10px; font-size: 13.5px; }
+.ok-text svg, .bad-text svg { width: 14px; height: 14px; vertical-align: -2px; }
+/* keep the flag and its Resend buttons in view when the bookings table scrolls sideways */
+.email-flag { position: sticky; left: 12px; max-width: min(980px, calc(100vw - 72px)); }

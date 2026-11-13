@@ -1,5 +1,6 @@
 /** Choose a new password (required at first sign in). */
 import { json, routeUser } from '@/dashboard/lib/routeAuth'
+import { sendPasswordChanged } from '@/dashboard/lib/passwordLink'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,5 +24,6 @@ export async function POST(req: Request) {
     collection: 'users', id: user.id, data: { password, mustChangePassword: false },
     overrideAccess: true, user,
   })
+  await sendPasswordChanged(String(user.email)).catch(() => null)
   return json(200, { ok: true })
 }

@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.8.3 (13 Nov 2026): login and booking emails reach the right inboxes, plus an email check screen
+
+Update to the existing repo (after v1.8.2 `6e6cc7c` on main). Asked 13 Nov 2026: make sure Lorna gets the login and
+password reset emails, the team gets an email for every booking, and test it with Rowayne's inbox.
+
+### Found
+- Payload's own `/api/users/forgot-password` was open with no email adapter: it wrote reset links (with the token)
+  to the server log and replaced any unused invite link. Closed, with Payload's email now sent through SMTP2GO and
+  GraphQL switched off.
+- The forgotten-password limit was kept in memory, so it reset with each Vercel instance; reset links lasted 72 hours.
+- No email was logged or retried, and a failed booking email was only visible in the Vercel log.
+- Logins that already existed when `DASHBOARD_EDITORS` was added got no email from the build.
+
+### Changed
+- Every email goes through `deliver()` (`src/lib/mailer.ts`) and is logged (`ape_email_log`, 90 days, no message
+  bodies, links or tokens).
+- Password reset: single use, 1 hour, same answer for any address, 5 an hour per address (database), signs you in,
+  and a new "Your password was changed" email after a reset or a change.
+- Users (GYA): **Send login email again** (fresh 72 hour link) and the last login email with its status.
+- Booking emails: Site Settings > **Who receives booking emails** is now editable by the practice and read live (no
+  publish), with fallbacks `BOOKING_NOTIFY_EMAIL`, `BOOKING_NOTIFY_TO`, then the APE inbox in the code. Filled once
+  with the address booking emails already went to. Team subjects start with the reference
+  ("New booking request APE-XXXXXX, ..."). Deposit and questionnaire notices go to the same list; the questionnaire
+  notice no longer carries a first name.
+- GYA delivery check for each booking (reference, time, accepted or failed; no patient details), Site Settings
+  toggle (GYA only), on by default, to rowayne@gyaclients.com unless changed.
+- A failed booking email is retried once after a minute, then shows an amber **Email not sent** flag in Bookings
+  with **Resend to patient** / **Resend to team**, and GYA gets an alert. New Emails column with ticks.
+- **Site Settings > Email** (`/admin/settings/email`, GYA only): set up, who gets what, last 50 sends with filters,
+  and **Send test emails** ([TEST], sample details, only to the address typed, 3 runs an hour).
+- Dashboard home: "Emails: working" or the number failed in the last 7 days.
+- `npm run test:email` (SMTP2GO stand-in, test database) and `docs/EMAIL-TEST.md` for the live test.
+- Database: `ape_email_log`, `ape_rate` and three booking columns (created by the site, additive), and migration
+  `20261113_070622_v183_email_settings` (two Site Settings columns, additive). No new environment variables.
+
 ## 1.8.2 (13 Nov 2026): Team opens its own screen, and the homepage deep link works
 
 Update to the existing repo (after v1.8.1). Reported 13 Nov 2026: "The team page on the dashboard is not functioning.

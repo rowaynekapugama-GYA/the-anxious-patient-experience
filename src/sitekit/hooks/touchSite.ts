@@ -20,7 +20,9 @@ export const touchSite: CollectionAfterChangeHook & CollectionAfterDeleteHook = 
   await touch(req as never)
 }
 
-export const touchSiteGlobal: GlobalAfterChangeHook = async ({ req, doc }) => {
+export const touchSiteGlobal: GlobalAfterChangeHook = async ({ req, doc, context }) => {
+  // a setting that applies without publishing (v1.8.3 release update) does not ask for a publish
+  if ((context as { noPublishNeeded?: boolean } | undefined)?.noPublishNeeded) return doc
   await touch(req as never)
   return doc
 }

@@ -6,7 +6,7 @@ import { Modal, Select, TextInput } from '../ui/fields'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 
-type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string }
+type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string; lastEmail?: { at: string; status: string; kind: string } | null }
 
 function tempPassword() {
   const words = ['Calm', 'Breathe', 'Gentle', 'Linen', 'Candle', 'Cronulla', 'Harbour', 'Willow']
@@ -24,9 +24,13 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
 
   async function emailLink(u: { id: number | string; email: string }) {
     try {
-      const r = await api<{ message: string }>('/api/dashboard/send-password-link', { method: 'POST', body: { id: u.id } })
+      const r = await api<{ message: string; at: string; status: string }>('/api/dashboard/send-password-link', { method: 'POST', body: { id: u.id } })
       toast(r.message, 'good')
-    } catch (e) { toast((e as Error).message, 'bad') }
+      setUsers((x) => x.map((y) => (y.id === u.id ? { ...y, lastEmail: { at: r.at, status: r.status, kind: 'invite' } } : y)))
+    } catch (e) {
+      toast((e as Error).message, 'bad')
+      setUsers((x) => x.map((y) => (y.id === u.id ? { ...y, lastEmail: { at: new Date().toISOString(), status: 'failed', kind: 'invite' } } : y)))
+    }
   }
 
   async function add() {
@@ -67,7 +71,7 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th /></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th>Last login email</th><th /></tr></thead>
           <tbody>
             {users.map((u) => (
               <tr key={String(u.id)}>
@@ -80,8 +84,11 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                 </td>
                 <td><label className="check" style={{ margin: 0 }} title="Can view patient questionnaires. Off for everyone until Lorna nominates them."><input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} /> <span>{u.canViewQuestionnaires ? 'Can view' : 'No access'}</span></label></td>
                 <td>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="chip good">Set by the user or by link</span>}</td>
+                <td>{u.lastEmail
+                  ? <><span className={`chip ${u.lastEmail.status === 'accepted' ? 'good' : 'warn'}`}>{u.lastEmail.status === 'accepted' ? 'Sent' : 'Not sent'}</span><br /><span className="help">{u.lastEmail.kind === 'reset' ? 'Password reset' : 'Login invite'}, {new Date(u.lastEmail.at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span></>
+                  : <span className="help">None recorded since 13 Nov 2026</span>}</td>
                 <td className="actions">
-                  <button className="btn small" onClick={() => emailLink(u)}>Email a password link</button>
+                  <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
                   <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
                   {String(u.id) !== String(me) ? <button className="btn small danger" onClick={() => remove(u)}>{Icon.trash()} Delete</button> : null}
                 </td>

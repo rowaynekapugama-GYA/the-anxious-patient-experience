@@ -943,6 +943,11 @@ export interface SiteSetting {
         id?: string | null;
       }[]
     | null;
+  gyaDeliveryNotice?: boolean | null;
+  /**
+   * Blank uses rowayne@gyaclients.com.
+   */
+  gyaNoticeTo?: string | null;
   /**
    * The "Ask for reviews" link from the Google Business Profile (https://g.page/r/.../review). The /review/ page says "coming soon" until this is filled in.
    */
@@ -1060,6 +1065,8 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         address?: T;
         id?: T;
       };
+  gyaDeliveryNotice?: T;
+  gyaNoticeTo?: T;
   googleReviewLink?: T;
   questionnaire?:
     | T

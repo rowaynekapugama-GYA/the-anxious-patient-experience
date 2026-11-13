@@ -18,6 +18,10 @@ export type SettingsState = {
   receptionEmail: string
   clinic: { name: string; street: string; suburb: string; state: string; postcode: string; mapsUrl: string }
   bookingRecipients: string[]
+  /** v1.8.3: where booking emails go when the list is empty (BOOKING_NOTIFY_EMAIL, else the APE inbox) */
+  recipientsFallback: string[]
+  gyaDeliveryNotice: boolean
+  gyaNoticeTo: string
   tracking: { ga4: string; metaPixel: string }
   googleReviewLink: string
   questionnaire: { sendWhen: 'confirmed' | 'requested'; notifyEmails: string[] }
@@ -52,7 +56,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
     for (const [label, v] of [['APE enquiries email', s.apeEmail], ['General practice enquiries email', s.receptionEmail]] as const) {
       if (v.trim() && !EMAIL.test(v.trim())) { toast(`The ${label} does not look right.`, 'bad'); return }
     }
-    const bad = [...s.bookingRecipients, ...s.questionnaire.notifyEmails].filter((e) => e.trim() && !EMAIL.test(e.trim()))
+    const bad = [...s.bookingRecipients, ...s.questionnaire.notifyEmails, ...(isAdmin && s.gyaNoticeTo ? [s.gyaNoticeTo] : [])].filter((e) => e.trim() && !EMAIL.test(e.trim()))
     if (bad.length) { toast(`This address does not look right: ${bad[0]}`, 'bad'); return }
     const link = s.googleReviewLink.trim()
     if (link && !/^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(link)) { toast('The Google review link should be the "Ask for reviews" link from the Business Profile (it starts with https://g.page/ or https://search.google.com/).', 'bad'); return }
@@ -65,9 +69,11 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
         clinic: Object.fromEntries(Object.entries(s.clinic).map(([k, v]) => [k, v.trim()])),
         googleReviewLink: link,
         questionnaire: { sendWhen: s.questionnaire.sendWhen, notifyEmails: s.questionnaire.notifyEmails.map((a) => a.trim()).filter(Boolean).map((address) => ({ address })) },
+        bookingRecipients: s.bookingRecipients.map((a) => a.trim()).filter(Boolean).map((address) => ({ address })),
       }
       if (isAdmin) {
-        settings.bookingRecipients = s.bookingRecipients.map((a) => a.trim()).filter(Boolean).map((address) => ({ address }))
+        settings.gyaDeliveryNotice = s.gyaDeliveryNotice
+        settings.gyaNoticeTo = s.gyaNoticeTo.trim() || null
         settings.tracking = { ga4: s.tracking.ga4.trim(), metaPixel: s.tracking.metaPixel.trim() }
       }
       await api('/api/globals/site-settings?depth=0', { method: 'POST', body: settings })
@@ -146,17 +152,21 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
           ) : null}
         </Panel>
 
+        <Panel id="recipients" title="Who receives booking emails" intro={<>Every new booking request, deposit received and questionnaire received email goes to all of these. Changes apply to the next booking once you press <b>Save settings</b> (no need to publish).{s.bookingRecipients.filter((x) => x.trim()).length ? null : <> While the list is empty they go to <b>{initial.recipientsFallback.join(', ')}</b>.</>}</>}>
+          {s.bookingRecipients.map((r, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input className="input" aria-label={`Recipient ${i + 1}`} value={r} type="email"
+                onChange={(e) => set({ bookingRecipients: s.bookingRecipients.map((x, n) => (n === i ? e.target.value : x)) })} />
+              <button className="btn small danger" onClick={() => set({ bookingRecipients: s.bookingRecipients.filter((_x, n) => n !== i) })}>{Icon.trash()} Remove</button>
+            </div>
+          ))}
+          <button className="btn small" onClick={() => set({ bookingRecipients: [...s.bookingRecipients, ''] })}>{Icon.plus()} Add an address</button>
+        </Panel>
         {isAdmin ? (
           <>
-            <Panel id="recipients" title="Who receives booking requests (GYA only)" intro="Every booking request from the website is emailed to all of these. If the list is empty, the BOOKING_NOTIFY_EMAIL setting in Vercel is used, then the APE inbox. Takes effect when you publish.">
-              {s.bookingRecipients.map((r, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <input className="input" aria-label={`Recipient ${i + 1}`} value={r}
-                    onChange={(e) => set({ bookingRecipients: s.bookingRecipients.map((x, n) => (n === i ? e.target.value : x)) })} />
-                  <button className="btn small danger" onClick={() => set({ bookingRecipients: s.bookingRecipients.filter((_x, n) => n !== i) })}>{Icon.trash()} Remove</button>
-                </div>
-              ))}
-              <button className="btn small" onClick={() => set({ bookingRecipients: [...s.bookingRecipients, ''] })}>{Icon.plus()} Add an address</button>
+            <Panel id="gya-notice" title="GYA delivery check (GYA only)" intro={<>For each booking GYA gets a short notice with the reference, the time and whether each email was accepted: no patient name, phone, email or note. Failure alerts go to the same address. <a href="/admin/settings/email">Open the email check screen</a>.</>}>
+              <Toggle label="Send GYA a delivery check for each booking" checked={s.gyaDeliveryNotice} onChange={(v) => set({ gyaDeliveryNotice: v })} />
+              <TextInput label="Delivery check and alerts go to" value={s.gyaNoticeTo} onChange={(v) => set({ gyaNoticeTo: v })} placeholder="rowayne@gyaclients.com" help="Blank uses rowayne@gyaclients.com." />
             </Panel>
             <Panel id="tracking" title="Tracking (GYA only)" intro="Leave empty to switch tracking off. Nothing runs on preview deployments.">
               <div className="grid-2">

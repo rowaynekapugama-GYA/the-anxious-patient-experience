@@ -18,7 +18,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Payload } from 'payload'
 import { seal, unseal, newToken, hashToken, encryptionReady, type Sealed } from './crypto'
-import { sendEmail, emailConfigured, siteOrigin } from './email'
+import { emailConfigured, siteOrigin } from './email'
+import { deliver } from './mailer'
+import { liveRecipients } from './recipients'
 import { DEFAULTS } from '@/site.config'
 import { escHtml, fmtDateTime, TM, DEFAULT_NOTIFY_TO } from '@/booking/core'
 
@@ -192,14 +194,15 @@ export async function sendWelcome(payload: Payload, b: BookingRow, opts: { resen
   body = body.split('{link}').join(link || 'Your questionnaire has already been received, thank you.')
   if (t.placeholder) body = `[PLACEHOLDER WELCOME EMAIL: the practice's wording is still to come]\n\n${body}`
   const attachment = await packBytes(t)
-  await sendEmail({
+  const sent = await deliver('welcome', {
     to: [b.email],
     reply_to: settings.apeEmail,
     subject: t.welcomeSubject,
     text: body,
     html: body.split(/\n{2,}/).map((p) => linkify(para(p))).join(''),
     ...(attachment ? { attachments: [attachment] } : {}),
-  })
+  }, { ref: b.ref })
+  if (!sent.ok) throw new Error(`the welcome email could not be sent: ${sent.error}`)
   if (opts.resend && opts.by) await log(payload, { userEmail: opts.by, action: 'resent', bookingRef: b.ref })
   return { sent: true }
 }
@@ -288,19 +291,25 @@ export async function submitAnswers(payload: Payload, token: string, answers: An
   return { ok: true }
 }
 
-/** "A questionnaire has arrived": reference, first name and appointment date only. */
-async function notifyTeam(payload: Payload, row: Record<string, any>): Promise<void> {
-  const s = await liveSettings(payload)
-  const first = String(row.patientName || '').split(' ')[0] || 'A patient'
+async function alertQuestionnaire(ref: string) {
+  const { alertGya } = await import('@/booking/emails')
+  await alertGya('questionnaire received email to the team', ref).catch(() => {})
+}
+
+/** "A questionnaire has arrived": reference and appointment date only (v1.8.3: no name). */
+async function notifyTeam(_payload: Payload, row: Record<string, any>): Promise<void> {
   const when = fmtDateTime(new Date(row.appointmentAt), TZ, true)
   const link = `${siteOrigin(DEFAULTS.siteUrl)}/admin/questionnaires/${row.id}`
-  const text = `${first} has completed the new patient questionnaire for booking ${row.bookingRef} (appointment ${when}).\n\nRead it in the dashboard (sign in needed, and only people with questionnaire access can open it):\n${link}\n\nThe answers are never included in email.`
-  await sendEmail({
-    to: s.notify,
-    subject: `Questionnaire received: ${row.bookingRef}, ${first}, ${fmtDateTime(new Date(row.appointmentAt), TZ, false)}`,
+  const text = `A new patient questionnaire has been completed for booking ${row.bookingRef} (appointment ${when}).\n\nRead it in the dashboard (sign in needed, and only people with questionnaire access can open it):\n${link}\n\nThe answers are never included in email.`
+  // v1.8.3: the questionnaire list if one is set, else the same team list as the booking emails
+  const live = await liveRecipients()
+  const r = await deliver('questionnaire-team', {
+    to: live.questionnaire.length ? live.questionnaire : live.team.list,
+    subject: `Questionnaire received ${row.bookingRef}, ${fmtDateTime(new Date(row.appointmentAt), TZ, false)}`,
     text,
     html: text.split(/\n{2,}/).map((p) => linkify(para(p))).join(''),
-  })
+  }, { ref: row.bookingRef })
+  if (!r.ok) await alertQuestionnaire(row.bookingRef)
 }
 
 // ---------------------------------------------------------------- reading answers (dashboard)

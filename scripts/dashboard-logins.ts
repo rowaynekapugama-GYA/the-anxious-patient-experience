@@ -24,7 +24,7 @@ async function main() {
   for (const email of list) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { console.log(`logins: "${email}" is not an email address, skipped`); continue }
     const found = await payload.find({ collection: 'users', where: { email: { equals: email } }, limit: 1, depth: 0, overrideAccess: true })
-    if (found.docs[0]) { console.log(`logins: ${email} already has a login`); continue }
+    if (found.docs[0]) { console.log(`logins: ${email} already has a login, so no email was sent (Users > Send login email again sends one)`); continue }
     await payload.create({
       collection: 'users', overrideAccess: true, depth: 0,
       // nobody knows this password: the person chooses their own from the emailed link
@@ -32,8 +32,9 @@ async function main() {
     })
     if (!emailConfigured()) { console.log(`logins: ${email} added as an Editor; email is not set up, so GYA sends the link from the Users screen later`); continue }
     try {
-      await sendPasswordLink(payload, email, 'invite')
-      console.log(`logins: ${email} added as an Editor and emailed a link to choose a password`)
+      const r = await sendPasswordLink(payload, email, 'invite')
+      if (r?.ok) console.log(`logins: ${email} added as an Editor and emailed a link to choose a password (SMTP2GO ${r.id || 'accepted'})`)
+      else console.log(`logins: ${email} added as an Editor, but the email was not accepted (${r?.error ?? 'no login found'}); use Users > Send login email again`)
     } catch (err) {
       console.log(`logins: ${email} added as an Editor, but the email could not be sent (${(err as Error).message}); use the Users screen to send it again`)
     }

@@ -35,11 +35,26 @@ export const SiteSettings: GlobalConfig = {
       ],
     },
     {
+      // v1.8.3: the practice can change this itself (new booking, deposit received and questionnaire received emails)
       name: 'bookingRecipients',
       type: 'array',
-      label: 'Who receives booking requests',
-      access: { create: adminFieldOnly, update: adminFieldOnly, read: adminFieldOnly },
+      label: 'Who receives booking emails',
       fields: [{ name: 'address', type: 'email', label: 'Email address', required: true }],
+    },
+    {
+      // v1.8.3: a short notice to GYA for each booking saying which emails went out (no patient details)
+      name: 'gyaDeliveryNotice',
+      type: 'checkbox',
+      label: 'Send GYA a delivery check for each booking (no patient details)',
+      defaultValue: true,
+      access: { create: adminFieldOnly, update: adminFieldOnly, read: adminFieldOnly },
+    },
+    {
+      name: 'gyaNoticeTo',
+      type: 'email',
+      label: 'GYA delivery check and alerts go to',
+      access: { create: adminFieldOnly, update: adminFieldOnly, read: adminFieldOnly },
+      admin: { description: 'Blank uses rowayne@gyaclients.com.' },
     },
     {
       name: 'googleReviewLink',

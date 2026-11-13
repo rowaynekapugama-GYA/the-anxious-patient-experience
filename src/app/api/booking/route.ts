@@ -22,18 +22,16 @@ import * as core from '@/booking/core'
 import { questionnaireEnabled, onBookingRequested } from '@/lib/questionnaire'
 import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalClientId } from '@/lib/paypal'
+import { after } from 'next/server'
+import * as emails from '@/booking/emails'
+import { deliver } from '@/lib/mailer'
+import { liveRecipients } from '@/lib/recipients'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// room for the one retry a minute after a failed email (v1.8.3)
+export const maxDuration = 90
 
-const { TM } = core
-
-function table(rows: [string, string][]): string {
-  return '<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;font:15px/1.5 Arial,sans-serif;color:#284858">'
-    + rows.map(([k, v]) => `<tr><td style="vertical-align:top;color:#7E6548;white-space:nowrap"><strong>${core.escHtml(k)}</strong></td><td style="vertical-align:top">${core.escHtml(v).replace(/\n/g, '<br>')}</td></tr>`).join('')
-    + '</table>'
-}
-const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
 
 const INSERT = `
   INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special)
@@ -104,99 +102,42 @@ export async function POST(req: Request) {
   const price = Number(saved.price)
   const special = !!saved.special
 
-  // 2. Emails
-  const tz = cfg.booking.timeZone
-  const start = slot.start!
-  const when = `${core.fmtDateTime(start, tz, true)} (Sydney time)`
-  const submitted = `${core.fmtDateTime(new Date(now), tz, true)} (Sydney time), ${new Date(now).toISOString()}`
-  const clinicLine = `${cfg.clinic.name}, ${cfg.clinic.street}, ${cfg.clinic.suburb}`
-  const fee = special
-    ? `${core.money(price)} opening special (normally ${core.money(cfg.pricing.appointment)}). Health fund rebates available.`
-    : `${core.money(price)}. Health fund rebates available.`
+  // 2. Emails (v1.8.3: built from the saved booking in src/booking/emails.ts, every attempt logged, a failure tried
+  // again after a minute and then flagged in Bookings; GYA gets a delivery check without patient details)
   // v1.8.0: a private pay link for this booking (shown in the flow and in the email), only when PayPal is set up
   const paypal = paypalConfigured()
   const payToken = paypal ? await deposit.issuePayToken(d, ref).catch(() => '') : ''
   const link = payToken ? deposit.payLinkFor(payToken) : ''
-  const depositAmt = cfg.pricing.deposit
-  const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
-  const notifyTo = cfg.bookingRecipients.length ? cfg.bookingRecipients
-    : list(process.env.BOOKING_NOTIFY_EMAIL || process.env.BOOKING_NOTIFY_TO || core.DEFAULT_NOTIFY_TO)
-  const bcc = list(process.env.BOOKING_BCC || '')
-  const apeInbox = cfg.contact.apeEmail || core.DEFAULT_NOTIFY_TO
-  const clinicPhone = cfg.contact.phone
-
-  const rows: [string, string][] = [
-    ['Reference', ref],
-    ['Requested time', when],
-    ['Appointment', `${TM}: New Patient Appointment (70 minutes)`],
-    ['Fee', fee],
-    ['Deposit', paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
-    ['Location', clinicLine],
-    ['Name', name],
-    ['Email', email],
-    ['Phone', phone || 'Not provided'],
-    ['Note from patient', notes || 'None'],
-    ['Deposit and cancellation policy', 'Read and accepted'],
-    ['Collection notice', 'Agreed'],
-    ['Submitted', submitted],
-  ]
-  const nextStep = 'Next step: block this time in Core Practice, reply to the patient to confirm and send the new patient information pack, then mark it confirmed under Bookings in the website dashboard (/admin).'
-  const notify: core.Email = {
-    to: notifyTo,
-    reply_to: email,
-    subject: `APE booking request: ${core.fmtDateTime(start, tz, false)}, ${name} (${ref})${special ? ' [opening special]' : ''}`,
-    text: `New booking request for ${TM}. This time is held on the website but not yet confirmed.\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\n${nextStep}\nReplying to this email replies to the patient.`,
-    html: `<p style="font:16px/1.5 Arial,sans-serif;color:#284858">New booking request for ${core.escHtml(TM)}. <strong>This time is held on the website but not yet confirmed.</strong></p>`
-      + table(rows) + `<p style="font:15px/1.5 Arial,sans-serif;color:#284858">${core.escHtml(nextStep)}<br>Replying to this email replies to the patient.</p>`,
+  const live = await liveRecipients()
+  const res = await emails.sendBookingEmails(d, cfg, ref, ['team', 'patient'], 'first', { payLink: link, live })
+  const notified = !!res.team?.ok
+  const ackSent = !!res.patient?.ok
+  if (live.gya.on) {
+    const outcomes: emails.Outcome[] = [
+      { label: 'New booking email to the team', ok: notified, id: res.team?.id ?? '', error: res.team?.error ?? '', retrying: !notified },
+      { label: 'Booking request received, to the patient', ok: ackSent, id: res.patient?.id ?? '', error: res.patient?.error ?? '', retrying: !ackSent },
+    ]
+    await deliver('gya-notice', emails.gyaNoticeEmail(cfg, { ref, slot_start: slot.start! }, outcomes, live.gya.to), { ref })
   }
-  if (bcc.length) notify.bcc = bcc
-  let notified = true
-  try {
-    await core.sendEmail(notify)
-  } catch (err) {
-    // The booking is saved and shows in the dashboard, so the patient is not asked to try again.
-    notified = false
-    console.error('booking: notification email failed (booking saved, see dashboard)', ref, (err as Error).message)
-  }
-
-  // Acknowledgement to the patient (NEW COPY in v1.4.0: needs the client's sign-off, see CHANGELOG)
-  const first = name.split(' ')[0]
-  const ackLines = [
-    `Hi ${first},`,
-    `Thank you for your booking request for ${TM} New Patient Appointment.`,
-    `Requested time: ${when}\nLocation: ${clinicLine}\nFee: ${fee}\nReference: ${ref}`,
-    link
-      ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${link}`
-      : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
-    'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
-    `If anything changes or you have a question, simply reply to this email or call us on ${clinicPhone}.`,
-    `Warm regards,\n${TM} team`,
-  ]
-  let ackSent = true
-  try {
-    await core.sendEmail({
-      to: [email],
-      reply_to: apeInbox,
-      subject: `We have received your booking request | ${TM}`,
-      text: ackLines.join('\n\n'),
-      html: ackLines.map(para).join(''),
+  if (!notified || !ackSent) {
+    // try once more after a minute, after the patient has their answer (Bookings and the email screen also retry)
+    after(async () => {
+      await new Promise((r) => setTimeout(r, (emails.RETRY_SECONDS + 2) * 1000))
+      await emails.retryDue(d, cfg, ref).catch((err) => console.error('booking: retry failed', ref, (err as Error).message))
     })
-  } catch (err) {
-    ackSent = false
-    console.error('booking: acknowledgement email failed (the booking is saved)', ref, (err as Error).message)
   }
   // v1.7.0: the welcome pack and questionnaire link, if Site Settings says to send them at request time
   if (questionnaireEnabled()) {
     try {
       const { getPayload } = await import('payload')
       const { default: config } = await import('@payload-config')
-      await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: start.toISOString() })
+      await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })
     } catch (err) {
       console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
     }
   }
   return core.send(200, {
-    ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: depositAmt, notified, ackSent,
+    ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: cfg.pricing.deposit, notified, ackSent,
     ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD' } } : {}),
   })
 }

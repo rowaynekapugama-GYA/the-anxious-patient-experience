@@ -32,6 +32,11 @@ export async function proxy(req: NextRequest) {
   if (p.startsWith('/cms/create-first-user') && process.env.ALLOW_FIRST_USER !== 'true') {
     return new NextResponse('Not found', { status: 404, headers: { 'x-robots-tag': 'noindex' } })
   }
+  // v1.8.3: Payload's own password endpoints are closed. The dashboard's (/api/dashboard/forgot-password and
+  // /api/dashboard/reset-password) limit requests, keep reset links to 1 hour and send the "password changed" notice.
+  if (/^\/api\/users\/(forgot-password|reset-password)\/?$/.test(p)) {
+    return new NextResponse('Not found', { status: 404, headers: { 'x-robots-tag': 'noindex' } })
+  }
   // the booking script calls /api/availability/ and /api/booking/ with a trailing slash
   if (/^\/api\/(availability|booking)\/$/.test(p)) {
     return NextResponse.rewrite(new URL(p.slice(0, -1) + url.search, url.origin))

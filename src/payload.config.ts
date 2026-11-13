@@ -4,6 +4,8 @@ import { buildConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import sharp from 'sharp'
+import type { EmailAdapter } from 'payload'
+import { sendEmail } from './lib/email'
 
 import { Users } from './sitekit/collections/Users'
 import { Media } from './sitekit/collections/Media'
@@ -17,6 +19,22 @@ import { Seo } from './sitekit/globals/Seo'
 import { SiteStatus } from './sitekit/globals/SiteStatus'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/**
+ * v1.8.3: any email Payload sends itself goes through the same SMTP2GO sender as the rest of the site, never to the
+ * console (which would put a reset link into the Vercel logs). The dashboard sends its own login emails
+ * (src/dashboard/lib/passwordLink.ts) and Payload's password endpoints are closed (src/proxy.ts).
+ */
+const smtp2go: EmailAdapter = () => ({
+  name: 'smtp2go',
+  defaultFromAddress: (process.env.BOOKING_FROM || '').replace(/^.*<|>.*$/g, '') || 'bookings@thecronulladentists.com.au',
+  defaultFromName: 'The Anxious Patient Experience',
+  sendEmail: async (m) => {
+    const to = (Array.isArray(m.to) ? m.to : [m.to]).map((x) => (typeof x === 'string' ? x : (x as { address: string }).address)).filter(Boolean) as string[]
+    const html = typeof m.html === 'string' ? m.html : ''
+    return sendEmail({ to, subject: String(m.subject || ''), html, text: typeof m.text === 'string' ? m.text : html.replace(/<[^>]+>/g, ' ') })
+  },
+})
 
 const origins = [
   process.env.NEXT_PUBLIC_SERVER_URL,
@@ -62,6 +80,9 @@ export default buildConfig({
       token: process.env.BLOB_READ_WRITE_TOKEN || '',
     }),
   ],
+  email: smtp2go,
+  // the dashboard never uses GraphQL, so it is switched off (v1.8.3)
+  graphQL: { disable: true },
   cors: origins,
   csrf: origins,
   secret: process.env.PAYLOAD_SECRET || 'set-PAYLOAD_SECRET-before-deploying',

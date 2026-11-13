@@ -248,6 +248,23 @@ const SCHEMA = [
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS pay_token_expires timestamptz`,
   `UPDATE ape_bookings SET deposit_status = 'manual' WHERE deposit_paid AND deposit_status = 'unpaid'`,
   `CREATE INDEX IF NOT EXISTS ape_bookings_pay_token ON ape_bookings (pay_token_hash)`,
+  // v1.8.3: which booking emails went out ('' before v1.8.3 | sent | retry | failed), and every send attempt
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_patient text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_team text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_retry_at timestamptz`,
+  `CREATE TABLE IF NOT EXISTS ape_email_log (
+     id bigserial PRIMARY KEY,
+     at timestamptz NOT NULL DEFAULT now(),
+     kind text NOT NULL,
+     recipient text NOT NULL,
+     ref text,
+     status text NOT NULL,
+     message_id text NOT NULL DEFAULT '',
+     error text NOT NULL DEFAULT '',
+     test boolean NOT NULL DEFAULT false)`,
+  `CREATE INDEX IF NOT EXISTS ape_email_log_at ON ape_email_log (at DESC)`,
+  `CREATE TABLE IF NOT EXISTS ape_rate (key text NOT NULL, at timestamptz NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS ape_rate_key ON ape_rate (key, at)`,
   `CREATE TABLE IF NOT EXISTS ape_paypal_events (
      event_id text PRIMARY KEY,
      event_type text NOT NULL,

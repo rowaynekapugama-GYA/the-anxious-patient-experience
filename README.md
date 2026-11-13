@@ -63,26 +63,53 @@ Leave the project's own Build and Development settings alone. Node 20.9 or later
 
 - **Where the list lives**: `DASHBOARD_EDITORS` in Vercel (comma separated). On each production build
   (`scripts/dashboard-logins.ts`), any address in it without a login gets an **Editor** login and an email with a
-  link to choose a password (one use, 72 hours). Existing logins are left alone; removing an address does not
-  delete its login (Users > Delete, GYA only). Preview builds do nothing.
-- To add someone: add the address to `DASHBOARD_EDITORS` and redeploy (or press Publish website). Or add them under
-  **Users** and press **Email a password link**.
-- **Forgotten password**: "Forgotten your password?" on `/admin/login` emails a reset link (same response whether or
-  not the address has a login; one email per address every 2 minutes). Needs the email variables above.
+  link to choose a password (one use, 72 hours). Existing logins are left alone and get **no** email (the build log
+  says "already has a login, so no email was sent"); removing an address does not delete its login. Preview builds
+  do nothing.
+- To add someone: add the address to `DASHBOARD_EDITORS` and redeploy, or add them under **Users**. **Send login
+  email again** (Users, GYA only) sends anyone a fresh 72 hour link; the Users screen shows the last one and whether
+  SMTP2GO accepted it.
+- **Forgotten password** (v1.8.3): "Forgotten your password?" on `/admin/login` emails a reset link that works once
+  and lasts **1 hour**. Same answer whether or not the address has a login; at most 5 requests per address an hour
+  (counted in the database). After any reset or change the person gets "Your password was changed".
+- Payload's own `/api/users/forgot-password` and `/api/users/reset-password` are closed (404) and GraphQL is off:
+  they bypassed the limits and, with no email adapter, wrote the reset link to the logs. Payload's email adapter now
+  sends through SMTP2GO too.
 - GYA administrators are added under Users, not through `DASHBOARD_EDITORS`.
 
-## Booking emails (audit, 9 Nov 2026)
+## Emails (v1.8.3)
 
-Each booking sends two emails through `src/lib/email.ts` (SMTP2GO if `SMTP2GO_API_KEY` is set, else Resend):
+Every email goes through `deliver()` in `src/lib/mailer.ts` (SMTP2GO, `BOOKING_FROM`) and is logged in
+`ape_email_log`: time, type, recipient, booking reference, accepted or failed, the SMTP2GO message ID and the error.
+Never the message, a link or a token. Kept 90 days. **Site Settings > Email** (`/admin/settings/email`, GYA only)
+shows the set up, who gets what, the last 50 sends, and **Send test emails** to one address.
 
-1. **To the APE team**: "APE booking request: [day, time], [name] ([ref])" to Site Settings > Who receives booking
-   requests if that list has anyone in it (it is empty), else `BOOKING_NOTIFY_EMAIL`, else
-   theanxiouspatientexperience@gmail.com. Every detail of the request; Reply-To is the patient.
-2. **To the patient**: "We have received your booking request", with the time, place, fee, reference and the deposit
-   link. Reply-To is the APE inbox.
+| Email | To | Reply-To |
+|---|---|---|
+| Login invite, forgotten password, password changed | the person | none |
+| Booking request received | the patient | APE inbox (Site Settings) |
+| New booking request APE-XXXXXX, time | **booking list** | the patient |
+| Deposit received (patient / team) | patient / **booking list** | APE inbox / the patient |
+| Welcome pack (questionnaire, off) | the patient | APE inbox |
+| Questionnaire received APE-XXXXXX (off) | questionnaire list, else **booking list** | none |
+| APE delivery check APE-XXXXXX | GYA (`gyaNoticeTo`, else rowayne@gyaclients.com) | none |
+| APE email failed (alert) | GYA, same address | none |
 
-The booking is saved before the emails are sent, so a failed email never loses a booking (it shows under Bookings).
-Before v1.6.0 only Resend was wired up and its variables were never added, so the live booking form could not send.
+- **Booking list**: Site Settings > Who receives booking emails (the practice can edit it; applies to the next
+  booking, no publish), else `BOOKING_NOTIFY_EMAIL`, else `BOOKING_NOTIFY_TO`, else theanxiouspatientexperience@gmail.com
+  in the code, so a booking never goes to nobody. The v1.8.3 build fills the list once with the address booking
+  emails already went to, so nothing changes for the team.
+- **GYA delivery check**: reference, time and whether each email was accepted. No patient name, phone, email or note.
+  Site Settings toggle (GYA only), on by default.
+- **Failures**: the booking is always saved first. A failed patient or team email is tried again after a minute
+  (after the patient's answer, and again whenever Bookings or the email screen is opened). If it fails again the
+  booking shows an amber **Email not sent** flag with **Resend to patient** / **Resend to team**, and GYA gets an
+  alert. The Bookings list has a small Emails column (ticks for patient and team).
+- **Dashboard home** (everyone): "Emails: working", or how many failed in the last 7 days.
+- Tests: `npm run test:email` against a TEST database (SMTP2GO replaced by a local stand-in). Live test steps:
+  `docs/EMAIL-TEST.md`.
+- Junk mail: the sender domain (thecronulladentists.com.au) has DMARC `p=quarantine` and SPF that does not include
+  SMTP2GO, so SMTP2GO must sign with DKIM and use a custom return-path on that domain (Sending > Verified Senders).
 
 ## New Patient Information Pack (v1.7.0, switched off until approved)
 

@@ -7,6 +7,7 @@ import { ImportButtons } from '@/dashboard/editors/ImportButtons'
 import { BRAND } from '@/dashboard/brand'
 import { db } from '@/booking/core'
 import { countUnreviewed, questionnaireEnabled } from '@/lib/questionnaire'
+import { failedCount, gyaToldSince } from '@/lib/mailer'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -34,6 +35,9 @@ export default async function Home() {
   }
   const canView = !!(u as { canViewQuestionnaires?: boolean }).canViewQuestionnaires
   const toReview = questionnaireEnabled() && canView ? await countUnreviewed(payload) : null
+  // v1.8.3: one line on whether email is working (GYA sees the detail on Site Settings > Email)
+  const failed7 = await failedCount(7)
+  const gyaTold = failed7 ? await gyaToldSince(7) : false
   const empty = counts.pages === 0
   const homeId = home.docs[0]?.id
   const recent = [
@@ -52,6 +56,10 @@ export default async function Home() {
         </div>
       </div>
 
+      <p className={`email-status-line${failed7 ? ' bad' : ''}`}><span className="dot" aria-hidden="true" />
+        {!failed7 ? <span><b>Emails:</b> working</span>
+          : <span><b>Emails:</b> {failed7} failed in the last 7 days, {gyaTold ? 'GYA has been notified' : 'please let GYA know on 1300 889 840'}.{u.role === 'admin' ? <> <Link href="/admin/settings/email">Open the email check</Link></> : null}</span>}
+      </p>
       {empty ? (
         <div className="notice warn">{Icon.warn()}<div className="grow">
           <p><b>The dashboard has no content yet.</b> {u.role === 'admin' ? 'Load the website into it with Import below.' : 'Please ask GYA to finish setting it up.'}</p>
