@@ -7,6 +7,7 @@
  */
 import type { Payload } from 'payload'
 import type { Chrome, Field, Page, Part } from '@/lib/parts'
+import { HIDDEN_OPEN, visibleTemplate } from '@/lib/parts'
 import { getChrome, getSeoDefaults, seoInfoFrom } from '@/lib/content'
 import { mergeSettings, tokensFor } from '@/lib/site'
 import type { SeoDefaults, SeoInfo } from '@/dashboard/render'
@@ -86,8 +87,10 @@ export function sectionsForEditor(doc: PageDoc): ESection[] {
   const rows = doc.sections ?? []
   const runs = runOf(parseOrder(doc.order), (i) => rows[i]?.key)
   return rows.map((s) => {
-    // a photo's sizes follow the photo by themselves, so they are never shown
-    const fields = (s.content ?? []).map(fieldFromDoc).filter((f) => f.type !== 'srcset')
+    // a photo's sizes follow the photo by themselves, so they are never shown; nor are the words of a team
+    // member hidden on the Team screen (they come back when the member is shown again)
+    const shown = s.template && s.template.includes(HIDDEN_OPEN) ? visibleTemplate(s.template) : null
+    const fields = (s.content ?? []).map(fieldFromDoc).filter((f) => f.type !== 'srcset' && (shown === null || shown.includes(`{{${f.id}}}`)))
     const images = fields.filter((f) => f.type === 'image')
     return {
       key: s.key,

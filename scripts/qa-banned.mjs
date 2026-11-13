@@ -12,8 +12,8 @@ const ROOT = process.cwd()
 const EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json', '.md', '.css', '.html']
 const SKIP = [
   'node_modules', '.next', '.git', 'public/images', 'public/fonts', 'migrations', 'media',
-  // these two files exist to name the banned wording, so they cannot be scanned
-  'scripts/qa-banned.mjs', 'scripts/qa-allow.json', 'src/sitekit/admin/AhpraNotice.tsx',
+  // these files exist to name the banned wording (the checks and the reminders), so they cannot be scanned
+  'scripts/qa-banned.mjs', 'scripts/qa-allow.json', 'src/sitekit/admin/AhpraNotice.tsx', 'src/dashboard/editors/TeamEditor.tsx',
 ]
 
 const RULES = [

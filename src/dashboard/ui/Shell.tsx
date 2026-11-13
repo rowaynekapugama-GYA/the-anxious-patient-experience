@@ -8,15 +8,13 @@ import { BRAND } from '../brand'
 
 type NavItem = { href: string; label: string; icon: keyof typeof Icon; adminOnly?: boolean; count?: number }
 
-export function Shell({ user, children, toConfirm = 0, toReview = 0, teamHref = '/admin/pages', reviewHref = '/admin/pages' }: {
+export function Shell({ user, children, toConfirm = 0, toReview = 0, reviewHref = '/admin/pages' }: {
   user: { name?: string; email: string; role: string }
   children: React.ReactNode
   /** booking requests still to confirm */
   toConfirm?: number
   /** questionnaires received and not yet reviewed (0 unless this person has access) */
   toReview?: number
-  /** the team cards are edited on the homepage itself */
-  teamHref?: string
   /** the Google review page is edited like any page */
   reviewHref?: string
 }) {
@@ -29,7 +27,7 @@ export function Shell({ user, children, toConfirm = 0, toReview = 0, teamHref = 
     { href: '/admin/pages', label: 'Pages', icon: 'pages' },
     { href: '/admin/posts', label: 'Blog Posts', icon: 'posts' },
     { href: '/admin/media', label: 'Media Library', icon: 'media' },
-    { href: teamHref, label: 'Team', icon: 'team' },
+    { href: '/admin/team', label: 'Team', icon: 'team' },
     { href: '/admin/bookings', label: 'Bookings', icon: 'bookings', count: toConfirm },
     { href: '/admin/availability', label: 'Availability', icon: 'availability' },
     { href: '/admin/special', label: 'Opening special', icon: 'special' },
@@ -42,7 +40,7 @@ export function Shell({ user, children, toConfirm = 0, toReview = 0, teamHref = 
     { href: '/admin/users', label: 'Users', icon: 'users', adminOnly: true },
   ]
   const on = (href: string) => (href === '/admin' ? path === '/admin' || path === '/admin/'
-    : href === teamHref || href === reviewHref ? false
+    : href === reviewHref ? false
       : path.startsWith(href))
   const initials = (user.name || user.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join('')
 

@@ -126,8 +126,8 @@ function FieldsList({ fields, onField, prefix }: { fields: F[]; onField: (id: st
 
 const sectionName = (s: Section) => s.label || 'Section'
 
-function SectionRow({ s, open, onToggle, onShow, onHide, children, sortable }: {
-  s: Section; open: boolean; onToggle: () => void; onShow: () => void; onHide?: () => void; children: React.ReactNode; sortable: boolean
+function SectionRow({ s, open, onToggle, onShow, onHide, children, sortable, focus = false }: {
+  s: Section; open: boolean; onToggle: () => void; onShow: () => void; onHide?: () => void; children: React.ReactNode; sortable: boolean; focus?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.key, disabled: !sortable })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -135,7 +135,8 @@ function SectionRow({ s, open, onToggle, onShow, onHide, children, sortable }: {
     : s.fixed ? <span className="chip grey">Bottom</span>
       : s.pinned ? <span className="chip grey">Top</span> : null
   return (
-    <div ref={setNodeRef} style={style} className={`sec${open ? ' open' : ''}${isDragging ? ' dragging' : ''}${s.hidden ? ' is-hidden' : ''}`}>
+    <div ref={setNodeRef} style={style} data-sec={s.key} aria-current={focus ? 'true' : undefined}
+      className={`sec${open ? ' open' : ''}${isDragging ? ' dragging' : ''}${s.hidden ? ' is-hidden' : ''}${focus ? ' is-focus' : ''}`}>
       <div className="sec-head" onClick={() => { onToggle(); onShow() }}>
         <button type="button" className="handle" aria-label={sortable ? `Drag to move ${sectionName(s)}` : 'This section cannot be moved'}
           disabled={!sortable} {...(sortable ? attributes : {})} {...(sortable ? listeners : {})} onClick={(e) => e.stopPropagation()}>
@@ -175,6 +176,7 @@ export function PageEditor(props: PageEditorProps) {
   const [previewError, setPreviewError] = useState('')
   const [pickFor, setPickFor] = useState<string | null>(null)
   const [stage, setStage] = useState({ w: 0, h: 0 })
+  const [focusKey, setFocusKey] = useState<string | null>(null)
   useUnsavedWarning(dirty)
 
   const frame = useRef<HTMLIFrameElement>(null)
@@ -187,6 +189,9 @@ export function PageEditor(props: PageEditorProps) {
   const range = useRef<Range | null>(null)
   const selRef = useRef<string | null>(null)
   const saveRef = useRef<() => void>(() => {})
+  // a section to bring into view once the page has loaded (?section=team from the Team screen, v1.8.2)
+  const pendingFocus = useRef<string | null>(props.focusSection ?? null)
+  const frameReady = useRef(false)
 
   // the editor uses the whole width of the dashboard
   useEffect(() => {
@@ -275,7 +280,15 @@ export function PageEditor(props: PageEditorProps) {
   useEffect(() => { refresh() }, [refresh, tick])
 
   const doc = () => frame.current?.contentDocument ?? null
-  const focused = useRef(false)
+
+  // the address asked for a section after the editor was already open (client-side navigation keeps this
+  // component, so only the prop changes): focus it now if the page is loaded, otherwise once it has
+  useEffect(() => {
+    if (!props.focusSection) return
+    if (frameReady.current) focusOn(props.focusSection)
+    else pendingFocus.current = props.focusSection
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.focusSection])
 
   function markSelected(ref: string | null) {
     selRef.current = ref
@@ -319,6 +332,20 @@ export function PageEditor(props: PageEditorProps) {
     el.classList.add('pd-flash')
   }
 
+  /**
+   * Bring a section into view and select it: the page scrolls to it and it flashes, and the Sections tab opens
+   * with that section highlighted. Runs on first load and again whenever the address asks for a section
+   * (clicking Edit on the homepage while already in the editor used to do nothing).
+   */
+  function focusOn(key: string) {
+    const target = live.current.sections.find((x) => x.key === key)
+    if (!target) return
+    setTab('sections')
+    setFocusKey(key)
+    scrollToSection(target)
+    setTimeout(() => document.querySelector(`.pe-panel [data-sec="${CSS_escape(key)}"]`)?.scrollIntoView({ block: 'nearest' }), 60)
+  }
+
   function noteFor(target: Element): Selected {
     if (target.closest('[data-pdc], .sticky-bar')) {
       return {
@@ -342,10 +369,11 @@ export function PageEditor(props: PageEditorProps) {
     if (!d || !win || !d.body) return
     setLoading(false)
     win.scrollTo(0, keepScroll.current)
-    if (props.focusSection && !focused.current) {
-      focused.current = true
-      const target = live.current.sections.find((x) => x.key === props.focusSection)
-      if (target) setTimeout(() => scrollToSection(target), 150)
+    frameReady.current = true
+    if (pendingFocus.current) {
+      const k = pendingFocus.current
+      pendingFocus.current = null
+      setTimeout(() => focusOn(k), 150)
     }
 
     // links and photos are not dragged around while words inside them are being selected
@@ -518,7 +546,7 @@ export function PageEditor(props: PageEditorProps) {
     touch()
     bump()
   }
-  const toggle = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n })
+  const toggle = (k: string) => { setFocusKey(null); setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n }) }
   const hide = (k: string) => {
     setSections((all) => all.map((s) => (s.key === k ? { ...s, hidden: !s.hidden } : s)))
     touch()
@@ -694,17 +722,17 @@ export function PageEditor(props: PageEditorProps) {
                 <p className="help" style={{ marginBottom: 12 }}>Drag the dots to change the order. The eye hides or shows a section. Click a section to jump to it, and open it to edit everything in it as a form.</p>
                 <div className="sections">
                   {pinned.map((s) => (
-                    <SectionRow key={s.key} s={s} open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} sortable={false}>{renderBody(s)}</SectionRow>
+                    <SectionRow key={s.key} s={s} focus={focusKey === s.key} open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} sortable={false}>{renderBody(s)}</SectionRow>
                   ))}
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                     <SortableContext items={movable.map((s) => s.key)} strategy={verticalListSortingStrategy}>
                       {movable.map((s) => (
-                        <SectionRow key={s.key} s={s} sortable open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} onHide={() => hide(s.key)}>{renderBody(s)}</SectionRow>
+                        <SectionRow key={s.key} s={s} focus={focusKey === s.key} sortable open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} onHide={() => hide(s.key)}>{renderBody(s)}</SectionRow>
                       ))}
                     </SortableContext>
                   </DndContext>
                   {fixed.map((s) => (
-                    <SectionRow key={s.key} s={s} open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} onHide={() => hide(s.key)} sortable={false}>{renderBody(s)}</SectionRow>
+                    <SectionRow key={s.key} s={s} focus={focusKey === s.key} open={open.has(s.key)} onToggle={() => toggle(s.key)} onShow={() => scrollToSection(s)} onHide={() => hide(s.key)} sortable={false}>{renderBody(s)}</SectionRow>
                   ))}
                 </div>
               </>

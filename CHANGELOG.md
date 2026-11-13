@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.8.2 (13 Nov 2026): Team opens its own screen, and the homepage deep link works
+
+Update to the existing repo (after v1.8.1). Reported 13 Nov 2026: "The team page on the dashboard is not functioning.
+It's redirecting to the home page when you click it."
+
+### Why it looked broken
+- The Team menu item was only a link to the Home page editor (`/admin/pages/<home>?section=team`), and the menu never
+  highlighted Team there (it highlighted Pages), so it looked like being sent to the homepage.
+- The editor only scrolled to the team on its first load, so asking for the team while the Home editor was already
+  open did nothing, and it never selected the section.
+- Signing in from a dashboard link always landed on the dashboard home, losing where the link pointed.
+
+### What changed
+- **Team screen** at `/admin/team` (like the Precision Dental Team editor): the homepage team cards in order, each with
+  photo, name, role, Edit, hide or show, remove and a drag handle. The side panel edits photo (library, upload or the
+  original), photo description, name, role, every bio paragraph and any button, using the same fields as before.
+  **Add a team member** adds a card built like the others. Warnings for a lone last card on the row of three, for
+  "specialist" (blocks saving) and for the AHPRA words. Save changes and Publish website work as everywhere else, and
+  the unsaved changes warning works when leaving.
+- The Team screen edits the homepage's own team section (no second copy), so an edit on either screen shows on the
+  other. A hidden card stays in the section markup between `<!--pd:hidden-->` markers and is never rendered.
+- **Edit on the homepage** opens the Home editor at `?section=team`: it scrolls to the team, flashes it, opens the
+  Sections tab and highlights the Team row, on first load and whenever the address asks again.
+- Signing in from a dashboard link now returns to that link (`/admin/login?next=...`, dashboard addresses only).
+- Files: `src/dashboard/team.ts`, `src/dashboard/editors/TeamEditor.tsx`, `src/app/api/dashboard/team/route.ts`,
+  `src/app/(dashboard)/admin/(app)/team/page.tsx` (new); `PageEditor.tsx`, `Shell.tsx`, `(app)/layout.tsx`,
+  `lib/server.ts`, `login/page.tsx`, `AuthForms.tsx`, `src/proxy.ts`, `src/lib/parts.ts`, `src/dashboard/render.ts`,
+  `src/dashboard/pages.ts`, `dashboard.css`, `scripts/qa-banned.mjs`, `docs/HOW-TO-UPDATE.md`, README.
+- No change to the public site until someone edits the team (qa:parity and qa:editor byte for byte), and none to
+  Bookings, Availability, Opening special, Questionnaires, the Review page or PayPal. No new environment variables.
+
+## 1.8.1 (11 Nov 2026): dashboard switch display fix
+
+Update to the existing repo. Found while taking screenshots for the dashboard guide.
+
+- Dashboard on/off switches (Opening special > Settings and the pop-up, and the questionnaire settings) showed with
+  the switch hidden and a white dot over the first letters of the label. Fixed in `src/dashboard/dashboard.css`
+  (one line). No change to the public website, the database or the environment variables.
+
 ## 1.8.0 (11 Nov 2026): the $100 deposit paid through PayPal inside Book Now
 
 Lorna's email of 11 Nov 2026 (Andy is setting up the PayPal business account) and Rowayne's brief. Update to the

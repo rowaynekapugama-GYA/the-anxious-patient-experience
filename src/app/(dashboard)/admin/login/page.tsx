@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { currentUser, payloadClient } from '@/dashboard/lib/server'
+import { currentUser, payloadClient, safeNext } from '@/dashboard/lib/server'
 import { FirstUserForm, LoginForm } from '@/dashboard/editors/AuthForms'
 import { BRAND } from '@/dashboard/brand'
 
@@ -8,8 +8,9 @@ export const metadata = { title: 'Sign in' }
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const u = await currentUser()
-  if (u) redirect(u.mustChangePassword ? '/admin/change-password' : '/admin')
-  const { next } = await searchParams
+  const { next: asked } = await searchParams
+  const next = safeNext(asked) ? asked : undefined
+  if (u) redirect(u.mustChangePassword ? '/admin/change-password' : next ?? '/admin')
   let firstUser = false
   if (process.env.ALLOW_FIRST_USER === 'true') {
     const payload = await payloadClient()

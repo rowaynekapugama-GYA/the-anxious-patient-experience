@@ -14,7 +14,7 @@ export function LoginForm({ next }: { next?: string }) {
     setBusy(true)
     try {
       const r = await api<{ user: { mustChangePassword?: boolean } }>('/api/users/login', { method: 'POST', body: { email: email.trim(), password } })
-      const dest = r.user?.mustChangePassword ? '/admin/change-password' : (next && next.startsWith('/admin') ? next : '/admin')
+      const dest = r.user?.mustChangePassword ? '/admin/change-password' : (next && /^\/admin(\/|\?|$)/.test(next) && !next.includes('//') ? next : '/admin')
       window.location.href = dest
     } catch (e2) {
       const m = (e2 as Error).message

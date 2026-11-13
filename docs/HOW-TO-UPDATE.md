@@ -118,11 +118,24 @@ is changed by GYA.
 ## Swapping a photo
 Click the photo on the page, then **Choose from library** or **Upload**. Use a photo of a similar shape so the layout
 stays as approved, and fill in the description (it is read aloud to people who cannot see the photo). **Put back the
-original photo** undoes it. Save changes, then Publish website. **Team** in the menu opens the team cards on the
-homepage, for example to add Lauren's photo.
+original photo** undoes it. Save changes, then Publish website.
 
 Please keep to Lorna's photo rules: no faces except the team's own photos, and no clinic rooms or dental chairs unless
 they are genuine photos of the practice.
+
+## Updating the team
+Click **Team** in the menu. Each person on the homepage team shows as a card, in the order they appear.
+1. Press **Edit** on a card. A panel opens with their photo, photo description, name, role and bio. Change what you
+   need, then press **Done**.
+2. Drag the dots at the top of a card to change the order. The eye hides someone from the website without deleting
+   them (press it again to bring them back). The bin removes them, after asking you to confirm.
+3. **Add a team member** adds a new card at the end: add their photo, name, role and a short bio.
+4. Press **Save changes**, then **Publish website**.
+
+**Edit on the homepage** opens the homepage editor at the team, if you would rather change the words on the page
+itself. Both places edit the same cards. Please never describe Lorna, or anyone on the team, as a "specialist": she is
+a general dentist. The team shows three across on a computer, so the screen warns you if the last card would sit on
+its own.
 
 ## Moving, hiding or showing a section
 In the page editor, open the **Sections** tab. Drag the dots to move a section, and press the eye to hide or show it.

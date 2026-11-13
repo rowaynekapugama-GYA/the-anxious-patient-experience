@@ -68,6 +68,19 @@ export type Chrome = { parts: Record<string, Part>; notes?: unknown[] }
 
 export type Redirect = { from: string; to: string; type: 'permanent' | 'temporary' }
 
+/**
+ * A team member hidden from the Team screen (v1.8.2) stays in the section's markup between these two
+ * markers, so showing them again brings back exactly what was there. Nothing between them is ever rendered.
+ */
+export const HIDDEN_OPEN = '<!--pd:hidden-->'
+export const HIDDEN_CLOSE = '<!--/pd:hidden-->'
+const HIDDEN_RUN = /<!--pd:hidden-->[\s\S]*?<!--\/pd:hidden-->/g
+
+/** The markup that is actually shown: the template without its hidden runs (unchanged when there are none). */
+export function visibleTemplate(template: string): string {
+  return template.includes(HIDDEN_OPEN) ? template.replace(HIDDEN_RUN, '') : template
+}
+
 /** Field values as the page shows them: a photo's sizes follow the photo once it has been replaced. */
 export function resolvedFields(fields: Field[]): Field[] {
   const byId = new Map(fields.map((f) => [f.id, f]))
@@ -81,7 +94,7 @@ export function resolvedFields(fields: Field[]): Field[] {
 
 /** Substitute the stored field values back into a part's template. */
 export function renderPart(part: Part, overrides?: Record<string, string>): string {
-  let out = part.template
+  let out = visibleTemplate(part.template)
   const fields = resolvedFields(part.fields.map((f) => (overrides?.[f.id] !== undefined ? { ...f, value: overrides[f.id] } : f)))
   for (const f of fields) out = out.split(`{{${f.id}}}`).join(f.value ?? '')
   return out

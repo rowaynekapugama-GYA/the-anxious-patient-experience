@@ -15,7 +15,7 @@
  * scripts/qa-editor.ts uses to prove the markers change nothing else.
  */
 import type { Chrome, Field, Page, Part } from '@/lib/parts'
-import { resolvedFields } from '@/lib/parts'
+import { resolvedFields, visibleTemplate } from '@/lib/parts'
 import { applyTokens } from '@/lib/tokens'
 
 const RAW = new Set(['script', 'style', 'title', 'textarea', 'option'])
@@ -119,7 +119,7 @@ export function markTemplate(template: string, scope: string, fields: Field[], c
 }
 
 function plainInner(part: Part): string {
-  let out = part.template
+  let out = visibleTemplate(part.template)
   for (const f of resolvedFields(part.fields)) out = out.split(`{{${f.id}}}`).join(f.value ?? '')
   return out
 }
@@ -214,7 +214,7 @@ function sectionsHtml(page: Page, o: RenderOptions): string {
     const s = page.sections[Number(step.slice(8))]
     if (!s || isEmptySlot(s)) continue
     out.push(o.editable
-      ? partHtml(s, markTemplate(s.template, `s:${s.key}`, resolvedFields(s.fields)), ` data-pds="${attrEsc(s.key)}"`)
+      ? partHtml(s, markTemplate(visibleTemplate(s.template), `s:${s.key}`, resolvedFields(s.fields)), ` data-pds="${attrEsc(s.key)}"`)
       : partHtml(s, plainInner(s)))
   }
   return out.join('')
@@ -224,7 +224,7 @@ function footerHtml(o: RenderOptions): string {
   const part = o.chrome.parts.footer
   if (!part) return ''
   const rule = o.editable ? o.editableChrome?.footer : undefined
-  if (rule) return partHtml(part, markTemplate(part.template, 'c:footer', resolvedFields(part.fields), rule), ' data-pdc="footer" data-pds="c:footer"')
+  if (rule) return partHtml(part, markTemplate(visibleTemplate(part.template), 'c:footer', resolvedFields(part.fields), rule), ' data-pdc="footer" data-pds="c:footer"')
   return partHtml(part, plainInner(part), o.editable ? ' data-pdc="footer"' : '')
 }
 

@@ -39,6 +39,12 @@ export async function proxy(req: NextRequest) {
   if (p === '/admin/') return NextResponse.redirect(new URL('/admin' + url.search, url.origin), 308)
   // the private "pay your deposit" page (v1.8.0) is a Next.js page, with or without the trailing slash
   if (PAY.test(p)) return p.endsWith('/') ? NextResponse.rewrite(new URL('/book-now/pay' + url.search, url.origin)) : NextResponse.next()
+  // the dashboard: pass the address on, so signing in can come back to it (v1.8.2)
+  if (/^\/admin(\/|$)/.test(p)) {
+    const h = new Headers(req.headers)
+    h.set('x-pd-url', p + url.search)
+    return NextResponse.next({ request: { headers: h } })
+  }
   if (APP.test(p)) return NextResponse.next()
 
   const r = REDIRECTS.get(p.endsWith('/') ? p : p + '/')

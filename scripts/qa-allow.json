@@ -15,5 +15,7 @@
  { "rule": "pain-free", "contains": "&ldquo;pain-free&rdquo;", "note": "The AHPRA reminder in the post editor." },
  { "rule": "guarantee", "contains": "&ldquo;guaranteed&rdquo;", "note": "The AHPRA reminder in the post editor." },
  { "rule": "best", "contains": "&ldquo;best&rdquo;", "note": "The AHPRA reminder in the post editor." },
- { "rule": "expert", "contains": "&ldquo;expert&rdquo;", "note": "The AHPRA reminder in the post editor." }
+ { "rule": "expert", "contains": "&ldquo;expert&rdquo;", "note": "The AHPRA reminder in the post editor." },
+ { "rule": "specialist", "contains": "for \"specialist\" (blocks saving)", "note": "Changelog line about the Team screen check that blocks the word." },
+ { "rule": "specialist", "contains": "as a \"specialist\": she is", "note": "The how-to guide reminder on the Team section." }
 ]

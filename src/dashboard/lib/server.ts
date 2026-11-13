@@ -21,10 +21,19 @@ export async function currentUser(): Promise<DashUser | null> {
   }
 }
 
+/** Only somewhere inside the dashboard, never the sign-in screens themselves or another website. */
+export function safeNext(next: string | null | undefined): next is string {
+  return !!next && /^\/admin(\/|\?|$)/.test(next) && !/^\/admin\/(login|forgot-password|reset-password)/.test(next) && !next.includes('//')
+}
+
 /** Every dashboard page calls this itself (layouts render in parallel with pages). */
 export async function requireUser(opts: { allowPasswordChange?: boolean } = {}): Promise<DashUser> {
   const u = await currentUser()
-  if (!u) redirect('/admin/login')
+  if (!u) {
+    // come back to the same screen after signing in (a link to /admin/team or to a page at a section)
+    const want = (await headers()).get('x-pd-url') || ''
+    redirect(safeNext(want) && want !== '/admin' ? `/admin/login?next=${encodeURIComponent(want)}` : '/admin/login')
+  }
   if (u.mustChangePassword && !opts.allowPasswordChange) redirect('/admin/change-password')
   return u
 }

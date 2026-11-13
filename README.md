@@ -13,7 +13,8 @@ Care), with the APE online booking screens built into it:
   menu item and a CSV download.
 - **Availability**: block leave (a period, a day or a single time) and change the weekly booking days and times.
 - **Opening special**: how many of the six $250 places are used, and whether it is showing on the website.
-- **Team** opens the homepage in the page editor at the team cards.
+- **Team** (v1.8.2) is its own screen at `/admin/team`: the homepage team cards as a list (edit in a side panel, drag to
+  reorder, hide or show, add, remove). It edits the homepage's team section itself, so it and the page editor stay in sync.
 
 The public pages are still plain HTML files. They are written from `content/` by the build, so visitors never touch
 the database, and an unedited site is **byte for byte the approved v1.4.0 pages** (`npm run qa:parity` proves it).
@@ -223,7 +224,7 @@ Dr Lorna Gladwin (Creator of The Anxious Patient Experience™), Alex Loupos (AP
 Lauren Bright (APE Dental Assistant | Patient Care & Support). Each bio shows its first paragraph and "Read more".
 
 - **Lauren's photo** (v1.6.0, supplied 9 Nov 2026): `public/images/team-lauren-bright-2026-11-09.jpg` (1086 x 1448),
-  `.webp` and `-800.webp`, served with a `srcset`. To change it later: dashboard, Team, click the photo, Upload.
+  `.webp` and `-800.webp`, served with a `srcset`. To change it later: dashboard, Team, Edit, Upload.
 - Lorna's rules: no faces except the team's own photos; nothing that looks like a clinic, dental chair or treatment
   room unless it is genuine photography of her practices. The Media Library holds the approved photos.
 
