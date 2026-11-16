@@ -103,5 +103,5 @@ verified in SMTP2GO (the Cronulla Dentists domain was the v1.6.0 assumption).
       `sitemap.xml`
 - [ ] Links in step 4 updated; QR files sent to Lorna
 - [ ] Repo is private
-- [ ] Questionnaire stays **off** (`QUESTIONNAIRE_ENABLED` unset) until Lorna's originals, email wording and privacy
-      wording are approved
+- [ ] Welcome email and online questionnaire stay **off** (Site Settings > Welcome pack) until Lorna approves the
+      email wording, collection notice and privacy wording

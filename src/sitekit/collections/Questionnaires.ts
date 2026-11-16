@@ -32,6 +32,13 @@ export const Questionnaires: CollectionConfig = {
     { name: 'reviewedAt', type: 'date' },
     /** 7 years after the appointment, or the patient's 25th birthday if they were under 18, whichever is later */
     { name: 'retainUntil', type: 'date' },
+    // v1.9.0: which version of the form was answered, answers saved to finish later (encrypted the same way), and
+    // test rows from Email check (deleted after 24 hours, never shown with real responses)
+    { name: 'form', type: 'text' },
+    { name: 'draft', type: 'textarea' },
+    { name: 'draftSavedAt', type: 'date' },
+    { name: 'test', type: 'checkbox', defaultValue: false, index: true },
+    { name: 'testEmail', type: 'text' },
   ],
 }
 

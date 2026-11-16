@@ -19,7 +19,7 @@
  */
 import crypto from 'node:crypto'
 import * as core from '@/booking/core'
-import { questionnaireEnabled, onBookingRequested } from '@/lib/questionnaire'
+import { onBookingRequested } from '@/lib/questionnaire'
 import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalClientId } from '@/lib/paypal'
 import { after } from 'next/server'
@@ -126,15 +126,13 @@ export async function POST(req: Request) {
       await emails.retryDue(d, cfg, ref).catch((err) => console.error('booking: retry failed', ref, (err as Error).message))
     })
   }
-  // v1.7.0: the welcome pack and questionnaire link, if Site Settings says to send them at request time
-  if (questionnaireEnabled()) {
-    try {
-      const { getPayload } = await import('payload')
-      const { default: config } = await import('@payload-config')
-      await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })
-    } catch (err) {
-      console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
-    }
+  // v1.9.0: the welcome pack, only if it is switched on and set to go at request time (it checks both)
+  try {
+    const { getPayload } = await import('payload')
+    const { default: config } = await import('@payload-config')
+    await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })
+  } catch (err) {
+    console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
   }
   return core.send(200, {
     ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: cfg.pricing.deposit, notified, ackSent,

@@ -19,6 +19,8 @@ export type Booking = {
   deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null }
   /** v1.8.3: '' (before v1.8.3) | sent | retry | failed */
   emails: { patient: string; team: string }
+  /** v1.9.0: the welcome pack email */
+  welcome: { status: string; sentAt: string | null; count: number; by: string }
 }
 type Slot = { time: string; label: string; start: string; status: 'open' | 'booked' | 'blocked' | 'closed'; note: string; booking: { ref: string; name: string; status: string } | null }
 type Day = { day: string; label: string; special: boolean; blocked: { note: string } | null; slots: Slot[] }
@@ -28,7 +30,7 @@ export type BookingData = {
   pricing: { appointment: number; deposit: number }
   booking: { startDate: string; minNoticeHours: number; weeksAhead: number; days: number[]; startTimes: string[]; dayNames: string[]; standard: { days: number[]; startTimes: string[] }; custom: boolean }
   bookings: Booking[]
-  questionnaire: { enabled: boolean; byRef: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }> }
+  questionnaire: { welcome: boolean; online: boolean; byRef: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }> }
   blocks: { day: string; time: string | null; note: string }[]
   special: {
     enabled: boolean; price: number; regular: number; from: string; to: string; max: number; used: number; showing: boolean
@@ -142,8 +144,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     try {
       const r = await call('POST', { action: 'booking', ref: b.ref, ...change })
       let msg = done
-      if (change.status === 'confirmed' && r.welcome) msg += r.welcome.sent ? ' The welcome pack and questionnaire link have been emailed to the patient.' : (r.welcome.reason === 'already sent' || r.welcome.reason === 'sent at request time' ? '' : ` The welcome email was not sent (${r.welcome.reason}).`)
-      toast(msg, r.welcome && !r.welcome.sent && r.welcome.reason !== 'already sent' && r.welcome.reason !== 'sent at request time' && r.welcome.reason !== 'off' ? 'bad' : 'good'); await reload()
+      const quiet = (why?: string) => !why || why === 'off' || why === 'already sent' || why === 'sent at request time'
+      if (change.status === 'confirmed' && r.welcome) msg += r.welcome.sent ? ' The welcome pack has been emailed to the patient.' : quiet(r.welcome.reason) ? '' : ` The welcome pack email was not sent (${r.welcome.reason}).`
+      toast(msg, r.welcome && !r.welcome.sent && !quiet(r.welcome.reason) ? 'bad' : 'good'); await reload()
     } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
   async function resendEmail(b: Booking, to: 'patient' | 'team') {
@@ -156,12 +159,13 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
   async function resendWelcome(b: Booking) {
+    if (b.welcome.sentAt && !window.confirm(`Send the welcome pack to ${b.name} again?${data?.questionnaire?.online ? ' The questionnaire link in the earlier email will stop working (anything they saved is kept).' : ''}`)) return
     setBusy(b.ref)
     try {
       const res = await fetch('/api/dashboard/questionnaires', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'welcome', ref: b.ref }) })
       const j = await res.json().catch(() => ({}))
       if (!res.ok || !j.ok) throw new Error(j.reason ? `The welcome email could not be sent (${j.reason}).` : errText(j.error))
-      toast(`The welcome pack and a fresh questionnaire link have been emailed to ${b.name}.`, 'good'); await reload()
+      toast(`The welcome pack has been emailed to ${b.name}${j.link ? ', with a fresh questionnaire link' : ''}.`, 'good'); await reload()
     } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
 
@@ -186,6 +190,17 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     : state === 'failed' ? <span className="tick bad" title={`Email to ${who} not sent`}>!<span className="sr-only">{who} not sent</span></span>
       : state === 'retry' ? <span className="tick wait" title={`Email to ${who} failed once, trying again`}>...<span className="sr-only">{who} retrying</span></span>
         : <span className="tick none" title="Sent before email tracking began">-</span>
+  // v1.9.0: the welcome pack column shows once the welcome email is on (or any booking has had one)
+  const showWelcome = !!data.questionnaire?.welcome || data.bookings.some((b) => !!b.welcome.status)
+  const welcomeCell = (b: Booking) => {
+    if (b.status === 'cancelled' && !b.welcome.sentAt) return <span className="muted">-</span>
+    const qs = data.questionnaire?.byRef?.[b.ref]
+    const sent = b.welcome.sentAt ? <span className="chip good" title={`${b.welcome.count} sent, last by ${b.welcome.by}`}>{Icon.check()} Sent {new Date(b.welcome.sentAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short' })}</span> : null
+    return <>
+      {b.welcome.status === 'failed' ? <span className="chip warn">Not sent: failed</span> : sent || <span className="chip grey">Not sent</span>}
+      {qs ? <><br /><span className={`chip ${qs.status === 'submitted' ? 'good' : 'grey'}`}>{qs.status === 'submitted' ? 'Questionnaire received' : 'Questionnaire not yet received'}</span></> : null}
+    </>
+  }
   const emailCell = (b: Booking) => <span className="ticks">{tick(b.emails.patient, 'patient')}<small>Patient</small>{tick(b.emails.team, 'team')}<small>Team</small></span>
   const statusChip = (b: Booking) => b.status === 'confirmed' ? <span className="chip good">Confirmed</span>
     : b.status === 'cancelled' ? <span className="chip grey">Cancelled</span> : <span className="chip warn">To confirm</span>
@@ -213,7 +228,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
         </div>
         <div className="table-wrap">
           <table className="table bookings-table">
-            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Emails</th>{data.questionnaire?.enabled ? <th>Questionnaire</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Emails</th>{showWelcome ? <th>Welcome pack</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {!shown.length ? <tr><td colSpan={9} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
               {shown.map((b) => (
@@ -226,13 +241,13 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td>{statusChip(b)}</td>
                     <td>{b.status === 'cancelled' && !b.depositPaid ? <span className="muted">-</span> : depositChip(b)}</td>
                     <td className="email-ticks">{emailCell(b)}</td>
-                    {data.questionnaire?.enabled ? <td>{(() => { const qs = data.questionnaire.byRef[b.ref]; return b.status === 'cancelled' ? <span className="muted">-</span> : !qs ? <span className="chip grey">Not sent yet</span> : qs.status === 'submitted' ? <span className="chip good">Received</span> : <span className="chip warn">Not yet received</span> })()}</td> : null}
+                    {showWelcome ? <td>{welcomeCell(b)}</td> : null}
                     <td className="row-actions">
                       {b.status === 'requested' ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
                       {b.status !== 'cancelled' && !b.depositPaid ? <button className="btn small" disabled={busy === b.ref} onClick={() => setManual({ b, note: '' })}>Mark received manually</button> : null}
                       {b.status !== 'cancelled' ? <button className="btn small danger" disabled={busy === b.ref} onClick={() => setAsk(b)}>Cancel booking</button> : null}
                       {b.status === 'cancelled' ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { status: 'requested' }, 'Booking restored. Please confirm it again.')}>Restore</button> : null}
-                      {data.questionnaire?.enabled && b.status === 'confirmed' ? <button className="btn small ghost" disabled={busy === b.ref} onClick={() => resendWelcome(b)}>{data.questionnaire.byRef[b.ref] ? 'Resend welcome email' : 'Send welcome email'}</button> : null}
+                      {data.questionnaire?.welcome && b.status === 'confirmed' ? <button className="btn small ghost" disabled={busy === b.ref} onClick={() => resendWelcome(b)}>{b.welcome.sentAt ? 'Send welcome pack again' : 'Send welcome pack'}</button> : null}
                     </td>
                   </tr>
                   {b.emails.patient === 'failed' || b.emails.team === 'failed' ? (
@@ -265,7 +280,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
           <li>You get an email at the APE inbox, and the request shows here as <b>To confirm</b>. The time is held, so nobody else can book it online.</li>
           <li>Block the time in Core Practice and enter the patient.</li>
           <li>Reply to the patient to confirm and send the new patient information pack.</li>
-          <li>Press <b>Mark confirmed</b>.{data.questionnaire?.enabled ? ' The website then emails the patient the welcome pack and their questionnaire link.' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>
+          <li>Press <b>Mark confirmed</b>.{data.questionnaire?.welcome ? ' The website then emails the patient the welcome pack (Lorna\'s Patient Guide and questionnaire).' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>
         </ol>
         <p className="help" style={{ margin: 0 }}>{data.deposit.mode === 'paypal'
           ? `Patients pay the ${money(data.deposit.amount)} deposit through PayPal (or a card) in the booking flow, or later through the private link in their email. When it is paid, the deposit column ticks itself and you get a "Deposit received" email. Nothing needs checking in PayPal; refunds are done there and show here as Refunded.${data.deposit.env === 'sandbox' ? ' (PayPal is in sandbox mode: test payments only.)' : ''}`

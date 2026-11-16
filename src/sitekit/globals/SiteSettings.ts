@@ -80,10 +80,19 @@ export const SiteSettings: GlobalConfig = {
         {
           name: 'notifyEmails',
           type: 'array',
-          label: 'Questionnaire notifications',
+          label: 'Questionnaire received emails',
           admin: { description: 'Who is told when a patient submits. Empty uses the booking notification address. The email never contains answers.' },
           fields: [{ name: 'address', type: 'email', label: 'Email address', required: true }],
         },
+        // v1.9.0: Lorna's two PDFs (blank uses the originals in public/downloads) and the switches, all edited on
+        // the dashboard's Site Settings > Welcome pack screen. The switches are for GYA administrators only.
+        { name: 'guidePdf', type: 'upload', relationTo: 'media', label: 'Patient Guide (PDF)' },
+        { name: 'questionnairePdf', type: 'upload', relationTo: 'media', label: 'Pre-appointment Questionnaire (PDF)' },
+        { name: 'welcomeEmailOn', type: 'checkbox', defaultValue: false, label: 'Send the welcome email', access: { create: adminFieldOnly, update: adminFieldOnly } },
+        { name: 'onlineOn', type: 'checkbox', defaultValue: false, label: 'Online questionnaire', access: { create: adminFieldOnly, update: adminFieldOnly } },
+        { name: 'noticeApproved', type: 'checkbox', defaultValue: false, label: 'Collection notice approved by Lorna', access: { create: adminFieldOnly, update: adminFieldOnly } },
+        { name: 'noticeApprovedBy', type: 'text', access: { create: adminFieldOnly, update: adminFieldOnly } },
+        { name: 'noticeApprovedAt', type: 'date', access: { create: adminFieldOnly, update: adminFieldOnly } },
       ],
     },
     {

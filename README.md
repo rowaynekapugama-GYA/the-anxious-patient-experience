@@ -46,8 +46,8 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `PAYPAL_WEBHOOK_ID` | Preview, Production | The webhook created in the same app | v1.8.0 |
 | `DEPOSIT_PAYMENT_URL`, `STRIPE_WEBHOOK_SECRET` | | Stripe, replaced by PayPal in v1.8.0 | **delete** if present |
 | `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
-| `QUESTIONNAIRE_ENABLED` | Production, Preview | `true` switches on the welcome email and online questionnaire. Leave unset until Lorna approves the originals and the privacy wording. | v1.7.0, leave unset |
-| `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Never change it once answers exist; keep a copy outside Vercel. | v1.7.0, add with the flag |
+| `QUESTIONNAIRE_ENABLED` | Production, Preview | Leave unset. Since v1.9.0 the switches are in the dashboard (Site Settings > Welcome pack); `false` here is only an emergency off switch for the online questionnaire. | optional |
+| `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist; keep a copy in the GYA password manager. | add when Lorna approves |
 | `BOOKING_BCC` | optional | Extra copies of each request | optional |
 | `ALLOW_FIRST_USER` | | Only for the very first login. | **delete** if still there |
 | `ADMIN_PASSWORD` | | Not used since v1.5.0 | **delete** if still there |
@@ -112,35 +112,39 @@ shows the set up, who gets what, the last 50 sends, and **Send test emails** to 
 - Junk mail: the sender domain (thecronulladentists.com.au) has DMARC `p=quarantine` and SPF that does not include
   SMTP2GO, so SMTP2GO must sign with DKIM and use a custom return-path on that domain (Sending > Verified Senders).
 
-## New Patient Information Pack (v1.7.0, switched off until approved)
+## Welcome pack and questionnaire (v1.9.0, built on v1.7.0; both switched off until approved)
 
-How it works for a patient, matching what Rowayne told Lorna: when the team presses **Mark confirmed** (or, if Site
-Settings says so, when the request arrives), the website emails the patient the welcome pack (attached and linked)
-and a private link to the online questionnaire. The link is a long random token tied to that booking, works until
-7 days after the appointment, and once submitted shows a thank-you page. Answers are checked, **encrypted in the
-app (AES-256-GCM, `QUESTIONNAIRE_ENCRYPTION_KEY`)** and saved in the site's own Neon database; the team is emailed
-that a questionnaire has arrived (reference, first name, appointment date, never answers). The questionnaire pages
-carry no analytics or tracking, are `noindex`, `no-store`, send no referrer, and are rate limited.
+Lorna's own content: her **Patient Guide** and **Pre-appointment Questionnaire** (PDFs of 15 Nov 2026, in
+`public/downloads/ape-patient-guide.pdf` and `ape-pre-appointment-questionnaire.pdf`, served `noindex`), and the
+same questionnaire online, word for word (`src/lib/ape-questionnaire.ts`, form version `ape-2026-11`).
 
-- **Who can read answers**: only logins with **Can view patient questionnaires** (Users, GYA ticks it for the people
-  Lorna nominates; off for everyone by default, GYA administrators included). Every open, print, review, delete and
-  refused attempt is written to the access log (Questionnaires > Access log, GYA).
-- **Dashboard**: Questionnaires (list with Reviewed ticks, open one laid out like the form, Print / Save as PDF,
-  Delete for GYA with a typed confirmation), Questions and emails (the sections, questions, collection notice,
-  thank-you, welcome email and welcome pack PDF, all content, no code), Bookings shows Questionnaire received / not
-  yet and a Resend welcome email button, the Dashboard home counts questionnaires to review.
-- **Retention**: `retainUntil` is 7 years after the appointment, or the patient's 25th birthday if a date-of-birth
-  question shows they were under 18, whichever is later. Nothing is deleted automatically; GYA deletes on the
-  practice's instruction after that date.
-- **Placeholders**: until Lorna's originals are loaded, the questionnaire and welcome pack are GYA placeholders,
-  clearly marked (`public/downloads/*PLACEHOLDER.pdf`, the placeholder questions in `src/lib/questionnaire.ts`).
-  Loading the real ones is dashboard work: Questionnaires > Questions and emails.
-- **Switching on**: Lorna approves the questions, the collection notice (Questions and emails), the welcome email
-  wording and the privacy policy's questionnaire section; then Vercel gets `QUESTIONNAIRE_ENABLED=true` and
-  `QUESTIONNAIRE_ENCRYPTION_KEY`, and a redeploy. Test with `docs/TEST-BOOKING.md`.
-- Code: `src/lib/questionnaire.ts`, `src/lib/crypto.ts`, `src/app/(site)/questionnaire/[token]/`,
-  `src/app/api/questionnaire/submit`, `src/app/api/dashboard/questionnaires`, `src/sitekit/collections/Questionnaires.ts`,
-  `src/sitekit/globals/Questionnaire.ts`, migration `20261111_013051_v170_questionnaire`.
+- **Welcome email** (switch 1). When the team presses **Mark confirmed** (or, if chosen, when a request arrives),
+  the patient gets "Your APE welcome pack and questionnaire" with both PDFs attached, where to go (address from Site
+  Settings, Lorna's train and parking directions, phone), and the questionnaire paragraph. Sent once per booking;
+  **Send welcome pack** on Bookings sends it by hand (no backfill of bookings made before it was switched on).
+  Every send is in the email log and on the booking (when, how many times, by whom).
+- **Online questionnaire** (switch 2). Adds a private link to the welcome email. It cannot be switched on until
+  `QUESTIONNAIRE_ENCRYPTION_KEY` is set and the collection notice is marked approved (and it goes off again if the
+  notice wording changes). The link works until the answers are sent or 7 days after the appointment; a newer
+  welcome email replaces it. Patients can **Save and finish later** (saved answers are encrypted like sent ones).
+  Nothing is required; question 07 is marked Optional. Pages are `noindex`, `no-store`, no referrer, no analytics,
+  rate limited.
+- **Dashboard**: Site Settings > **Welcome pack** (`/admin/settings/welcome-pack`): replace either PDF from the
+  Media Library or go back to the original, the email wording (with a preview), the collection notice and tick box
+  wording, who gets "questionnaire received", and (GYA only) the switches, the readiness checklist and who can read
+  answers. Questionnaires: the list, one questionnaire with **At a glance** (score, what makes them anxious,
+  question 03) and every answer in Lorna's order, Print / Save as PDF, Reviewed, the access log (GYA).
+- **Who can read answers**: only logins with **Can view patient questionnaires** (Users screen, off for everyone,
+  GYA administrators included). Every open, print, review, delete and refusal is logged.
+- **Tests**: Email check's "Welcome pack (patient)" sends the real email with both PDFs and a link to a TEST
+  questionnaire; test rows are kept apart (GYA sees them under Questionnaires > Tests) and deleted after 24 hours.
+  `npm run test:questionnaire` (53 checks) against a TEST database.
+- **Retention**: 7 years after the appointment. Lorna's form has no date of birth, so the under-18 rule cannot be
+  applied automatically. Nothing is deleted automatically except test rows.
+- Code: `src/lib/ape-questionnaire.ts`, `src/lib/questionnaire.ts`, `src/lib/crypto.ts`,
+  `src/app/(site)/questionnaire/[token]/`, `src/app/api/questionnaire/{save,submit}`,
+  `src/app/api/dashboard/{welcome-pack,questionnaires}`, `src/dashboard/editors/{WelcomePack,Questionnaires}.tsx`,
+  migration `20261116_012208_v190_welcome_pack`.
 
 ## Google review page (v1.7.0)
 
@@ -278,7 +282,7 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | PayPal credentials | `PAYPAL_*` in Vercel once Andy's app and webhook exist (`docs/PAYPAL-SETUP.md`) |
 | Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
 | Domain: theanxiouspatientexperience.com.au at VentraIP | `docs/GO-LIVE-DOMAIN.md` (waiting on VentraIP access) |
-| Lorna's questionnaire and welcome pack, welcome email wording, privacy sign-off | Questionnaires > Questions and emails; feature off until then |
+| Lorna's approval of the welcome email wording, collection notice and privacy wording; who reads questionnaires; the encryption key | Site Settings > Welcome pack; both switches off until then |
 | Google Business Profile option and admin email | `docs/GOOGLE-BUSINESS-PROFILE.md` |
 | Google review link | Site Settings > Google review link (after the profile exists) |
 | GA4 / Meta Pixel IDs | Site Settings > Tracking (GYA only) |
@@ -305,8 +309,8 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 ## Not in this release
 
 - Two-way sync with Core Practice (not wanted: bookings are entered by hand).
-- Automatic emails when a booking is confirmed or cancelled (the team emails the patient).
-- The New Patient Information Pack is built but switched off (`QUESTIONNAIRE_ENABLED`) until Lorna's originals and wording are approved.
+- Automatic emails when a booking is cancelled (the team emails the patient). Confirmed bookings get the welcome pack once it is switched on.
+- The welcome email and online questionnaire are built with Lorna's content but switched off (Site Settings > Welcome pack) until she approves the email wording, collection notice and privacy wording.
 - Changing the fee, deposit or opening special from the dashboard (GYA changes `content/booking.json`, because offers
   must state price, inclusions and dates).
 - One-off extra sessions on a single date (the weekly times and blocks cover leave and regular days).

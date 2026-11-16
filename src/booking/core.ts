@@ -252,6 +252,11 @@ const SCHEMA = [
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_patient text NOT NULL DEFAULT ''`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_team text NOT NULL DEFAULT ''`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS email_retry_at timestamptz`,
+  // v1.9.0: the welcome pack email ('' not sent | sent | failed), when, how many times and by whom (or automatic)
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_status text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_sent_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_count integer NOT NULL DEFAULT 0`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_by text NOT NULL DEFAULT ''`,
   `CREATE TABLE IF NOT EXISTS ape_email_log (
      id bigserial PRIMARY KEY,
      at timestamptz NOT NULL DEFAULT now(),

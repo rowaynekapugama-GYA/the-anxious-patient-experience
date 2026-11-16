@@ -23,7 +23,7 @@ it to Lorna.
 | Email | `SMTP2GO_API_KEY`, `BOOKING_FROM`, `BOOKING_NOTIFY_EMAIL` in Vercel (Preview and Production) | same |
 | PayPal | Preview: `PAYPAL_ENV=sandbox`, sandbox `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` (sandbox webhook pointing at the preview address) | Production: `PAYPAL_ENV=live` and the live values, webhook on the real domain |
 | Sandbox buyer | the sandbox personal account email and password from developer.paypal.com > Testing Tools > Sandbox Accounts | a real card or PayPal account, refunded afterwards |
-| Questionnaire | `QUESTIONNAIRE_ENABLED=true` and `QUESTIONNAIRE_ENCRYPTION_KEY` (Preview) | only if Lorna has approved it; otherwise skip steps 6 and 7 |
+| Questionnaire | `QUESTIONNAIRE_ENCRYPTION_KEY` (Preview), then Site Settings > Welcome pack: welcome email on, notice approved, online questionnaire on | only if Lorna has approved it; otherwise skip steps 6 and 7 |
 | Logins | a dashboard login (and, for step 7, one with **Can view patient questionnaires**) | same |
 | Test patient address | an inbox you can read, used as the patient | same |
 
@@ -49,8 +49,8 @@ Use a clearly fake name such as `Test Patient GYA`.
    dashboard shows Not paid and the booking under the **Deposit not paid** filter. Open the **Pay your deposit**
    link from the patient email in a fresh private window, pay, and check the dashboard flips to Received and the
    "Deposit received" emails arrive. Open the same link again: it says the deposit has already been received.
-6. **Mark confirmed** on one booking: the welcome pack and questionnaire email arrive (if the questionnaire is on).
-7. **Submit the questionnaire**, check the notification email and the dashboard entry (as in v1.7.0).
+6. **Mark confirmed** on one booking: "Your APE welcome pack and questionnaire" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.
+7. **Fill in the questionnaire** from the link: press Save and finish later, open the link again (the answers are still there), then Send my answers. Check the "Questionnaire received" email (reference and date only) and open it in Questionnaires with a login that has questionnaire access (At a glance, every answer, Print).
 8. **Refund one payment.** In the sandbox PayPal business account (sandbox.paypal.com, the business sandbox login):
    Activity > the payment > Refund. Within a minute the dashboard shows that booking as **Refunded** (the webhook).
    If it does not, Developers > the app > Webhooks > the webhook > Events shows the delivery and the response code.

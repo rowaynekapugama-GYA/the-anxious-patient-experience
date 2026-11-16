@@ -6,7 +6,7 @@ import { when } from '@/dashboard/lib/format'
 import { ImportButtons } from '@/dashboard/editors/ImportButtons'
 import { BRAND } from '@/dashboard/brand'
 import { db } from '@/booking/core'
-import { countUnreviewed, questionnaireEnabled } from '@/lib/questionnaire'
+import { countUnreviewed } from '@/lib/questionnaire'
 import { failedCount, gyaToldSince } from '@/lib/mailer'
 
 export const dynamic = 'force-dynamic'
@@ -34,7 +34,7 @@ export default async function Home() {
     drafts: (await payload.count({ collection: 'posts', where: { _status: { equals: 'draft' } }, overrideAccess: true })).totalDocs,
   }
   const canView = !!(u as { canViewQuestionnaires?: boolean }).canViewQuestionnaires
-  const toReview = questionnaireEnabled() && canView ? await countUnreviewed(payload) : null
+  const toReview = canView ? await countUnreviewed(payload) : null
   // v1.8.3: one line on whether email is working (GYA sees the detail on Site Settings > Email)
   const failed7 = await failedCount(7)
   const gyaTold = failed7 ? await gyaToldSince(7) : false

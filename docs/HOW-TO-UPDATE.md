@@ -86,30 +86,34 @@ Under **Booking times**, tick the days and add or remove start times, then press
 the new times on Book Now straight away. Bookings already made keep their time. **Use the standard times** puts back
 Wednesdays at 9:00 am, 10:20 am and 11:40 am.
 
-## Questionnaires (the New Patient Information Pack)
-This is switched off until the questionnaire, the welcome email wording and the privacy wording are approved. Once
-on, when you press **Mark confirmed** on a booking the website emails the patient the welcome pack and a private
-link to the online questionnaire (you can change this to "when a request arrives" under Site Settings). The link
-works once, until a week after the appointment.
+## Welcome pack and questionnaires
+
+Both parts start switched off. GYA switches them on once you have approved the welcome email wording, the
+collection notice and the privacy wording.
+
+### What patients get
+When you press **Mark confirmed**, the patient is emailed "Your APE welcome pack and questionnaire" with your
+Patient Guide and your Pre-appointment Questionnaire attached, the address, your train and parking directions and
+the phone number. Once the online questionnaire is on, the email also has a private link so they can fill it in on
+their phone or computer, save it and come back later. Each booking gets it once. To send it by hand (for example
+for a booking confirmed before it was switched on, or if a patient lost the email), press **Send welcome pack** on
+the booking.
+
+### Changing the PDFs or the email
+Site Settings > **Open Welcome pack**. To update the guide or the questionnaire, press **Choose another PDF** and
+upload the new file; **Use the original** goes back to the first version. The email wording, the collection notice
+and who gets "questionnaire received" emails are on the same screen. Press **Save**; no Publish needed.
 
 ### Knowing when one arrives
-The people under Site Settings, **Questionnaire notifications**, get an email with the booking reference, first name
-and appointment date (never the answers). The Questionnaires item in the menu shows how many are waiting to be
-reviewed, and the booking's row under Bookings shows **Received**.
+The people listed under **Questionnaire received emails** get an email with the booking reference and appointment
+date (never the answers). The Questionnaires item in the menu shows how many are waiting to be reviewed.
 
 ### Reading a questionnaire
-Open **Questionnaires**, press **Open** on the entry, read it, then press **Mark reviewed**. **Print / Save as PDF**
-makes a copy for the clinical record. You can only open questionnaires if your login has been given access: Lorna
-decides who, and GYA switches it on for each person (Users, **Can view patient questionnaires**). Every time a
-questionnaire is opened, a record is kept of who and when.
-
-### Giving someone access
-Email GYA with the person's login email address. Access is off for everyone, including GYA, until it is given.
-
-### Changing the questions, the notice or the emails
-Questionnaires > **Questions and emails**: the sections and questions (same order and wording as the paper
-version), the collection notice, the thank-you message, the welcome email wording and the welcome pack PDF. Saved
-changes apply straight away. **Resend welcome email** on a confirmed booking sends the pack and a fresh link again.
+Open **Questionnaires**, press **Open** on the entry. **At a glance** at the top shows the anxiety score, what
+makes them anxious and how they would like the appointment to feel; every answer follows in the same order as your
+questionnaire. Press **Mark reviewed** when done, and **Print / Save as PDF** for the clinical record. You can only
+open questionnaires if your login has been given access: Lorna decides who, and GYA switches it on for each person
+(Users, **Can view patient questionnaires**). Every time a questionnaire is opened, a record is kept of who and when.
 
 ## Google reviews
 The page at **/review/** is for QR codes and messages (it is not in the menu). Every star and the button go to the

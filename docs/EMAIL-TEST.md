@@ -26,5 +26,5 @@ in the same order.
    - Press **Cancel booking**. There is no cancellation email (the team emails the patient themselves).
 5. **Lorna's login.** In SMTP2GO, Activity, search lorna-gladwin1@hotmail.co.uk. Note what it shows for her invite:
    delivered, bounced, spam or not found. If it was not delivered, press **Send login email again** on her row under
-   Users, then check Activity again (and the Last login email column).
+   Users, then check Activity again (and Last login email on their card).
 6. Send the results back to the chat in this order, with the screenshot from step 1.

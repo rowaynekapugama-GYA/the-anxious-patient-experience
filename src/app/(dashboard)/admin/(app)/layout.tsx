@@ -1,7 +1,7 @@
 import { payloadClient, requireUser } from '@/dashboard/lib/server'
 import { Shell } from '@/dashboard/ui/Shell'
 import { db } from '@/booking/core'
-import { countUnreviewed, questionnaireEnabled } from '@/lib/questionnaire'
+import { countUnreviewed } from '@/lib/questionnaire'
 
 /** Booking requests still to confirm, for the count beside Bookings. */
 async function toConfirm(): Promise<number> {
@@ -24,6 +24,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const review = await payload.find({ collection: 'pages', where: { pageSlug: { equals: 'review' } }, limit: 1, depth: 0, overrideAccess: true, select: { pageSlug: true } })
   const reviewHref = review.docs[0] ? `/admin/pages/${review.docs[0].id}` : '/admin/pages'
   const canView = !!(u as { canViewQuestionnaires?: boolean }).canViewQuestionnaires
-  const toReview = questionnaireEnabled() && canView ? await countUnreviewed(payload) : 0
+  const toReview = canView ? await countUnreviewed(payload) : 0
   return <Shell user={{ name: u.name, email: u.email, role: u.role }} toConfirm={await toConfirm()} toReview={toReview} reviewHref={reviewHref}>{children}</Shell>
 }

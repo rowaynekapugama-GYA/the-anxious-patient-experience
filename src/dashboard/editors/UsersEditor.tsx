@@ -1,5 +1,9 @@
 'use client'
-/** Dashboard accounts. Only GYA administrators see this screen. */
+/**
+ * Dashboard accounts. Only GYA administrators see this screen.
+ * v1.9.1: one card per person instead of an eight-column table, so nothing is squeezed: who they are, what they can
+ * do, how their login is going, and the buttons, each in its own area. Same actions as before.
+ */
 import React, { useState } from 'react'
 import { api } from '../lib/client'
 import { Modal, Select, TextInput } from '../ui/fields'
@@ -13,6 +17,14 @@ function tempPassword() {
   const a = new Uint32Array(3)
   crypto.getRandomValues(a)
   return `${words[a[0] % words.length]}-${words[a[1] % words.length]}-${1000 + (a[2] % 9000)}`
+}
+
+const fmt = (iso: string) => new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+const day = (iso: string) => new Date(iso).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short' })
+const initials = (u: U) => {
+  const base = (u.name || u.email.split('@')[0]).replace(/[^A-Za-z ]+/g, ' ').trim()
+  const parts = base.split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] || '?') + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] || ''))).toUpperCase()
 }
 
 export function UsersEditor({ initial, me }: { initial: U[]; me: string | number }) {
@@ -77,35 +89,70 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
         <span style={{ flex: 1 }} />
         <button className="btn primary" onClick={() => { setForm({ name: '', email: '', role: 'editor', password: tempPassword() }); setAdding(true) }}>{Icon.plus()} Add a user</button>
       </div>
-      <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th>Last login email</th><th>Signed in</th><th /></tr></thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={String(u.id)}>
-                <td><b>{u.name || '-'}</b>{String(u.id) === String(me) ? <span className="chip blue" style={{ marginLeft: 6 }}>You</span> : null}</td>
-                <td>{u.email}</td>
-                <td>
-                  <select className="select" style={{ width: 'auto' }} value={u.role} disabled={String(u.id) === String(me)} onChange={(e) => setRole(u, e.target.value)}>
+      <div className="user-summary" aria-label="Summary">
+        <span><b>{users.length}</b> {users.length === 1 ? 'login' : 'logins'}</span>
+        <span><b>{users.filter((u) => u.lastLoginAt).length}</b> signed in</span>
+        <span><b>{users.filter((u) => !u.lastLoginAt).length}</b> not signed in yet</span>
+        <span><b>{users.filter((u) => u.canViewQuestionnaires).length}</b> with questionnaire access</span>
+      </div>
+      <ul className="user-list">
+        {users.map((u) => {
+          const mine = String(u.id) === String(me)
+          const sent = u.lastEmail?.status === 'accepted'
+          return (
+            <li key={String(u.id)} className="user-card">
+              <div className="user-who">
+                <span className="user-avatar" aria-hidden="true">{initials(u)}</span>
+                <div className="user-id">
+                  <div className="user-name">{u.name || <span className="muted">No name yet</span>}{mine ? <span className="chip blue">You</span> : null}</div>
+                  <div className="user-email">{u.email}</div>
+                  <div className="user-chips">
+                    <span className={`chip ${u.role === 'admin' ? 'grey' : 'blue'}`}>{u.role === 'admin' ? 'Administrator (GYA)' : 'Editor (practice)'}</span>
+                    {u.canViewQuestionnaires ? <span className="chip good">Can view questionnaires</span> : null}
+                  </div>
+                </div>
+              </div>
+
+              <dl className="user-facts">
+                <div>
+                  <dt>Signed in</dt>
+                  <dd>{u.lastLoginAt ? fmt(u.lastLoginAt) : <><span className="chip grey">Not yet</span>{u.createdAt ? <span className="help"> Added {day(u.createdAt)}</span> : null}</>}</dd>
+                </div>
+                <div>
+                  <dt>Last login email</dt>
+                  <dd>{u.lastEmail
+                    ? <><span className={`chip ${sent ? 'good' : 'warn'}`}>{sent ? 'Sent' : 'Not sent'}</span> <span className="help">{u.lastEmail.kind === 'reset' ? 'Password reset' : 'Login invite'}, {fmt(u.lastEmail.at)}</span></>
+                    : <span className="help">None recorded since 13 Nov 2026</span>}</dd>
+                </div>
+                <div>
+                  <dt>Password</dt>
+                  <dd>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="help">Chosen by them, or set by link</span>}</dd>
+                </div>
+              </dl>
+
+              <div className="user-settings">
+                <label className="user-field">
+                  <span>Role</span>
+                  <select className="select" value={u.role} disabled={mine} onChange={(e) => setRole(u, e.target.value)}>
                     <option value="editor">Editor (practice)</option><option value="admin">Administrator (GYA)</option>
                   </select>
-                </td>
-                <td><label className="check" style={{ margin: 0 }} title="Can view patient questionnaires. Off for everyone until Lorna nominates them."><input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} /> <span>{u.canViewQuestionnaires ? 'Can view' : 'No access'}</span></label></td>
-                <td>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="chip good">Set by the user or by link</span>}</td>
-                <td>{u.lastEmail
-                  ? <><span className={`chip ${u.lastEmail.status === 'accepted' ? 'good' : 'warn'}`}>{u.lastEmail.status === 'accepted' ? 'Sent' : 'Not sent'}</span><br /><span className="help">{u.lastEmail.kind === 'reset' ? 'Password reset' : 'Login invite'}, {new Date(u.lastEmail.at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span></>
-                  : <span className="help">None recorded since 13 Nov 2026</span>}</td>
-                <td>{u.lastLoginAt ? <span className="help">{new Date(u.lastLoginAt).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span> : <span className="help">Not yet{u.createdAt ? <><br />added {new Date(u.createdAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short' })}</> : null}</span>}</td>
-                <td className="actions">
-                  <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
-                  <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
-                  {String(u.id) !== String(me) ? <button className="btn small danger" onClick={() => remove(u)}>{Icon.trash()} Delete</button> : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </label>
+                <label className="toggle user-toggle" title="Off for everyone until Lorna nominates them.">
+                  <input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} />
+                  <span className="track" aria-hidden="true" />
+                  <span>Can view patient questionnaires</span>
+                </label>
+              </div>
+
+              <div className="user-actions">
+                <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
+                <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
+                {!mine ? <button className="btn small danger" onClick={() => remove(u)} aria-label={`Delete ${u.email}`}>{Icon.trash()} Delete</button> : null}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
       {adding ? (
         <Modal narrow title="Add a user" onClose={() => { setAdding(false); setExists(null) }} footer={exists
           ? <><button className="btn" onClick={() => { setAdding(false); setExists(null) }}>Close</button><button className="btn primary" onClick={() => { const e = exists; setAdding(false); setExists(null); emailLink(e) }}>Send login email again</button></>

@@ -2,9 +2,10 @@ import type { GlobalConfig } from 'payload'
 import { adminOrEditor } from '../access'
 
 /**
- * The New Patient Information Pack (v1.7.0): the questionnaire's sections and questions, the collection notice,
- * the welcome email and the welcome pack file. Content, not code: Lorna's originals are loaded here (dashboard >
- * Questionnaires > Questions and emails, or /cms for GYA). Switched on with QUESTIONNAIRE_ENABLED=true in Vercel.
+ * The words around the questionnaire (v1.7.0, reworked in v1.9.0): the collection notice, the consent tick and the
+ * welcome email, edited on the dashboard's Site Settings > Welcome pack screen. Blank uses the drafts in
+ * src/lib/questionnaire.ts. Lorna's questions themselves are in src/lib/ape-questionnaire.ts (word for word from
+ * her PDF), so `sections` and `welcomePack` here are no longer used; they stay so no data or table is removed.
  */
 export const QUESTION_TYPES = [
   { label: 'Short answer', value: 'text' },
@@ -32,7 +33,8 @@ export const Questionnaire: GlobalConfig = {
     {
       name: 'sections',
       type: 'array',
-      label: 'Sections',
+      label: 'Sections (not used since v1.9.0)',
+      admin: { hidden: true },
       fields: [
         { name: 'heading', type: 'text', required: true },
         { name: 'description', type: 'textarea' },
@@ -50,8 +52,8 @@ export const Questionnaire: GlobalConfig = {
       ],
     },
     { name: 'thankYou', type: 'textarea', label: 'Thank-you message after submitting' },
-    { name: 'welcomePack', type: 'upload', relationTo: 'media', label: 'Welcome pack (PDF)', admin: { description: "Lorna's original welcome pack. Attached to the welcome email and offered as a download." } },
+    { name: 'welcomePack', type: 'upload', relationTo: 'media', label: 'Welcome pack (not used since v1.9.0)', admin: { hidden: true } },
     { name: 'welcomeSubject', type: 'text', label: 'Welcome email subject' },
-    { name: 'welcomeBody', type: 'textarea', label: 'Welcome email wording', admin: { description: 'Write {first} for the patient\'s first name, {when} for the appointment, {link} for the questionnaire link and {pack} for the welcome pack link. No health details in the email.' } },
+    { name: 'welcomeBody', type: 'textarea', label: 'Welcome email wording', admin: { description: 'Write {first} for the patient\'s first name, {when} for the appointment, {questionnaire} for the questionnaire paragraph, {where} for the address and directions and {phone} for the phone number. No health details in the email.' } },
   ],
 }

@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.9.1 (16 Nov 2026): Users screen laid out as cards
+
+Update to the existing repo. Includes v1.9.0 and v1.8.4 if main does not have them yet (deploy.sh checks).
+
+- **Users** (GYA only) was an eight-column table, so emails, dates and buttons were squeezed into narrow columns.
+  Each login is now a card: who they are (initials, name, email, role and questionnaire access at a glance), how
+  their login is going (Signed in, Last login email, Password, each on its own line), the settings (Role, and Can
+  view patient questionnaires as a switch), and the buttons along the bottom with Delete set apart on the right.
+  A line above the list counts logins, who has signed in, who has not yet and who can view questionnaires.
+- Two columns on a laptop, one on a phone; no sideways scrolling and no wrapped buttons at any width.
+- Nothing else changes: same buttons, same actions, same Add a user window. No migration, no new environment
+  variables.
+
+## 1.9.0 (16 Nov 2026): Lorna's welcome pack and questionnaire, ready to switch on
+
+Update to the existing repo. Includes v1.8.4 if it is not on main yet (deploy.sh checks). From Lorna's email of
+15 Nov 2026 and her two PDFs.
+
+- **Lorna's PDFs**: `public/downloads/ape-patient-guide.pdf` and `ape-pre-appointment-questionnaire.pdf`, loaded
+  as she sent them, served `noindex`. Either can be replaced from Site Settings > Welcome pack (Media Library
+  picker) and switched back to the original. The two v1.7.0 placeholder PDFs are removed.
+- **Online questionnaire**: Lorna's questionnaire word for word, laid out like her PDF (intro, every question,
+  helper lines, shaded notes, thank-you). 1 to 10 scale (5 + 5 on a phone), tick boxes with Other opening a text
+  box, question 03 under its three subheadings, Yes/No with the "If yes" box only after Yes, single choice for 09
+  and 10, free text. Nothing required, 07 marked Optional, Clear buttons, keyboard and screen reader labels.
+  Numbered 01 to 11 in page order (her 10, 11 and 09 are 09, 10 and 11 here). "Circle" reads "Choose".
+- **Save and finish later**: answers saved on the private link, encrypted like sent ones
+  (`/api/questionnaire/save`), filled back in when the patient returns.
+- **Welcome email** with both PDFs attached, the address, Lorna's train and parking directions and the phone
+  number; the private link only while the online questionnaire is on. Sent once on Mark confirmed (or on request,
+  if chosen). New **Send welcome pack** button on confirmed bookings; Bookings shows a Welcome pack column.
+  Drafted wording for Lorna to approve, editable on the Welcome pack screen with a preview.
+- **Switches** (Site Settings > Welcome pack, GYA only, both off): Send the welcome email; Online questionnaire,
+  which needs `QUESTIONNAIRE_ENCRYPTION_KEY` and the collection notice marked approved (changing the notice clears
+  the approval). `QUESTIONNAIRE_ENABLED` is now only an emergency off switch (`false`).
+- **Dashboard view**: At a glance (score, what makes them anxious, question 03 preferences), every answer in
+  Lorna's order with follow-ups, Print. Questions and emails moved to the Welcome pack screen (the old address
+  redirects there). Site Settings links to it instead of holding the send rule and notification list.
+- **Tests**: Email check sends the real welcome email (both PDFs) with a TEST questionnaire link; test rows are
+  marked TEST, listed apart for GYA, never counted with real ones, and deleted after 24 hours.
+  `npm run test:questionnaire`: 53 checks. Playwright: 55 checks on desktop and phone.
+- Migration `20261116_012208_v190_welcome_pack` (additive only). Booking columns `welcome_*` added by the booking
+  schema check. No new environment variables; `QUESTIONNAIRE_ENCRYPTION_KEY` is needed only to switch the online
+  questionnaire on.
+
+
 ## 1.8.4 (16 Nov 2026): adding a user sends the invite, Cronulla location check, website QR code
 
 Update to the existing repo (after v1.8.3 on main). From Lorna's email of 15 Nov 2026.

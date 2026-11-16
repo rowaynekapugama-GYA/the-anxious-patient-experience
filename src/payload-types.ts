@@ -420,6 +420,11 @@ export interface Questionnaire {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   retainUntil?: string | null;
+  form?: string | null;
+  draft?: string | null;
+  draftSavedAt?: string | null;
+  test?: boolean | null;
+  testEmail?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -806,6 +811,11 @@ export interface QuestionnairesSelect<T extends boolean = true> {
   reviewedBy?: T;
   reviewedAt?: T;
   retainUntil?: T;
+  form?: T;
+  draft?: T;
+  draftSavedAt?: T;
+  test?: T;
+  testEmail?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -965,6 +975,13 @@ export interface SiteSetting {
           id?: string | null;
         }[]
       | null;
+    guidePdf?: (number | null) | Media;
+    questionnairePdf?: (number | null) | Media;
+    welcomeEmailOn?: boolean | null;
+    onlineOn?: boolean | null;
+    noticeApproved?: boolean | null;
+    noticeApprovedBy?: string | null;
+    noticeApprovedAt?: string | null;
   };
   tracking?: {
     ga4?: string | null;
@@ -1017,13 +1034,10 @@ export interface Questionnaire1 {
       }[]
     | null;
   thankYou?: string | null;
-  /**
-   * Lorna's original welcome pack. Attached to the welcome email and offered as a download.
-   */
   welcomePack?: (number | null) | Media;
   welcomeSubject?: string | null;
   /**
-   * Write {first} for the patient's first name, {when} for the appointment, {link} for the questionnaire link and {pack} for the welcome pack link. No health details in the email.
+   * Write {first} for the patient's first name, {when} for the appointment, {questionnaire} for the questionnaire paragraph, {where} for the address and directions and {phone} for the phone number. No health details in the email.
    */
   welcomeBody?: string | null;
   updatedAt?: string | null;
@@ -1080,6 +1094,13 @@ export interface SiteSettingsSelect<T extends boolean = true> {
               address?: T;
               id?: T;
             };
+        guidePdf?: T;
+        questionnairePdf?: T;
+        welcomeEmailOn?: T;
+        onlineOn?: T;
+        noticeApproved?: T;
+        noticeApprovedBy?: T;
+        noticeApprovedAt?: T;
       };
   tracking?:
     | T

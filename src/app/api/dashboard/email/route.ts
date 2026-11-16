@@ -14,7 +14,8 @@ import { origin, passwordChangedEmail, passwordEmail, sendPasswordLink } from '@
 import { emailConfigured, emailProvider } from '@/lib/email'
 import { allow, deliver, failedCount, KINDS, kindLabel, recent, type Kind, type Result } from '@/lib/mailer'
 import { liveRecipients, type Live } from '@/lib/recipients'
-import { loadTemplate, PLACEHOLDER } from '@/lib/questionnaire'
+import { noticeEmail, sendWelcome } from '@/lib/questionnaire'
+import { encryptionReady } from '@/lib/crypto'
 import { depositEmails } from '@/booking/deposit'
 
 export const dynamic = 'force-dynamic'
@@ -120,15 +121,15 @@ export async function POST(req: Request) {
         break
       }
       case 'welcome': {
-        const t = await loadTemplate(a.payload).catch(() => ({ ...PLACEHOLDER, welcomePack: null, placeholder: true }) as Awaited<ReturnType<typeof loadTemplate>>)
-        const text = `TEST EMAIL with sample details. The questionnaire link below is a sample.\n\n` + t.welcomeBody.split('{first}').join('Test').split('{when}').join(core.fmtDateTime(new Date(b.slot_start), cfg.booking.timeZone, true)).split('{pack}').join(`${origin()}/downloads/`).split('{link}').join(`${origin()}/questionnaire/TEST-SAMPLE`)
-        r = await send({ to: [to], reply_to: live.apeInbox, subject: `[TEST] ${t.welcomeSubject}`, text, html: text.split(/\n{2,}/).map((p) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(p).replace(/\n/g, '<br>')}</p>`).join('') })
-        note = 'Without the PDF attachment'
+        // v1.9.0: the real email with both PDFs attached; the link opens a TEST questionnaire (deleted after 24 hours)
+        const withLink = encryptionReady()
+        const w = await sendWelcome(a.payload, { ref: 'APE-TEST01', name: 'Test Patient GYA', email: to, slot_start: b.slot_start }, { test: { email: to, withLink } })
+        r = w.result ?? { ok: false, id: '', error: w.reason || 'not sent' }
+        note = withLink ? 'Both PDFs attached, with a TEST questionnaire link (deleted after 24 hours)' : 'Both PDFs attached. No questionnaire link: QUESTIONNAIRE_ENCRYPTION_KEY is not set'
         break
       }
       case 'questionnaire-team': {
-        const text = `TEST EMAIL.\n\nA new patient questionnaire has been completed for booking APE-TEST01.\n\nRead it in the dashboard: ${origin()}/admin/questionnaires\n\nThe answers are never included in email.`
-        r = await send({ to: [to], subject: '[TEST] Questionnaire received APE-TEST01', text, html: text.split(/\n{2,}/).map((p) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(p)}</p>`).join('') })
+        r = await send({ to: [to], ...noticeEmail({ id: 'test', bookingRef: 'APE-TEST01', appointmentAt: new Date(b.slot_start).toISOString() }, true) })
         break
       }
     }

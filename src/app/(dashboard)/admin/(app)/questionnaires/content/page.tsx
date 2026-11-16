@@ -1,19 +1,6 @@
-import Link from 'next/link'
-import { requireUser } from '@/dashboard/lib/server'
-import { QuestionnaireContentEditor } from '@/dashboard/editors/Questionnaires'
+import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Questions and emails' }
-
-export default async function QuestionnaireContent() {
-  await requireUser()
-  return (
-    <>
-      <div className="pd-head">
-        <div className="grow"><h1>Questions and emails</h1><p className="pd-sub">The questionnaire exactly as patients see it, the collection notice, the welcome email and the welcome pack. Changes apply straight away; no Publish needed.</p></div>
-        <div className="actions"><Link className="btn" href="/admin/questionnaires">Back to Questionnaires</Link></div>
-      </div>
-      <QuestionnaireContentEditor />
-    </>
-  )
+/** v1.9.0: the questions are Lorna's own (in code); the wording around them moved to Site Settings > Welcome pack. */
+export default function QuestionnaireContent() {
+  redirect('/admin/settings/welcome-pack')
 }

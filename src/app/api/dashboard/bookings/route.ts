@@ -13,7 +13,7 @@
  */
 import { routeUser } from '@/dashboard/lib/routeAuth'
 import * as core from '@/booking/core'
-import { questionnaireEnabled, onBookingConfirmed, statusByRef } from '@/lib/questionnaire'
+import { packSwitches, onBookingConfirmed, statusByRef } from '@/lib/questionnaire'
 import type { Payload } from 'payload'
 import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalEnv } from '@/lib/paypal'
@@ -37,6 +37,8 @@ function bookingRow(r: Record<string, any>, tz: string) {
     createdAt: new Date(r.created_at).toISOString(),
     // v1.8.3: '' (before v1.8.3) | sent | retry | failed
     emails: { patient: String(r.email_patient || ''), team: String(r.email_team || '') },
+    // v1.9.0: the welcome pack email ('' not sent | sent | failed)
+    welcome: { status: String(r.welcome_status || ''), sentAt: r.welcome_sent_at ? new Date(r.welcome_sent_at).toISOString() : null, count: Number(r.welcome_count || 0), by: String(r.welcome_by || '') },
   }
 }
 
@@ -95,7 +97,7 @@ async function data(now: number, payload: Payload) {
       custom: !!state.schedule,
     },
     bookings,
-    questionnaire: { enabled: questionnaireEnabled(), byRef: questionnaireEnabled() ? await statusByRef(payload) : {} },
+    questionnaire: await (async () => { const sw = await packSwitches(payload); return { welcome: sw.welcome, online: sw.online, byRef: sw.online ? await statusByRef(payload) : {} } })(),
     blocks: state.blocks.filter((b) => b.day >= today),
     special: {
       enabled: !!o.enabled, price: o.price, regular: cfg.pricing.appointment, from: o.from, to: o.to, max: o.maxBookings, used: state.specialUsed, showing: pub.special.active,
@@ -166,9 +168,9 @@ export async function POST(req: Request) {
         if (/unique|duplicate/i.test((err as Error).message)) return core.send(409, { ok: false, error: 'taken' })
         throw err
       }
-      // v1.7.0: Mark confirmed sends the welcome pack and questionnaire link (unless Site Settings sends them at request time)
+      // v1.9.0: Mark confirmed sends the welcome pack once, when the welcome email is switched on (and not sent at request time)
       let welcome: { sent: boolean; reason?: string } | undefined
-      if (body.status === 'confirmed' && row && questionnaireEnabled()) {
+      if (body.status === 'confirmed' && row) {
         welcome = await onBookingConfirmed(payload, { ref: row.ref, name: row.name, email: row.email, slot_start: row.slot_start })
       }
       return core.send(200, { ok: true, welcome })
