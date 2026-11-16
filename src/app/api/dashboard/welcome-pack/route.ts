@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   const cur = current?.questionnaire || {}
   const group: Record<string, unknown> = {}
 
-  // the two PDFs: a Media Library PDF, or null for Lorna's original
+  // the two PDFs: a Media Library PDF, or null for the standard APE version in public/downloads
   if (b.files && typeof b.files === 'object') {
     for (const [key, field] of [['guide', 'guidePdf'], ['questionnaire', 'questionnairePdf']] as const) {
       if (!(key in b.files)) continue

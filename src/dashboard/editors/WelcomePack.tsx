@@ -67,7 +67,7 @@ export function WelcomePack() {
   }
   async function setFile(f: FileInfo, id: string | number | null) {
     setBusy(true)
-    try { take(await post({ files: { [f.key]: id } })); toast(id === null ? `Back to Lorna's original ${f.label}.` : `${f.label} replaced. The next welcome email attaches the new file.`, 'good') } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy(false); setPicking(null) }
+    try { take(await post({ files: { [f.key]: id } })); toast(id === null ? `Back to the standard APE ${f.label}.` : `${f.label} replaced. The next welcome email attaches the new file.`, 'good') } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy(false); setPicking(null) }
   }
 
   return (
@@ -86,17 +86,17 @@ export function WelcomePack() {
 
       <div className="panel" id="files">
         <h2>Lorna&apos;s PDFs</h2>
-        <p className="help">Both are attached to every welcome email. To update one, upload the new PDF here; the original stays available.</p>
+        <p className="help">Both are attached to every welcome email. To update one, upload the new PDF here; the standard version stays available.</p>
         {[data.files.guide, data.files.questionnaire].map((f) => (
           <div key={f.key} className="pack-file">
             <div className="grow">
               <b>{f.label}</b>
-              <div className="help">{f.source === 'original' ? <>Lorna&apos;s original ({f.filename})</> : <>From the Media Library: {f.filename}</>}. Attached as {f.attachName}.</div>
+              <div className="help">{f.source === 'original' ? <>The standard APE version ({f.filename})</> : <>From the Media Library: {f.filename}</>}. Attached as {f.attachName}.</div>
             </div>
             <div className="actions">
               <a className="btn small" href={f.url} target="_blank" rel="noopener">{Icon.external()} View</a>
               <button className="btn small" disabled={busy} onClick={() => setPicking(f)}>Choose another PDF</button>
-              {f.source === 'media' ? <button className="btn small ghost" disabled={busy} onClick={() => setFile(f, null)}>Use the original</button> : null}
+              {f.source === 'media' ? <button className="btn small ghost" disabled={busy} onClick={() => setFile(f, null)}>Use the standard version</button> : null}
             </div>
           </div>
         ))}

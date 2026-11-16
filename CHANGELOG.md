@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.9.2 (16 Nov 2026): Lorna's welcome pack PDFs remade in the APE brand, typos corrected
+
+Update to the existing repo. Includes v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet (deploy.sh checks).
+
+- **Patient Guide** and **Pre-appointment Questionnaire** rebuilt as A4 PDFs in the website's brand (navy and
+  taupe, Playfair Display and Figtree, the APE logo on the cover and every page), using Lorna's copy as sent. Only
+  these were changed:
+  - Guide: "move fowards" to "move forwards"; "most importnant" to "most important"; full stop after "it's just
+    information"; "We'll take a few plenty of time" to "We'll take plenty of time"; the hidden "Things you can do"
+    label in the questionnaire box removed; "Emai:" to "Email:"; "in advance, the street view" made two sentences
+    and a full stop after "finding a new place"; curly apostrophes throughout.
+  - Questionnaire: numbered 01 to 11 in page order (the last three were 10, 11, 09; now the same as the online
+    version); "built in to" to "built into"; "If Yes" to "If yes"; "Pre-Appointment" to "Pre-appointment".
+- They replace the files in `public/downloads` (same names), so the welcome email attaches them and the
+  dashboard's Welcome pack screen shows them as the standard version ("Use the standard version" goes back to
+  them). The online questionnaire gets the same two wording fixes.
+- Sources in `design/welcome-pack/` (HTML and CSS); `npm run pack:pdf` rebuilds both and stops if any page's
+  content would run into its footer. Not part of the website build.
+- The guide keeps Lorna's "11–13 Cronulla Street"; the website says 13 Cronulla Street (still to confirm).
+
 ## 1.9.1 (16 Nov 2026): Users screen laid out as cards
 
 Update to the existing repo. Includes v1.9.0 and v1.8.4 if main does not have them yet (deploy.sh checks).

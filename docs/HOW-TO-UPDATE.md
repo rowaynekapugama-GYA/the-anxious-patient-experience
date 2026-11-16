@@ -101,7 +101,7 @@ the booking.
 
 ### Changing the PDFs or the email
 Site Settings > **Open Welcome pack**. To update the guide or the questionnaire, press **Choose another PDF** and
-upload the new file; **Use the original** goes back to the first version. The email wording, the collection notice
+upload the new file; **Use the standard version** goes back to the APE version GYA made from your files. The email wording, the collection notice
 and who gets "questionnaire received" emails are on the same screen. Press **Save**; no Publish needed.
 
 ### Knowing when one arrives

@@ -63,6 +63,7 @@ async function main() {
   check('11 questions, numbered 01 to 11 in page order', form.QUESTIONS.map((x) => x.num).join(',') === '01,02,03,04,05,06,07,08,09,10,11')
   check('"anything else" is last, and PDF 10 and 11 come before it', form.QUESTIONS[10].title.startsWith('Is there anything else') && form.PDF_NUMBER.q09 === '10' && form.PDF_NUMBER.q10 === '11' && form.PDF_NUMBER.q11 === '09')
   check('question 07 is marked optional', form.QUESTIONS[6].optional === true && form.QUESTIONS.filter((x) => x.optional).length === 1)
+  check('v1.9.2 wording fixes: "built into", "If yes"', JSON.stringify(form.QUESTIONS).includes('breaks built into longer') && !JSON.stringify(form.QUESTIONS).includes('built in to') && !JSON.stringify(form.QUESTIONS).includes('If Yes'))
   check('"Circle" reads "Choose" on screen', form.QUESTIONS[0].helper!.startsWith('Choose the number') && !JSON.stringify(form.QUESTIONS).includes('Circle'))
   const raw = { q01: '7', q02: ['Fear of being in pain', 'Other', 'Not on the form'], q02_other: 'The sound of the drill', q03: ['I\'d like a stop signal I can use at any time'], q05: 'No', q05_more: 'should be dropped', q07: 'Yes', q07_more: 'Walking', q09: '1–2 years', q11: SECRET_ANSWER, junk: 'x' }
   const clean = form.cleanAnswers(raw)
@@ -110,6 +111,8 @@ async function main() {
   const m = sent[sent.length - 1]
   check('Mark confirmed with it on: sent', on.sent && sent.length === before + 1 && m.to[0] === 'zelda.patient@example.com')
   check('subject is "Your APE welcome pack and questionnaire"', m.subject === 'Your APE welcome pack and questionnaire', m.subject)
+  const fsm = await import('node:fs')
+  check('the attachments are the APE versions in public/downloads (v1.9.2)', m.attachments.length === 2 && m.attachments.every((x) => Buffer.from(x.fileblob, 'base64').equals(fsm.readFileSync(`public/downloads/${x.filename === 'APE-Patient-Guide.pdf' ? 'ape-patient-guide' : 'ape-pre-appointment-questionnaire'}.pdf`))))
   check('both PDFs attached', m.attachments.map((a) => a.filename).sort().join(',') === 'APE-Patient-Guide.pdf,APE-Pre-appointment-Questionnaire.pdf' && m.attachments.every((a) => Buffer.from(a.fileblob, 'base64').subarray(0, 5).toString() === '%PDF-'))
   check('online off: no link, "bring it with you" instead', !/\/questionnaire\//.test(m.text) && /bring it with you/.test(m.text))
   check('where to go: address, train, parking, phone', /Cronulla Street/.test(m.text) && /Cronulla station/.test(m.text) && /Croydon Street council car park/.test(m.text) && /\(02\) 8599 9815/.test(m.text))

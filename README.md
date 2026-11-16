@@ -114,9 +114,11 @@ shows the set up, who gets what, the last 50 sends, and **Send test emails** to 
 
 ## Welcome pack and questionnaire (v1.9.0, built on v1.7.0; both switched off until approved)
 
-Lorna's own content: her **Patient Guide** and **Pre-appointment Questionnaire** (PDFs of 15 Nov 2026, in
-`public/downloads/ape-patient-guide.pdf` and `ape-pre-appointment-questionnaire.pdf`, served `noindex`), and the
-same questionnaire online, word for word (`src/lib/ape-questionnaire.ts`, form version `ape-2026-11`).
+Lorna's own content: her **Patient Guide** and **Pre-appointment Questionnaire** (her PDFs of 15 Nov 2026, remade
+in the APE brand with the typos corrected in v1.9.2: `public/downloads/ape-patient-guide.pdf` and
+`ape-pre-appointment-questionnaire.pdf`, served `noindex`), and the same questionnaire online, word for word
+(`src/lib/ape-questionnaire.ts`, form version `ape-2026-11`). The PDFs are built from
+`design/welcome-pack/*.html` with `npm run pack:pdf` (needs Playwright locally; never run by Vercel).
 
 - **Welcome email** (switch 1). When the team presses **Mark confirmed** (or, if chosen, when a request arrives),
   the patient gets "Your APE welcome pack and questionnaire" with both PDFs attached, where to go (address from Site

@@ -4,10 +4,12 @@
  * and every saved questionnaire keeps the id of the version it was answered on.
  *
  * Changes made for the screen, listed for Lorna in the v1.9.0 report:
- *   - numbered 01 to 11 in page order: PDF 10 is 09 here, PDF 11 is 10, and PDF 09 ("anything else") is last as 11
+ *   - numbered 01 to 11 in page order: her PDF had 10, 11, 09 at the end ("anything else" is last as 11). Since
+ *     v1.9.2 the APE PDF in public/downloads uses the same numbers, and the typos are corrected in both (v1.9.2:
+ *     "built into", "If yes")
  *   - "Circle the number" reads "Choose the number"
  *   - "Other ___" is a tick box that opens a text box
- *   - each "If Yes" / "If yes" box appears once Yes is chosen
+ *   - each "If yes" box appears once Yes is chosen
  *   - nothing is required, and question 07 is marked Optional
  *
  * Answers are a flat object keyed by the ids below. Nothing in this file touches the database or email.
@@ -87,7 +89,7 @@ export const QUESTIONS: Question[] = [
         groups: [
           { heading: 'Information style', options: ['Tell me everything - I want to know each step', 'Simple overview, then guided quietly'] },
           { heading: 'In-room experience', options: ['I\'d like music or headphones during treatment', 'I\'d prefer quiet with minimal conversation'] },
-          { heading: 'Control', options: ['I\'d like regular check-ins during treatment', 'I\'d like a stop signal I can use at any time', 'I\'d like breaks built in to longer appointments'] },
+          { heading: 'Control', options: ['I\'d like regular check-ins during treatment', 'I\'d like a stop signal I can use at any time', 'I\'d like breaks built into longer appointments'] },
         ],
       }),
       { kind: 'note', text: 'You can change any of these preferences at any time - just let us know' },
@@ -110,7 +112,7 @@ export const QUESTIONS: Question[] = [
     num: '05', id: 'q05',
     title: 'Tell us about your dental treatment history',
     blocks: [
-      f({ id: 'q05', label: 'Have you had any dental treatment carried out in the past successfully?', type: 'yesno', ask: true, options: YES_NO, follow: { id: 'q05_more', label: 'If Yes - have you ever needed sedation or general anaesthetic to facilitate treatment?' } }),
+      f({ id: 'q05', label: 'Have you had any dental treatment carried out in the past successfully?', type: 'yesno', ask: true, options: YES_NO, follow: { id: 'q05_more', label: 'If yes - have you ever needed sedation or general anaesthetic to facilitate treatment?' } }),
       { kind: 'shaded', text: 'Don\'t worry if you can\'t remember details - any information helps us understand your experience better.' },
     ],
   },
@@ -149,7 +151,7 @@ export const QUESTIONS: Question[] = [
   },
 ]
 
-/** Where each online question was in Lorna's PDF (for the report and the printed view). */
+/** Where each online question was in Lorna's original PDF of 15 Nov (the APE PDF since v1.9.2 numbers them the same as here). */
 export const PDF_NUMBER: Record<string, string> = { q01: '01', q02: '02', q03: '03', q04: '04', q05: '05', q06: '06', q07: '07', q08: '08', q09: '10', q10: '11', q11: '09' }
 
 export type Answers = Record<string, string | string[]>
