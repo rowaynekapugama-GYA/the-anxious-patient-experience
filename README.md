@@ -66,7 +66,8 @@ Leave the project's own Build and Development settings alone. Node 20.9 or later
   link to choose a password (one use, 72 hours). Existing logins are left alone and get **no** email (the build log
   says "already has a login, so no email was sent"); removing an address does not delete its login. Preview builds
   do nothing.
-- To add someone: add the address to `DASHBOARD_EDITORS` and redeploy, or add them under **Users**. **Send login
+- To add someone: add the address to `DASHBOARD_EDITORS` and redeploy, or add them under **Users** (v1.8.4: Add a
+  user emails the invite straight away and never duplicates an existing login). **Send login
   email again** (Users, GYA only) sends anyone a fresh 72 hour link; the Users screen shows the last one and whether
   SMTP2GO accepted it.
 - **Forgotten password** (v1.8.3): "Forgotten your password?" on `/admin/login` emails a reset link that works once

@@ -47,6 +47,7 @@ if (process.env.DATABASE_URL) {
     process.exit(1)
   }
 
+  quiet('node', ['scripts/sync-sequences.mjs'])
   console.log('> applying database migrations')
   run('npx', ['payload', 'migrate', '--force-accept-warning'])
 

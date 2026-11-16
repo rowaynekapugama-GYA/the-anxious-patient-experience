@@ -94,6 +94,21 @@ export default async function Home() {
           <Link href="/admin/posts/new">{Icon.posts()}<span>Write a blog post<small>Appears on the Blog</small></span></Link>
           <Link href="/admin/media">{Icon.media()}<span>Upload photos<small>Add to the Media Library</small></span></Link>
           <Link href="/admin/availability">{Icon.availability()}<span>Block time off<small>Leave or a closed day</small></span></Link>
+          <a href="#qr">{Icon.download()}<span>QR code<small>For flyers, cards and the front desk</small></span></a>
+        </div>
+      </div>
+
+      {/* v1.8.4: the website's QR code, ready to download (also in the Media Library) */}
+      <div className="panel qr-panel" id="qr">
+        <img src="/qr/ape-website-qr.svg" alt="QR code for theanxiouspatientexperience.com.au" width={120} height={120} />
+        <div className="grow">
+          <h2>QR code for the website</h2>
+          <p className="help" style={{ margin: '4px 0 10px' }}>Opens theanxiouspatientexperience.com.au. Print it at least 2 cm wide on flyers and cards, and 8 cm or more for a poster or the front desk.</p>
+          <div className="actions">
+            <a className="btn small" href="/qr/ape-website-qr.png" download>{Icon.download()} PNG (print and email)</a>
+            <a className="btn small" href="/qr/ape-website-qr.pdf" download>{Icon.download()} PDF (A4, ready to print)</a>
+            <a className="btn small" href="/qr/ape-website-qr.svg" download>{Icon.download()} SVG (for a designer)</a>
+          </div>
         </div>
       </div>
 

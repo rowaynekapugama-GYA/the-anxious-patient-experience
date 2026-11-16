@@ -21,6 +21,11 @@ Changes to wording, photos, posts and settings are saved in the dashboard first,
 press **Publish website** (the website updates in about two minutes). Bookings and availability are different: they
 change on the website straight away.
 
+## QR code for the website
+The dashboard home has a **QR code** panel with the code as a PNG (print and email), an A4 PDF ready to print and an
+SVG for a designer. It opens theanxiouspatientexperience.com.au. Print it at least 2 cm wide on flyers and cards, and
+8 cm or more for a poster or the front desk. The PNG and PDF are also in the Media Library.
+
 ## Emails and logins
 
 **What the team gets.** Every new booking request, deposit received and questionnaire received email goes to the

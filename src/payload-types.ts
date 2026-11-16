@@ -374,6 +374,7 @@ export interface User {
    * Editors can change wording, photos, posts and SEO. Administrators also manage users, redirects and tracking IDs.
    */
   role: 'admin' | 'editor';
+  lastLoginAt?: string | null;
   /**
    * Off for everyone until given, GYA administrators included. Lorna nominates who has it. Every view is logged.
    */
@@ -765,6 +766,7 @@ export interface RedirectsSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
+  lastLoginAt?: T;
   canViewQuestionnaires?: T;
   mustChangePassword?: T;
   updatedAt?: T;

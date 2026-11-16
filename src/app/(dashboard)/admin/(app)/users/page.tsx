@@ -9,7 +9,7 @@ export default async function Users() {
   const me = await requireAdmin()
   const payload = await payloadClient()
   const res = await payload.find({ collection: 'users', limit: 500, sort: 'email', depth: 0, overrideAccess: true })
-  const users = res.docs.map((d) => ({ id: d.id, name: String(d.name || ''), email: String(d.email), role: d.role === 'admin' ? 'admin' as const : 'editor' as const, mustChangePassword: !!d.mustChangePassword, canViewQuestionnaires: !!(d as { canViewQuestionnaires?: boolean }).canViewQuestionnaires }))
+  const users = res.docs.map((d) => ({ id: d.id, name: String(d.name || ''), email: String(d.email), role: d.role === 'admin' ? 'admin' as const : 'editor' as const, mustChangePassword: !!d.mustChangePassword, canViewQuestionnaires: !!(d as { canViewQuestionnaires?: boolean }).canViewQuestionnaires, createdAt: String(d.createdAt || ''), lastLoginAt: (d as { lastLoginAt?: string | null }).lastLoginAt ?? null }))
   // v1.8.3: the last login email to each person, from the email log
   const last = await lastLoginEmails()
   const withLast = users.map((u) => ({ ...u, lastEmail: last[u.email.toLowerCase()] ?? null }))

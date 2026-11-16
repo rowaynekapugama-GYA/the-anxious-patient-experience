@@ -139,4 +139,32 @@ export const UPDATES: Update[] = [
       return `set to ${today.join(', ')} (the address booking emails already go to)`
     },
   },
+  {
+    id: 'v1.8.4-qr-media',
+    describe: 'The website QR code (PNG and A4 PDF) in the Media Library, so the team can download it',
+    async apply(payload) {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      // once only (the Media Library may store the PNG under another name, so a name check is not enough)
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.8.4-qr-media', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const out: string[] = []
+      for (const [file, alt] of [
+        ['ape-website-qr.png', 'QR code for theanxiouspatientexperience.com.au'],
+        ['ape-website-qr.pdf', 'QR code for theanxiouspatientexperience.com.au, A4 ready to print'],
+      ] as const) {
+        const have = await payload.find({ collection: 'media', where: { filename: { equals: file } }, limit: 1, depth: 0, overrideAccess: true })
+        if (have.docs.length) { out.push(`${file} already there`); continue }
+        try {
+          await payload.create({ collection: 'media', overrideAccess: true, depth: 0, filePath: path.join(process.cwd(), 'public', 'qr', file), data: { alt } as never })
+          out.push(`${file} added`)
+        } catch (err) {
+          out.push(`${file} not added (${(err as Error).message}); it is still at /qr/${file}`)
+        }
+      }
+      return out.join('; ')
+    },
+  },
 ]

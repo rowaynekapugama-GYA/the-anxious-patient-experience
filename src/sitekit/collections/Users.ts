@@ -21,6 +21,17 @@ export const Users: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [firstUserGate],
+    // v1.8.4: when each person last signed in, for the Users screen. Written inside the sign in's own transaction
+    // (req), straight to the table, so no other hook runs and nothing waits on the row the sign in has locked.
+    afterLogin: [
+      async ({ user, req }) => {
+        try {
+          await req.payload.db.updateOne({ collection: 'users', id: (user as { id: number | string }).id, data: { lastLoginAt: new Date().toISOString() }, req })
+        } catch (err) {
+          req.payload.logger.warn(`could not record the sign in time: ${(err as Error).message}`)
+        }
+      },
+    ],
     beforeValidate: [
       ({ data, operation }) => {
         // choosing a password from an emailed link counts as choosing your own, so no forced change afterwards
@@ -84,6 +95,13 @@ export const Users: CollectionConfig = {
           'Editors can change wording, photos, posts and SEO. Administrators also manage users, redirects and tracking IDs.',
       },
       access: { create: adminFieldOnly, update: adminFieldOnly },
+    },
+    {
+      name: 'lastLoginAt',
+      type: 'date',
+      label: 'Last signed in',
+      admin: { readOnly: true },
+      access: { create: () => false, update: () => false },
     },
     {
       name: 'canViewQuestionnaires',

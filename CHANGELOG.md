@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.8.4 (16 Nov 2026): adding a user sends the invite, Cronulla location check, website QR code
+
+Update to the existing repo (after v1.8.3 on main). From Lorna's email of 15 Nov 2026.
+
+- **Add a user now sends the invite.** Users > Add a user used to create the login straight through Payload
+  (`POST /api/users` from `UsersEditor.tsx`) with a temporary password and send nothing. It now goes through
+  `/api/dashboard/users`, which creates the login and emails the invite (72 hour link) through the logged sender,
+  and the screen shows Sent or Not sent straight away. An address that already has a login is never duplicated:
+  the screen says "This person already has a login" and offers Send login email again. No temporary passwords.
+- Users shows when each person last signed in (recorded from this release on) and when the login was added.
+- **Website QR code**: `public/qr/ape-website-qr.png` (2009 px), `.svg` and `.pdf` (A4, 8 cm code), encoding
+  exactly https://theanxiouspatientexperience.com.au/ (level Q, navy #2A3C4E, 11.3:1 contrast). A QR code panel on
+  the dashboard home downloads all three; the build adds the PNG and PDF to the Media Library once.
+- **Cronulla location**: checked every place the site gives a location (Book Now, booking emails, footer, privacy
+  policy, map link, structured data, FAQs, pop-up). All already say The Cronulla Dentists, Cronulla; no Caringbah
+  on any public page. One difference with Lorna's Patient Guide left for approval: the site says 13 Cronulla Street,
+  the guide says 11-13 Cronulla Street.
+- Build: before migrations, `scripts/sync-sequences.mjs` moves the migrations id counter ahead of its rows if a
+  copied or restored database left it behind (found in testing: the new migration then failed to record itself).
+- Migration `20261116_010034_v184_last_login` (one column, additive). No new environment variables.
+
 ## 1.8.3 (13 Nov 2026): login and booking emails reach the right inboxes, plus an email check screen
 
 Update to the existing repo (after v1.8.2 `6e6cc7c` on main). Asked 13 Nov 2026: make sure Lorna gets the login and

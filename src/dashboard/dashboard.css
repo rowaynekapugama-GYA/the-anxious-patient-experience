@@ -476,3 +476,8 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
 .ok-text svg, .bad-text svg { width: 14px; height: 14px; vertical-align: -2px; }
 /* keep the flag and its Resend buttons in view when the bookings table scrolls sideways */
 .email-flag { position: sticky; left: 12px; max-width: min(980px, calc(100vw - 72px)); }
+
+/* ---------- Website QR code on the dashboard home (v1.8.4) ---------- */
+.qr-panel { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.qr-panel img { width: 120px; height: 120px; border: 1px solid var(--pd-line); border-radius: 8px; background: #fff; padding: 4px; }
+.qr-panel h2 { margin: 0; }

@@ -6,7 +6,7 @@ import { Modal, Select, TextInput } from '../ui/fields'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 
-type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string; lastEmail?: { at: string; status: string; kind: string } | null }
+type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string; lastLoginAt?: string | null; lastEmail?: { at: string; status: string; kind: string } | null }
 
 function tempPassword() {
   const words = ['Calm', 'Breathe', 'Gentle', 'Linen', 'Candle', 'Cronulla', 'Harbour', 'Willow']
@@ -33,15 +33,23 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
     }
   }
 
+  // v1.8.4: Add a user creates the login and emails the invite (it used to create it silently)
+  const [exists, setExists] = useState<{ id: number | string; email: string } | null>(null)
+  const [adding2, setAdding2] = useState(false)
   async function add() {
-    if (!form.email.includes('@')) { toast('Please enter an email address.', 'bad'); return }
-    if (form.password.length < 10) { toast('The temporary password must be at least 10 characters.', 'bad'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { toast('Please enter an email address.', 'bad'); return }
+    setAdding2(true)
     try {
-      const r = await api<{ doc: U }>('/api/users?depth=0', { method: 'POST', body: { ...form, email: form.email.trim().toLowerCase(), mustChangePassword: true } })
-      setUsers((x) => [...x, r.doc])
+      const res = await fetch('/api/dashboard/users', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, email: form.email, role: form.role }) })
+      const j = await res.json().catch(() => ({}))
+      if (res.status === 409 && j.exists) { setExists({ id: j.id, email: form.email.trim().toLowerCase() }); return }
+      if (!res.ok) throw new Error(j.error || 'The login could not be created.')
+      const doc: U = { ...j.doc, lastEmail: { at: j.invite?.at || new Date().toISOString(), status: j.invite?.ok ? 'accepted' : 'failed', kind: 'invite' } }
+      setUsers((x) => [...x, doc])
       setAdding(false)
-      toast(`Account created for ${r.doc.email}. Send them the temporary password; they choose their own at first sign in.`, 'good')
-    } catch (e) { toast((e as Error).message, 'bad') }
+      if (j.invite?.ok) toast(`Login created for ${doc.email}. The invite has been emailed (link valid for 72 hours).`, 'good')
+      else toast(`Login created for ${doc.email}, but the invite was not sent: ${j.invite?.error || 'unknown error'}. Press Send login email again.`, 'bad')
+    } catch (e) { toast((e as Error).message, 'bad') } finally { setAdding2(false) }
   }
   async function setQuestionnaires(u: U, on: boolean) {
     try { const r = await api<{ doc: U }>(`/api/users/${u.id}?depth=0`, { method: 'PATCH', body: { canViewQuestionnaires: on } }); setUsers((x) => x.map((y) => (y.id === u.id ? r.doc : y))); toast(on ? `${u.email} can now open patient questionnaires.` : `${u.email} can no longer open patient questionnaires.`, 'good') } catch (e) { toast((e as Error).message, 'bad') }
@@ -71,7 +79,7 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th>Last login email</th><th /></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Questionnaires</th><th>Password</th><th>Last login email</th><th>Signed in</th><th /></tr></thead>
           <tbody>
             {users.map((u) => (
               <tr key={String(u.id)}>
@@ -87,6 +95,7 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                 <td>{u.lastEmail
                   ? <><span className={`chip ${u.lastEmail.status === 'accepted' ? 'good' : 'warn'}`}>{u.lastEmail.status === 'accepted' ? 'Sent' : 'Not sent'}</span><br /><span className="help">{u.lastEmail.kind === 'reset' ? 'Password reset' : 'Login invite'}, {new Date(u.lastEmail.at).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span></>
                   : <span className="help">None recorded since 13 Nov 2026</span>}</td>
+                <td>{u.lastLoginAt ? <span className="help">{new Date(u.lastLoginAt).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span> : <span className="help">Not yet{u.createdAt ? <><br />added {new Date(u.createdAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short' })}</> : null}</span>}</td>
                 <td className="actions">
                   <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
                   <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
@@ -98,11 +107,19 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
         </table>
       </div>
       {adding ? (
-        <Modal narrow title="Add a user" onClose={() => setAdding(false)} footer={<><button className="btn" onClick={() => setAdding(false)}>Cancel</button><button className="btn primary" onClick={add}>Create account</button></>}>
-          <TextInput label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-          <TextInput label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          <Select label="Role" value={form.role} onChange={(v) => setForm({ ...form, role: v })} options={[{ value: 'editor', label: 'Editor (practice staff)' }, { value: 'admin', label: 'Administrator (GYA)' }]} />
-          <TextInput label="Temporary password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} help="Send this to the person separately from the sign-in link. They must choose their own password when they first sign in." />
+        <Modal narrow title="Add a user" onClose={() => { setAdding(false); setExists(null) }} footer={exists
+          ? <><button className="btn" onClick={() => { setAdding(false); setExists(null) }}>Close</button><button className="btn primary" onClick={() => { const e = exists; setAdding(false); setExists(null); emailLink(e) }}>Send login email again</button></>
+          : <><button className="btn" onClick={() => setAdding(false)}>Cancel</button><button className="btn primary" disabled={adding2} onClick={add}>{adding2 ? 'Creating...' : 'Create login and send invite'}</button></>}>
+          {exists ? (
+            <div className="notice info" role="status">{Icon.info()}<div className="grow"><p><b>This person already has a login</b> ({exists.email}), so nothing was created. To send them a fresh link to choose a password, press <b>Send login email again</b>.</p></div></div>
+          ) : (
+            <>
+              <TextInput label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+              <TextInput label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+              <Select label="Role" value={form.role} onChange={(v) => setForm({ ...form, role: v })} options={[{ value: 'editor', label: 'Editor (practice staff)' }, { value: 'admin', label: 'Administrator (GYA)' }]} />
+              <p className="help">They get an email straight away with a link to choose their own password (valid for 72 hours). The result shows under Last login email.</p>
+            </>
+          )}
         </Modal>
       ) : null}
       {reset ? (
