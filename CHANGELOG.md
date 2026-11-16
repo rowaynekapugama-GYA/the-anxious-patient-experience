@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.9.3 (16 Nov 2026): Lorna's questionnaire offered on Book Now, straight after booking
+
+Update to the existing repo. Includes v1.9.2, v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet.
+
+- While the online questionnaire is switched on, the Book Now confirmation offers it: "Your pre-appointment
+  questionnaire" with Lorna's line about the form and **Fill in the questionnaire now**. It opens right there on
+  the booking page (the questionnaire page in a frame that grows with the form, without a second header or
+  footer). Patients can save and finish later, or send it; after sending, the page brings the thank-you into view.
+  It is optional and the booking itself is unchanged.
+- How: `/api/booking` makes the booking's private questionnaire link when the request arrives (only while the
+  online questionnaire is live) and returns its path to the patient's own browser; it is never logged. If the
+  welcome email goes at request time it carries the same link. When the welcome email goes later (Mark
+  confirmed), it says the questionnaire has already been received if it has; otherwise it gives a fresh link (the
+  answers saved so far are kept).
+- While the online questionnaire is off (as now), Book Now looks and works exactly as before.
+- New copy for Lorna to approve: the heading, the button and "It's optional. You can also save your answers and
+  finish them later from the link in your welcome email." The privacy policy's section 14 wording should mention
+  the link can also be offered when booking.
+- Files: `public/assets/site.js` and `site.css` (Book Now), `src/app/api/booking/route.ts`,
+  `src/lib/questionnaire.ts`, `src/app/(site)/questionnaire/[token]/` (`?embed=1`, `EmbedBridge.tsx`).
+
 ## 1.9.2 (16 Nov 2026): Lorna's welcome pack PDFs remade in the APE brand, typos corrected
 
 Update to the existing repo. Includes v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet (deploy.sh checks).

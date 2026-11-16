@@ -355,6 +355,13 @@
     paidLine: 'Your $100 deposit has been received. Thank you.',
     unpaidLine: 'Your $100 deposit has not been paid yet. You can pay it securely here:',
     unpaidLink: 'Pay your deposit',
+    /* v1.9.3: the questionnaire offered after booking, only while the online questionnaire is switched on.
+       qIntro is Lorna's own line from her questionnaire; the rest is NEW COPY waiting on her sign-off. */
+    qHeading: 'Your pre-appointment questionnaire',
+    qIntro: 'This short form helps me get to know you and tailor your appointment so you can feel calm, supported, and in control.',
+    qOpen: 'Fill in the questionnaire now',
+    qNote: 'It\u2019s optional. You can also save your answers and finish them later from the link in your welcome email.',
+    qFrameTitle: 'Pre-appointment questionnaire',
     specialCard: function (when) { return 'for our first six patients, for appointments on ' + when + '. Health fund rebates are still available.'; }
   };
 
@@ -508,7 +515,11 @@
           '<span class="chosen-fee">' + esc(feeLine(state.price, state.wasSpecial)) + '</span></p>' : '') +
         depositLine +
         '<p>' + t(COPY.confirmation.body) + '</p><p class="accent">' + t(COPY.confirmation.accent) + '</p>' +
-        '<p class="confirm-next">' + t(COPY.confirmation.next) + '</p></div>';
+        '<p class="confirm-next">' + t(COPY.confirmation.next) + '</p>' +
+        (state.questionnaire ? '<div class="q-offer" id="q-offer"><h4>' + esc(UI.qHeading) + '</h4><p>' + esc(UI.qIntro) + '</p>' +
+          '<div class="q-offer-start"><button type="button" class="btn" data-act="q-open">' + esc(UI.qOpen) + '</button>' +
+          '<p class="q-offer-note">' + esc(UI.qNote) + '</p></div><div class="q-frame-wrap" hidden></div></div>' : '') +
+        '</div>';
     }
     return h;
   }
@@ -551,10 +562,48 @@
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) go(2);
     if (a === 'later' && state.ref) go(4);
+    if (a === 'q-open' && state.questionnaire) openQuestionnaire();
     if (a === 'pay' && state.ack && !state.sending) {
       if (!bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
       submitRequest();
     }
+  });
+
+  /* v1.9.3: Lorna's questionnaire inside the confirmation, in a frame of this website's own questionnaire page, which
+     reports its height (so the frame grows with it) and when it has been sent. */
+  function openQuestionnaire() {
+    var wrap = flowBox.querySelector('.q-frame-wrap');
+    if (!wrap) return;
+    var start = flowBox.querySelector('.q-offer-start');
+    if (start) start.hidden = true;
+    if (!wrap.firstChild) {
+      var f = document.createElement('iframe');
+      f.src = state.questionnaire.url + '?embed=1';
+      f.title = UI.qFrameTitle;
+      f.className = 'q-frame';
+      f.setAttribute('referrerpolicy', 'no-referrer');
+      wrap.appendChild(f);
+    }
+    wrap.hidden = false;
+    wrap.scrollIntoView({ behavior: SCROLL, block: 'start' });
+  }
+  var qDone = false, qOffset = 0;
+  function showThanks(f) {
+    qDone = false;
+    var header = document.querySelector('.site-header');
+    var top = f.getBoundingClientRect().top + window.pageYOffset + qOffset - (header ? header.offsetHeight : 0) - 16;
+    window.scrollTo({ top: Math.max(0, top), behavior: SCROLL });
+  }
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== window.location.origin || !ev.data || ev.data.source !== 'ape-questionnaire') return;
+    var f = flowBox.querySelector('.q-frame');
+    if (!f) return;
+    if (ev.data.type === 'height' && ev.data.height > 0) {
+      f.style.height = Math.min(ev.data.height, 20000) + 'px';
+      if (qDone) showThanks(f);
+    }
+    /* sent: the frame shrinks to the thank-you, so bring the thank-you into view once the frame has its new height */
+    if (ev.data.type === 'done') { qDone = true; qOffset = Math.max(0, Number(ev.data.offset) || 0); setTimeout(function () { if (qDone) showThanks(f); }, 600); }
   });
 
   /* Sends the booking request (api/booking.js). */
@@ -577,6 +626,8 @@
         state.wasSpecial = !!res.special;
         state.payment = res.payment && res.payment.provider === 'paypal' && res.payment.token && res.payment.clientId ? res.payment : null;
         state.paid = false;
+        /* v1.9.3: the booking's private questionnaire link (a path on this website), when the questionnaire is on */
+        state.questionnaire = res.questionnaire && /^\/questionnaire\/[A-Za-z0-9_-]{40,50}$/.test(res.questionnaire.url || '') ? res.questionnaire : null;
         if (state.payment) { state.payState = 'loading'; render(true); mountPaypal(); return; }
         go(4);
         return;

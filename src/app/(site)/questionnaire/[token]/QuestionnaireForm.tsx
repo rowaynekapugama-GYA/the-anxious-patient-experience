@@ -51,6 +51,7 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
       const { r, j } = await post('/api/questionnaire/save', { token, answers: a })
       if (r.ok && j.ok) {
         dirty.current = false
+        window.dispatchEvent(new Event('ape-q-saved'))
         setStatus(`Saved ${fmtSaved(j.savedAt)}. You can close this page and come back any time before your appointment using the link in your email.`)
         setPhase('idle'); return
       }
@@ -70,7 +71,7 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
     setConsentErr(''); setPhase('sending')
     try {
       const { r, j } = await post('/api/questionnaire/submit', { token, answers: a, consent: true })
-      if (r.ok && j.ok) { dirty.current = false; setPhase('done'); return }
+      if (r.ok && j.ok) { dirty.current = false; setPhase('done'); window.dispatchEvent(new Event('ape-q-done')); return }
       if (j.state === 'invalid_answers' && j.problems) {
         setProblems(j.problems); setPhase('idle')
         document.getElementById(`f-${Object.keys(j.problems)[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })

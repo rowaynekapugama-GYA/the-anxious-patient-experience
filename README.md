@@ -125,7 +125,8 @@ in the APE brand with the typos corrected in v1.9.2: `public/downloads/ape-patie
   Settings, Lorna's train and parking directions, phone), and the questionnaire paragraph. Sent once per booking;
   **Send welcome pack** on Bookings sends it by hand (no backfill of bookings made before it was switched on).
   Every send is in the email log and on the booking (when, how many times, by whom).
-- **Online questionnaire** (switch 2). Adds a private link to the welcome email. It cannot be switched on until
+- **Online questionnaire** (switch 2). Adds a private link to the welcome email, and (v1.9.3) offers the
+  questionnaire on the Book Now confirmation, filled in right there on the page (`?embed=1` frame). It cannot be switched on until
   `QUESTIONNAIRE_ENCRYPTION_KEY` is set and the collection notice is marked approved (and it goes off again if the
   notice wording changes). The link works until the answers are sent or 7 days after the appointment; a newer
   welcome email replaces it. Patients can **Save and finish later** (saved answers are encrypted like sent ones).

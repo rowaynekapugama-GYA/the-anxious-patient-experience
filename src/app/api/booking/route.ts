@@ -127,15 +127,18 @@ export async function POST(req: Request) {
     })
   }
   // v1.9.0: the welcome pack, only if it is switched on and set to go at request time (it checks both)
+  // v1.9.3: and, while the online questionnaire is live, the private link for the Book Now page to offer it
+  let questionnaireUrl: string | null = null
   try {
     const { getPayload } = await import('payload')
     const { default: config } = await import('@payload-config')
-    await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })
+    questionnaireUrl = (await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })).link
   } catch (err) {
     console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
   }
   return core.send(200, {
     ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: cfg.pricing.deposit, notified, ackSent,
+    ...(questionnaireUrl ? { questionnaire: { url: questionnaireUrl.replace(/^https?:\/\/[^/]+/, '') } } : {}),
     ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD' } } : {}),
   })
 }

@@ -265,7 +265,7 @@ async function issueLink(payload: Payload, b: BookingRow, test?: { email: string
  * Send the welcome email for one booking. `manual` is Send welcome pack (any number of times; each gives a fresh
  * questionnaire link and the old one stops). `test` sends a [TEST] copy to one address with a test questionnaire link.
  */
-export async function sendWelcome(payload: Payload, b: BookingRow, opts: { by?: string; manual?: boolean; test?: { email: string; withLink: boolean } } = {}): Promise<{ sent: boolean; reason?: string; link?: boolean; result?: Result }> {
+export async function sendWelcome(payload: Payload, b: BookingRow, opts: { by?: string; manual?: boolean; test?: { email: string; withLink: boolean }; link?: string | null } = {}): Promise<{ sent: boolean; reason?: string; link?: boolean; result?: Result }> {
   const sw = await packSwitches(payload)
   if (!sw.emailReady) return { sent: false, reason: 'email is not set up' }
   if (!opts.test && !opts.manual && !sw.welcome) return { sent: false, reason: 'off' }
@@ -274,7 +274,8 @@ export async function sendWelcome(payload: Payload, b: BookingRow, opts: { by?: 
   const where = await place(payload)
   let link: string | null = null
   let received = false
-  if (opts.test ? opts.test.withLink : sw.online) ({ link, received } = await issueLink(payload, b, opts.test ? { email: opts.test.email } : undefined))
+  if (opts.link) link = opts.link // v1.9.3: the link the booking page already shows (sent at request time)
+  else if (opts.test ? opts.test.withLink : sw.online) ({ link, received } = await issueLink(payload, b, opts.test ? { email: opts.test.email } : undefined))
   const { attachments, missing } = await packAttachments(payload)
   const m = welcomeEmail({ words, name: b.name, slotStart: new Date(b.slot_start), link, received, where, missing, test: !!opts.test })
   const r = await deliver('welcome', { to: [opts.test ? opts.test.email : b.email], reply_to: where.apeEmail, subject: m.subject, text: m.text, html: m.html, ...(attachments.length ? { attachments } : {}) }, { ref: b.ref, test: !!opts.test })
@@ -294,10 +295,18 @@ async function alreadyWelcomed(ref: string): Promise<boolean> {
 }
 
 /** A request just arrived: send the pack now if Site Settings says so. */
-export async function onBookingRequested(payload: Payload, b: BookingRow): Promise<void> {
+/**
+ * A request just arrived. v1.9.3: while the online questionnaire is live, the booking gets its private link now, so
+ * the Book Now page can offer the questionnaire straight away (optional). If the welcome email also goes at request
+ * time, it carries that same link. Returns the link for the patient's own browser only; it is never logged.
+ */
+export async function onBookingRequested(payload: Payload, b: BookingRow): Promise<{ link: string | null }> {
   const sw = await packSwitches(payload)
-  if (!sw.welcome || sw.sendWhen !== 'requested') return
-  await sendWelcome(payload, b).catch((err) => console.error('welcome: failed', b.ref, (err as Error).message))
+  const link = sw.online ? (await issueLink(payload, b)).link : null
+  if (sw.welcome && sw.sendWhen === 'requested') {
+    await sendWelcome(payload, b, { link }).catch((err) => console.error('welcome: failed', b.ref, (err as Error).message))
+  }
+  return { link }
 }
 /** Mark confirmed: send the pack now, once, unless it is switched off or went out at request time. */
 export async function onBookingConfirmed(payload: Payload, b: BookingRow): Promise<{ sent: boolean; reason?: string }> {

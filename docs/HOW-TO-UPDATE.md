@@ -95,7 +95,8 @@ collection notice and the privacy wording.
 When you press **Mark confirmed**, the patient is emailed "Your APE welcome pack and questionnaire" with your
 Patient Guide and your Pre-appointment Questionnaire attached, the address, your train and parking directions and
 the phone number. Once the online questionnaire is on, the email also has a private link so they can fill it in on
-their phone or computer, save it and come back later. Each booking gets it once. To send it by hand (for example
+their phone or computer, save it and come back later. Patients are also offered the questionnaire straight after
+they book on the website, and can fill it in right there; if they do, the welcome email simply thanks them for it. Each booking gets it once. To send it by hand (for example
 for a booking confirmed before it was switched on, or if a patient lost the email), press **Send welcome pack** on
 the booking.
 
