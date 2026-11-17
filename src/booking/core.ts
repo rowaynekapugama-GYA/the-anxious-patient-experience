@@ -257,6 +257,25 @@ const SCHEMA = [
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_sent_at timestamptz`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_count integer NOT NULL DEFAULT 0`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS welcome_by text NOT NULL DEFAULT ''`,
+  // v1.10.0: first and last name, date of birth (null on bookings made before v1.10.0: "not given"), and the terms
+  // the patient agreed to: when each tick was made and which version of the terms was showing
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS first_name text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS last_name text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS dob date`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_version text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_consent_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_read_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_pay_read_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_method text NOT NULL DEFAULT ''`,
+  // v1.10.0: who gave or took away questionnaire access or practice owner, for whom and when (also made by the
+  // v1.10.0 migration)
+  `CREATE TABLE IF NOT EXISTS ape_access_log (
+     id bigserial PRIMARY KEY,
+     at timestamptz NOT NULL DEFAULT now(),
+     by_email text NOT NULL,
+     for_email text NOT NULL,
+     change text NOT NULL,
+     note text NOT NULL DEFAULT '')`,
   `CREATE TABLE IF NOT EXISTS ape_email_log (
      id bigserial PRIMARY KEY,
      at timestamptz NOT NULL DEFAULT now(),

@@ -33,9 +33,12 @@ Preview address: Vercel > Deployments > the latest Preview.
 
 Use a clearly fake name such as `Test Patient GYA`.
 
-1. **Make a booking.** `/book-now/`: pick a time, enter the test name and your email, tick consent, accept the
-   deposit policy, press **Send request and pay deposit**. Expect the "Pay your $100 deposit" step with the policy
-   and the PayPal buttons. Note the reference. At this moment the booking exists as To confirm, Deposit not paid.
+1. **Make a booking.** `/book-now/`: pick a time, press Continue with the details empty and check every field says
+   what is missing (v1.10.0: first name, last name, email, phone and date of birth are required). Then enter the test
+   name, your email, a phone number and a date of birth, tick consent, Continue. Read the **Terms and cancellation
+   policy** step, tick "I consent ...", Continue. On the deposit step tick "I have read ...", press **Send request and
+   pay deposit**. Expect "Pay by card, or with PayPal. You don't need a PayPal account." and the PayPal and
+   **Debit or Credit Card** buttons. Note the reference. At this moment the booking exists as To confirm, Deposit not paid.
 2. **Pay with the sandbox buyer account.** Press the PayPal button, sign in with the sandbox buyer, approve. Expect
    the "You're booked in" screen with "Your $100 deposit has been received". In the dashboard the booking shows
    Deposit **Received**; open the row to see the PayPal transaction and the **View in PayPal** link.
@@ -44,13 +47,15 @@ Use a clearly fake name such as `Test Patient GYA`.
    [ref]". Check junk mail.
 4. **Pay with a sandbox card.** Make a second booking; on the PayPal step choose **Debit or Credit Card** and use a
    sandbox test card (developer.paypal.com > Testing Tools > Credit card generator). Expect the same result.
-5. **Abandon, then pay later.** Make a third booking; on the PayPal step press **Pay later** (or close the PayPal
+5. **Abandon, then pay later** (v1.10.0: the pay page shows the terms and needs the "I have read" tick first). Make a third booking; on the PayPal step press **Pay later** (or close the PayPal
    window). Expect "You're booked in" with "Your $100 deposit has not been paid yet" and a Pay your deposit button;
-   dashboard shows Not paid and the booking under the **Deposit not paid** filter. Open the **Pay your deposit**
+   dashboard shows Not paid and the booking under the **Deposit not paid** filter. Open the booking: it shows the date
+   of birth, the terms version and both tick times. Open the **Pay your deposit**
    link from the patient email in a fresh private window, pay, and check the dashboard flips to Received and the
    "Deposit received" emails arrive. Open the same link again: it says the deposit has already been received.
 6. **Mark confirmed** on one booking: "Your APE welcome pack and questionnaire" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.
-7. **Fill in the questionnaire** from the link: press Save and finish later, open the link again (the answers are still there), then Send my answers. Check the "Questionnaire received" email (reference and date only) and open it in Questionnaires with a login that has questionnaire access (At a glance, every answer, Print).
+7. **Fill in the questionnaire** from the link: the name and date of birth at the top are filled in from the booking
+   (change one to see the "differs from the booking" flag in the dashboard); press Save and finish later, open the link again (the answers are still there), then Send my answers. Check the "Questionnaire received" email (reference and date only) and open it in Questionnaires with a login that has questionnaire access (At a glance, every answer, Print).
 8. **Refund one payment.** In the sandbox PayPal business account (sandbox.paypal.com, the business sandbox login):
    Activity > the payment > Refund. Within a minute the dashboard shows that booking as **Refunded** (the webhook).
    If it does not, Developers > the app > Webhooks > the webhook > Events shows the delivery and the response code.
@@ -90,3 +95,14 @@ Tested by: ______  Date: ______  Deployment: ______
   webhook is not set up or its `PAYPAL_WEBHOOK_ID` is wrong (webhook deliveries show 400 `bad_signature`).
 - Refund does not show: same webhook check; also confirm `Payment capture refunded` is ticked on the webhook.
 - No emails at all: `SMTP2GO_API_KEY` or `BOOKING_FROM` missing, or the sender domain is not verified in SMTP2GO.
+
+## With PayPal Advanced Checkout switched on (`PAYPAL_ADVANCED=on`, v1.10.0)
+
+Only after `docs/PAYPAL-ADVANCED-SETUP.md` steps 1 to 4. On the preview (sandbox):
+
+1. A booking up to the deposit step shows Apple Pay (Safari), Google Pay (Chrome), the card fields and the PayPal button.
+2. Card fields with a sandbox card that passes 3D Secure: paid, the dashboard says paid by Card.
+3. A sandbox card that fails 3D Secure: "Your bank did not confirm this card, so nothing has been charged." The booking
+   stays Not paid; pay again with a good card.
+4. Google Pay with a Google test card, and Apple Pay with an Apple sandbox tester: paid, shown as Google Pay or Apple Pay.
+5. Refund one in the sandbox PayPal account: the dashboard shows Refunded.

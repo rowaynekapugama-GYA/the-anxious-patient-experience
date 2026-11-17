@@ -12,8 +12,12 @@
  *   - each "If yes" box appears once Yes is chosen
  *   - nothing is required, and question 07 is marked Optional
  *
+ * v1.10.0: the patient's full name and date of birth sit at the top (patient_name, patient_dob as YYYY-MM-DD), filled
+ * in from the booking. Both are needed to send; a draft saves without them. They are sealed with the answers.
+ *
  * Answers are a flat object keyed by the ids below. Nothing in this file touches the database or email.
  */
+import { parseDob, fmtDob, cleanName } from '@/booking/patient'
 
 export const FORM_ID = 'ape-2026-11'
 
@@ -199,8 +203,52 @@ export function cleanAnswers(raw: unknown): Answers {
     const t = clean(v)
     if (t) out[fl.id] = t
   }
+  const name = cleanFullName(a[ID.name])
+  if (name) out[ID.name] = name
+  const dob = parseDob(a[ID.dob])
+  if (dob.ok) out[ID.dob] = dob.iso
   return out
 }
+
+// ---------------------------------------------------------------- v1.10.0: name and date of birth at the top
+
+export const ID = { name: 'patient_name', dob: 'patient_dob' } as const
+export const IDENTITY = {
+  heading: 'Your details',
+  lead: 'We have filled these in from your booking. Please check them and change anything that is not right.',
+  name: 'Full name',
+  dob: 'Date of birth',
+}
+const cleanFullName = (v: unknown) => cleanName(v).slice(0, 120)
+
+/** What still stops the questionnaire being sent: a full name and a real date of birth. */
+export function identityProblems(raw: unknown): Record<string, string> {
+  const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const out: Record<string, string> = {}
+  if (!cleanFullName(a[ID.name])) out[ID.name] = 'Please enter your full name.'
+  const dob = parseDob(a[ID.dob])
+  if (!dob.ok) out[ID.dob] = dob.error === 'required' ? 'Please enter your date of birth.' : dob.error === 'future' ? 'Your date of birth cannot be in the future.' : dob.error === 'too_old' ? 'Please check the year of your date of birth.' : 'Please check your date of birth: that date does not exist.'
+  return out
+}
+
+const fold = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim()
+
+/**
+ * Does the name or date of birth on the questionnaire differ from the booking? Names are compared ignoring case,
+ * accents, punctuation and extra spaces. A booking from before v1.10.0 has no date of birth, so only the name counts.
+ */
+export function identityDiffers(a: Answers, booking: { name?: string | null; dob?: string | null }): boolean {
+  const name = String(a[ID.name] || '')
+  const dob = String(a[ID.dob] || '')
+  if (booking.name && name && fold(name) !== fold(booking.name)) return true
+  if (booking.dob && dob && dob !== booking.dob) return true
+  return false
+}
+
+export const identityRows = (a: Answers) => [
+  { label: IDENTITY.name, value: String(a[ID.name] || '') || null },
+  { label: IDENTITY.dob, value: a[ID.dob] ? fmtDob(String(a[ID.dob])) : null },
+]
 
 /** Problems with what was sent (anything that cleanAnswers would have to throw away), empty when fine. */
 export function problems(raw: unknown): Record<string, string> {
@@ -214,6 +262,8 @@ export function problems(raw: unknown): Record<string, string> {
     else if (fl.type === 'yesno' || fl.type === 'choice') { if (!optionsOf(fl).includes(String(v))) out[fl.id] = 'Please choose one of the options.' }
     else if (String(v).length > MAX_TEXT) out[fl.id] = 'That answer is a little long. Please shorten it, or tell us the rest at your appointment.'
   }
+  const dob = a[ID.dob]
+  if (dob !== undefined && dob !== null && dob !== '' && !parseDob(dob).ok) out[ID.dob] = identityProblems({ [ID.dob]: dob })[ID.dob] || 'Please check your date of birth.'
   return out
 }
 

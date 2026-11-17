@@ -20,6 +20,8 @@ const nextConfig = {
     '/admin/**/*': ['./content/**/*', './package.json'],
     '/questionnaire/**/*': ['./content/**/*', './public/downloads/*'],
     '/book-now/pay': ['./content/**/*'],
+    '/book-now/terms': ['./content/**/*'],
+    '/api/apple-pay-domain': ['./config/apple-pay/*'],
     '/api/dashboard/**/*': ['./content/**/*', './public/downloads/*'],
     '/api/booking': ['./content/**/*', './public/downloads/*'],
   },
@@ -44,6 +46,7 @@ const nextConfig = {
       { source: '/admin', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'no-store' }] },
       { source: '/cms/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       // the patient questionnaire pages: never indexed, never cached, no referrer sent anywhere
+      { source: '/book-now/terms', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
       { source: '/book-now/pay', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
       // v1.9.0: Lorna's welcome pack PDFs are sent to patients, not meant for search results
       { source: '/downloads/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },

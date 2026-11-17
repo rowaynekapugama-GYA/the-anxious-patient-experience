@@ -1,6 +1,6 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.9.3",
+  "version": "1.10.0",
   "private": true,
   "type": "module",
   "description": "The Anxious Patient Experience website (static pages built from content/) with the GYA client dashboard and booking dashboard at /admin.",
@@ -16,6 +16,7 @@
     "qa:parity": "tsx scripts/qa-parity.ts",
     "test:email": "tsx scripts/test-email.ts",
     "test:questionnaire": "tsx scripts/test-questionnaire.ts",
+    "test:booking": "tsx scripts/test-booking.ts",
     "pack:pdf": "node scripts/build-welcome-pack.mjs",
     "qa:editor": "tsx scripts/qa-editor.ts",
     "qa:site": "node scripts/qa-site.mjs",

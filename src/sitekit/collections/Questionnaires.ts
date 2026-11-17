@@ -39,6 +39,8 @@ export const Questionnaires: CollectionConfig = {
     { name: 'draftSavedAt', type: 'date' },
     { name: 'test', type: 'checkbox', defaultValue: false, index: true },
     { name: 'testEmail', type: 'text' },
+    // v1.10.0: the name or date of birth the patient entered is not the one on the booking (worked out on submit)
+    { name: 'identityDiffers', type: 'checkbox', defaultValue: false },
   ],
 }
 

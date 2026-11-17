@@ -1,6 +1,10 @@
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
-import { paypalConfigured, paypalClientId } from '@/lib/paypal'
+import { paypalConfigured, paypalClientId, paypalAdvanced, paypalEnv } from '@/lib/paypal'
+import { getPayload } from 'payload'
+import config from '@payload-config'
+import * as terms from '@/booking/terms'
+import { TermsView } from '@/booking/TermsView'
 import { getSettings } from '@/lib/site'
 import { PayDeposit } from './PayDeposit'
 
@@ -26,14 +30,21 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   if (found.state !== 'ok' || !found.row) return <Message heading="This payment link is no longer active."><p>Links work for 14 days. Please reply to your booking email and we will send you a fresh one.</p></Message>
   const row = found.row
   const when = core.fmtDateTime(new Date(row.slot_start), cfg.booking.timeZone, true)
+  const tm = await terms.loadTerms(await getPayload({ config }))
   return (
     <section className="hero-simple legal-page">
       <div className="wrap prose legal pay-page">
         <p className="eyebrow">Your deposit</p>
         <h1>Pay your {core.money(cfg.pricing.deposit)} deposit</h1>
         <p className="legal-updated">For your appointment on {when} (Sydney time). Reference {row.ref}.</p>
-        <p className="legal-lead">The deposit secures your time and comes off the cost of your appointment. You can pay with PayPal or with a debit or credit card; you do not need a PayPal account.</p>
-        <PayDeposit token={String(t)} clientId={paypalClientId()} amount={cfg.pricing.deposit} phone={s.phone} />
+        <p className="legal-lead">The deposit secures your time and comes off the cost of your appointment. You can pay by card, or with PayPal. You don&apos;t need a PayPal account.</p>
+        {/* v1.10.0: the same terms as Book Now, and the same "I have read" tick before paying */}
+        <h2 className="pay-terms-h">Terms and cancellation policy</h2>
+        <div className="terms-box" role="region" aria-label="Terms and cancellation policy" tabIndex={0}>
+          <TermsView text={terms.fill(tm.text, { phone: s.phone, deposit: core.money(cfg.pricing.deposit) })} className="terms-text" />
+          <p className="terms-version">Terms version {tm.label}</p>
+        </div>
+        <PayDeposit token={String(t)} clientId={paypalClientId()} amount={cfg.pricing.deposit} phone={s.phone} readLabel={tm.readLabel} advanced={paypalAdvanced()} env={paypalEnv()} assetVersion={String(process.env.npm_package_version || '1')} />
       </div>
     </section>
   )

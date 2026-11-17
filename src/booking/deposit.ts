@@ -9,13 +9,14 @@ import crypto from 'node:crypto'
 import * as core from './core'
 import { newToken, hashToken } from '@/lib/crypto'
 import { siteOrigin } from '@/lib/email'
-import { paypalActivityUrl, siteOriginFallback } from '@/lib/paypal'
+import { paypalActivityUrl, siteOriginFallback, METHOD_LABEL } from '@/lib/paypal'
 
 export const PAY_LINK_DAYS = 14
 export type DepositStatus = 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'
 export type BookingRow = {
   ref: string; slot_start: string | Date; name: string; email: string; phone: string; status: string; price: number | string
   deposit_paid: boolean; deposit_status: DepositStatus; deposit_amount: string | null; deposit_paid_at: string | null; deposit_note: string
+  deposit_method?: string
   paypal_order_id: string | null; paypal_capture_id: string | null; pay_token_hash: string | null; pay_token_expires: string | null
 }
 export const isPaid = (s: string) => s === 'paid' || s === 'manual'
@@ -48,14 +49,15 @@ export async function rememberOrder(d: core.Db, ref: string, orderId: string): P
  * Record a completed PayPal capture. Idempotent: the same capture recorded twice changes nothing and sends nothing.
  * Returns true when this call is the one that marked it paid.
  */
-export async function recordCapture(d: core.Db, ref: string, c: { captureId: string; orderId?: string; amount: number; at?: string }): Promise<boolean> {
+export async function recordCapture(d: core.Db, ref: string, c: { captureId: string; orderId?: string; amount: number; at?: string; method?: string }): Promise<boolean> {
   const r = await d.query(
     `UPDATE ape_bookings
         SET deposit_status = 'paid', deposit_paid = true, deposit_amount = $3, deposit_paid_at = coalesce($4::timestamptz, now()),
-            paypal_capture_id = $2, paypal_order_id = coalesce($5, paypal_order_id), pay_token_hash = NULL, pay_token_expires = NULL, updated_at = now()
+            paypal_capture_id = $2, paypal_order_id = coalesce($5, paypal_order_id), pay_token_hash = NULL, pay_token_expires = NULL,
+            deposit_method = CASE WHEN $6 = '' THEN deposit_method ELSE $6 END, updated_at = now()
       WHERE ref = $1 AND (paypal_capture_id IS DISTINCT FROM $2) AND deposit_status <> 'paid'
       RETURNING ref`,
-    [ref, c.captureId, c.amount, c.at || null, c.orderId || null])
+    [ref, c.captureId, c.amount, c.at || null, c.orderId || null, String(c.method || '').slice(0, 20)])
   return r.length > 0
 }
 
@@ -93,6 +95,8 @@ export function depositView(row: Partial<BookingRow>) {
     paidAt: row.deposit_paid_at || null,
     note: row.deposit_note || '',
     captureId: row.paypal_capture_id || null,
+    // v1.10.0: how it was paid (blank before v1.10.0, or when only the webhook recorded it)
+    method: row.deposit_method ? (METHOD_LABEL[row.deposit_method] || row.deposit_method) : (row.paypal_capture_id ? 'PayPal checkout' : ''),
     paypalUrl: row.paypal_capture_id ? paypalActivityUrl(row.paypal_capture_id) : null,
   }
 }
@@ -115,7 +119,7 @@ export function depositEmails(cfg: core.Cfg, row: Pick<BookingRow, 'ref' | 'slot
   ]
   const teamLines = [
     ...t,
-    `Deposit received for ${row.ref} (${row.name}, ${when}): ${core.money(amount)} through PayPal, transaction ${captureId}.`,
+    `Deposit received for ${row.ref} (${row.name}, ${when}): ${core.money(amount)} through PayPal checkout, transaction ${captureId}.`,
     'The booking shows Deposit received in the dashboard. Nothing to do in PayPal.',
   ]
   const pre = o.test ? '[TEST] ' : ''

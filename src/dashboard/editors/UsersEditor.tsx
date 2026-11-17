@@ -3,6 +3,9 @@
  * Dashboard accounts. Only GYA administrators see this screen.
  * v1.9.1: one card per person instead of an eight-column table, so nothing is squeezed: who they are, what they can
  * do, how their login is going, and the buttons, each in its own area. Same actions as before.
+ * v1.10.0: the practice owner (Lorna) also sees this screen, in 'owner' mode: the list of logins and the "Can view
+ * patient questionnaires" tick only. Ticking goes through /api/dashboard/questionnaire-access, which checks who is
+ * asking, logs the change and emails the person given access. GYA also sees the Practice owner tick.
  */
 import React, { useState } from 'react'
 import { api } from '../lib/client'
@@ -10,7 +13,7 @@ import { Modal, Select, TextInput } from '../ui/fields'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 
-type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; createdAt?: string; lastLoginAt?: string | null; lastEmail?: { at: string; status: string; kind: string } | null }
+type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; practiceOwner?: boolean; createdAt?: string; lastLoginAt?: string | null; lastEmail?: { at: string; status: string; kind: string } | null }
 
 function tempPassword() {
   const words = ['Calm', 'Breathe', 'Gentle', 'Linen', 'Candle', 'Cronulla', 'Harbour', 'Willow']
@@ -27,9 +30,15 @@ const initials = (u: U) => {
   return ((parts[0]?.[0] || '?') + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] || ''))).toUpperCase()
 }
 
-export function UsersEditor({ initial, me }: { initial: U[]; me: string | number }) {
+type LogEntry = { at: string; by: string; for: string; change: string; note: string }
+
+export const ACCESS_LINE = 'Only people ticked here can open patient questionnaires. Having a login is not enough.'
+
+export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] }: { initial: U[]; me: string | number; mode?: 'admin' | 'owner'; log?: LogEntry[] }) {
   const toast = useToast()
+  const admin = mode === 'admin'
   const [users, setUsers] = useState(initial)
+  const [log, setLog] = useState(initialLog)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', role: 'editor', password: tempPassword() })
   const [reset, setReset] = useState<{ u: U; password: string } | null>(null)
@@ -63,8 +72,24 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
       else toast(`Login created for ${doc.email}, but the invite was not sent: ${j.invite?.error || 'unknown error'}. Press Send login email again.`, 'bad')
     } catch (e) { toast((e as Error).message, 'bad') } finally { setAdding2(false) }
   }
+  async function refreshLog() {
+    try { const r = await api<{ log: LogEntry[] }>('/api/dashboard/questionnaire-access'); setLog(r.log) } catch { /* the list stays as it was */ }
+  }
   async function setQuestionnaires(u: U, on: boolean) {
-    try { const r = await api<{ doc: U }>(`/api/users/${u.id}?depth=0`, { method: 'PATCH', body: { canViewQuestionnaires: on } }); setUsers((x) => x.map((y) => (y.id === u.id ? r.doc : y))); toast(on ? `${u.email} can now open patient questionnaires.` : `${u.email} can no longer open patient questionnaires.`, 'good') } catch (e) { toast((e as Error).message, 'bad') }
+    try {
+      const r = await api<{ user: Partial<U>; emailed: boolean | null }>('/api/dashboard/questionnaire-access', { method: 'POST', body: { id: u.id, canViewQuestionnaires: on } })
+      setUsers((x) => x.map((y) => (y.id === u.id ? { ...y, ...r.user } : y)))
+      toast(on ? `${u.email} can now open patient questionnaires.${r.emailed ? ' They have been emailed.' : r.emailed === false ? ' The email to them did not go; please let them know.' : ''}` : `${u.email} can no longer open patient questionnaires.`, 'good')
+      refreshLog()
+    } catch (e) { toast((e as Error).message, 'bad') }
+  }
+  async function setOwner(u: U, on: boolean) {
+    try {
+      const r = await api<{ user: Partial<U> }>('/api/dashboard/questionnaire-access', { method: 'POST', body: { id: u.id, practiceOwner: on } })
+      setUsers((x) => x.map((y) => (y.id === u.id ? { ...y, ...r.user } : y)))
+      toast(on ? `${u.email} is now the practice owner and can choose who opens questionnaires.` : `${u.email} is no longer a practice owner.`, 'good')
+      refreshLog()
+    } catch (e) { toast((e as Error).message, 'bad') }
   }
   async function setRole(u: U, role: string) {
     try { const r = await api<{ doc: U }>(`/api/users/${u.id}?depth=0`, { method: 'PATCH', body: { role } }); setUsers((x) => x.map((y) => (y.id === u.id ? r.doc : y))); toast('Role changed.', 'good') } catch (e) { toast((e as Error).message, 'bad') }
@@ -84,11 +109,14 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
   }
   return (
     <>
-      <div className="actions" style={{ marginBottom: 12 }}>
-        <span className="help">Editors (practice staff) can change content and publish. Administrators (GYA) can also manage accounts, redirects and tracking.</span>
-        <span style={{ flex: 1 }} />
-        <button className="btn primary" onClick={() => { setForm({ name: '', email: '', role: 'editor', password: tempPassword() }); setAdding(true) }}>{Icon.plus()} Add a user</button>
-      </div>
+      <div className="notice info access-line" role="note" id="access-line">{Icon.info()}<div className="grow"><p><b>{ACCESS_LINE}</b> {admin ? 'The practice owner (Lorna) chooses who has it, and GYA can too. Every change is logged and the person given access gets an email.' : 'Tick a person to let them open questionnaires, or untick to stop them. You can tick yourself. Every change is logged and the person given access gets an email.'}</p></div></div>
+      {admin ? (
+        <div className="actions" style={{ marginBottom: 12 }}>
+          <span className="help">Editors (practice staff) can change content and publish. Administrators (GYA) can also manage accounts, redirects and tracking.</span>
+          <span style={{ flex: 1 }} />
+          <button className="btn primary" onClick={() => { setForm({ name: '', email: '', role: 'editor', password: tempPassword() }); setAdding(true) }}>{Icon.plus()} Add a user</button>
+        </div>
+      ) : null}
       <div className="user-summary" aria-label="Summary">
         <span><b>{users.length}</b> {users.length === 1 ? 'login' : 'logins'}</span>
         <span><b>{users.filter((u) => u.lastLoginAt).length}</b> signed in</span>
@@ -108,12 +136,13 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                   <div className="user-email">{u.email}</div>
                   <div className="user-chips">
                     <span className={`chip ${u.role === 'admin' ? 'grey' : 'blue'}`}>{u.role === 'admin' ? 'Administrator (GYA)' : 'Editor (practice)'}</span>
+                    {u.practiceOwner ? <span className="chip blue">Practice owner</span> : null}
                     {u.canViewQuestionnaires ? <span className="chip good">Can view questionnaires</span> : null}
                   </div>
                 </div>
               </div>
 
-              <dl className="user-facts">
+              {admin ? <dl className="user-facts">
                 <div>
                   <dt>Signed in</dt>
                   <dd>{u.lastLoginAt ? fmt(u.lastLoginAt) : <><span className="chip grey">Not yet</span>{u.createdAt ? <span className="help"> Added {day(u.createdAt)}</span> : null}</>}</dd>
@@ -128,31 +157,48 @@ export function UsersEditor({ initial, me }: { initial: U[]; me: string | number
                   <dt>Password</dt>
                   <dd>{u.mustChangePassword ? <span className="chip warn">Temporary</span> : <span className="help">Chosen by them, or set by link</span>}</dd>
                 </div>
-              </dl>
+              </dl> : <dl className="user-facts"><div><dt>Signed in</dt><dd>{u.lastLoginAt ? fmt(u.lastLoginAt) : <span className="chip grey">Not yet</span>}</dd></div></dl>}
 
               <div className="user-settings">
-                <label className="user-field">
-                  <span>Role</span>
-                  <select className="select" value={u.role} disabled={mine} onChange={(e) => setRole(u, e.target.value)}>
-                    <option value="editor">Editor (practice)</option><option value="admin">Administrator (GYA)</option>
-                  </select>
-                </label>
-                <label className="toggle user-toggle" title="Off for everyone until Lorna nominates them.">
-                  <input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} />
+                {admin ? (
+                  <label className="user-field">
+                    <span>Role</span>
+                    <select className="select" value={u.role} disabled={mine} onChange={(e) => setRole(u, e.target.value)}>
+                      <option value="editor">Editor (practice)</option><option value="admin">Administrator (GYA)</option>
+                    </select>
+                  </label>
+                ) : null}
+                <label className="toggle user-toggle" title="Off for everyone until the practice owner ticks it.">
+                  <input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} aria-describedby="access-line" />
                   <span className="track" aria-hidden="true" />
                   <span>Can view patient questionnaires</span>
                 </label>
+                {admin ? (
+                  <label className="toggle user-toggle" title="The practice owner chooses who can open questionnaires. GYA only.">
+                    <input type="checkbox" checked={!!u.practiceOwner} onChange={(e) => setOwner(u, e.target.checked)} />
+                    <span className="track" aria-hidden="true" />
+                    <span>Practice owner</span>
+                  </label>
+                ) : null}
               </div>
 
-              <div className="user-actions">
-                <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
-                <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
-                {!mine ? <button className="btn small danger" onClick={() => remove(u)} aria-label={`Delete ${u.email}`}>{Icon.trash()} Delete</button> : null}
-              </div>
+              {admin ? (
+                <div className="user-actions">
+                  <button className="btn small" onClick={() => emailLink(u)}>Send login email again</button>
+                  <button className="btn small" onClick={() => setReset({ u, password: tempPassword() })}>Reset password</button>
+                  {!mine ? <button className="btn small danger" onClick={() => remove(u)} aria-label={`Delete ${u.email}`}>{Icon.trash()} Delete</button> : null}
+                </div>
+              ) : null}
             </li>
           )
         })}
       </ul>
+      <details className="access-log">
+        <summary>Questionnaire access changes ({log.length})</summary>
+        {log.length ? (
+          <ul>{log.map((e, i) => <li key={i}><b>{fmt(e.at)}</b>: {e.by} changed <b>{e.change}</b> for {e.for}{e.note ? ` (${e.note})` : ''}</li>)}</ul>
+        ) : <p className="help">No changes yet.</p>}
+      </details>
       {adding ? (
         <Modal narrow title="Add a user" onClose={() => { setAdding(false); setExists(null) }} footer={exists
           ? <><button className="btn" onClick={() => { setAdding(false); setExists(null) }}>Close</button><button className="btn primary" onClick={() => { const e = exists; setAdding(false); setExists(null); emailLink(e) }}>Send login email again</button></>

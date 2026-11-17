@@ -16,12 +16,17 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 export type Booking = {
   ref: string; start: string; day: string; time: string; when: string; name: string; email: string; phone: string
   notes: string; price: number; special: boolean; status: 'requested' | 'confirmed' | 'cancelled'; depositPaid: boolean; createdAt: string
-  deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null }
+  deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null; method?: string }
   /** v1.8.3: '' (before v1.8.3) | sent | retry | failed */
   emails: { patient: string; team: string }
   /** v1.9.0: the welcome pack email */
   welcome: { status: string; sentAt: string | null; count: number; by: string }
+  /** v1.10.0: first and last name, date of birth (null before v1.10.0) with today's age, and the terms ticks */
+  firstName: string; lastName: string; dob: string | null; age: number | null; ageAtAppointment: number | null
+  terms: { version: string; consentAt: string | null; readAt: string | null; payReadAt: string | null }
 }
+
+const dobText = (b: Pick<Booking, 'dob' | 'age'>) => (b.dob ? `${new Date(`${b.dob}T00:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' })} (age ${b.age})` : 'not given')
 type Slot = { time: string; label: string; start: string; status: 'open' | 'booked' | 'blocked' | 'closed'; note: string; booking: { ref: string; name: string; status: string } | null }
 type Day = { day: string; label: string; special: boolean; blocked: { note: string } | null; slots: Slot[] }
 export type BookingData = {
@@ -170,8 +175,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   }
 
   function csv() {
-    const rows = [['Reference', 'Appointment', 'Name', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Note from patient', 'Requested on']]
-    for (const b of shown) rows.push([b.ref, b.when, b.name, b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.notes, when(b.createdAt)])
+    const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Terms version', 'Terms consented', 'Read before deposit', 'Note from patient', 'Requested on']]
+    for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt ? when(b.terms.consentAt) : '', b.terms.readAt ? when(b.terms.readAt) : '', b.notes, when(b.createdAt)])
     const text = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }))
@@ -235,7 +240,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                 <React.Fragment key={b.ref}>
                   <tr>
                     <td><b>{b.when}</b><br /><span className="muted">{b.ref}</span></td>
-                    <td><button className="btn ghost small t-title" aria-expanded={open === b.ref} onClick={() => setOpen(open === b.ref ? null : b.ref)}>{b.name}</button></td>
+                    <td><button className="btn ghost small t-title" aria-expanded={open === b.ref} onClick={() => setOpen(open === b.ref ? null : b.ref)}>{b.name}</button>
+                      <br /><span className="muted">DOB {dobText(b)}</span>{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? <> <span className="chip warn" title="Under 18 at the appointment">Under 18</span></> : null}</td>
                     <td>{b.phone ? <><a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`}>{b.phone}</a><br /></> : null}<a href={`mailto:${b.email}`}>{b.email}</a></td>
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
@@ -261,8 +267,17 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                   {open === b.ref ? (
                     <tr><td colSpan={9} style={{ background: '#fafbfc' }}>
                       <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
-                      <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}. Deposit and cancellation policy accepted.</p>
-                      <p className="help" style={{ margin: '6px 0 0' }}><b>Deposit:</b> {b.deposit.label}{b.deposit.amount ? `, ${money(b.deposit.amount)}` : ''}{b.deposit.paidAt ? `, ${when(b.deposit.paidAt)}` : ''}{b.deposit.captureId ? `, PayPal transaction ${b.deposit.captureId}` : ''}{b.deposit.note ? `. ${b.deposit.note}` : ''}
+                      <dl className="booking-facts">
+                        <div><dt>First name</dt><dd>{b.firstName || <span className="muted">not given (booked as {b.name})</span>}</dd></div>
+                        <div><dt>Last name</dt><dd>{b.lastName || <span className="muted">not given</span>}</dd></div>
+                        <div><dt>Date of birth</dt><dd>{dobText(b)}{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? ' (under 18 at the appointment)' : ''}</dd></div>
+                        <div><dt>Phone</dt><dd>{b.phone || <span className="muted">not given</span>}</dd></div>
+                      </dl>
+                      <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}.{' '}
+                        {b.terms.consentAt
+                          ? <>Terms and cancellation policy version {b.terms.version || 'not recorded'}: consented {when(b.terms.consentAt)}{b.terms.readAt ? `, ticked "I have read" before the deposit ${when(b.terms.readAt)}` : ''}{b.terms.payReadAt ? `, and again on the pay-later page ${when(b.terms.payReadAt)}` : ''}.</>
+                          : <>Booked before v1.10.0: the deposit and cancellation policy was accepted (no times recorded).{b.terms.payReadAt ? ` Ticked "I have read" on the pay-later page ${when(b.terms.payReadAt)}.` : ''}</>}</p>
+                      <p className="help" style={{ margin: '6px 0 0' }}><b>Deposit:</b> {b.deposit.label}{b.deposit.amount ? `, ${money(b.deposit.amount)}` : ''}{b.deposit.paidAt ? `, ${when(b.deposit.paidAt)}` : ''}{b.deposit.method ? `, paid by ${b.deposit.method}` : ''}{b.deposit.captureId ? `, PayPal transaction ${b.deposit.captureId}` : ''}{b.deposit.note ? `. ${b.deposit.note}` : ''}
                         {b.deposit.paypalUrl ? <> <a href={b.deposit.paypalUrl} target="_blank" rel="noopener">View in PayPal</a></> : null}</p>
                       {b.deposit.status === 'manual' && b.status !== 'cancelled' ? <button className="btn small ghost" style={{ marginTop: 8 }} onClick={() => update(b, { depositPaid: false }, 'Deposit marked as not received.')}>Undo manual mark</button> : null}
                     </td></tr>
@@ -283,7 +298,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
           <li>Press <b>Mark confirmed</b>.{data.questionnaire?.welcome ? ' The website then emails the patient the welcome pack (Lorna\'s Patient Guide and questionnaire).' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>
         </ol>
         <p className="help" style={{ margin: 0 }}>{data.deposit.mode === 'paypal'
-          ? `Patients pay the ${money(data.deposit.amount)} deposit through PayPal (or a card) in the booking flow, or later through the private link in their email. When it is paid, the deposit column ticks itself and you get a "Deposit received" email. Nothing needs checking in PayPal; refunds are done there and show here as Refunded.${data.deposit.env === 'sandbox' ? ' (PayPal is in sandbox mode: test payments only.)' : ''}`
+          ? `Patients pay the ${money(data.deposit.amount)} deposit by card (no PayPal account needed) or with PayPal in the booking flow, or later through the private link in their email. When it is paid, the deposit column ticks itself and you get a "Deposit received" email. Nothing needs checking in PayPal; refunds are done there and show here as Refunded.${data.deposit.env === 'sandbox' ? ' (PayPal is in sandbox mode: test payments only.)' : ''}`
           : `There is no online payment set up yet, so patients are told the ${money(data.deposit.amount)} deposit details will come with their confirmation.`}
         {' '}If a patient cancels, press Cancel booking and the time opens up on the website again.</p>
       </div>

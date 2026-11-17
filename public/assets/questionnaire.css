@@ -66,3 +66,12 @@ textarea.qn-input{resize:vertical;min-height:96px}
 @media print{.qn-actions,.qn-clear,.qn-test,.site-header,.site-footer{display:none}.qn-card,.qn-intro,.qn-end{break-inside:avoid;border-color:#999}}
 /* the header stays solid on these pages (the main site's scroll script is not loaded here) */
 .questionnaire-page .site-header{background:rgba(247,244,239,.95);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom-color:var(--line)}
+/* v1.10.0: Your details (name and date of birth) at the top */
+.qn-identity .qn-head{margin-bottom:8px}
+.qn-req{font-weight:400;font-size:14px;color:#5b6b75}
+.qn-dob{border:0;margin:0;padding:0;min-width:0}
+.qn-dob legend{padding:0}
+.qn-dob-parts{display:grid;grid-template-columns:minmax(80px,.8fr) minmax(130px,1.4fr) minmax(100px,1fr);gap:12px;max-width:520px}
+.qn-dob-parts label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:#5b6b75}
+.qn-identity [aria-invalid=true]{border-color:#8A3B2E;border-width:2px}
+@media (max-width:560px){.qn-dob-parts{grid-template-columns:70px 1fr 90px;gap:8px}}

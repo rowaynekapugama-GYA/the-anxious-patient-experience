@@ -6,6 +6,11 @@
  *   PAYPAL_CLIENT_SECRET  the REST app's secret (server only, never sent to the browser)
  *   PAYPAL_WEBHOOK_ID     the webhook created in the same app, used to verify each event's signature
  *   PAYPAL_API_URL        tests only: a local stand-in for PayPal
+ *   PAYPAL_ADVANCED       v1.10.0: "on" shows PayPal Advanced Checkout on Book Now and the pay page: card fields on our
+ *                         own page (3D Secure when the bank asks for it), Apple Pay and Google Pay, with the PayPal
+ *                         button kept. Only once PayPal has approved the account for Advanced Checkout
+ *                         (docs/PAYPAL-ADVANCED-SETUP.md). Off (or unset): the PayPal buttons, which include the
+ *                         guest "Debit or Credit Card" button, as in v1.8.0.
  *
  * Without PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET the deposit step is simply not offered: Book Now behaves as it did
  * before (the deposit details come with the confirmation). The amount is always set here, never by the browser.
@@ -23,6 +28,13 @@ export function paypalConfigured(): boolean {
   return !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
 }
 export const paypalClientId = () => process.env.PAYPAL_CLIENT_ID || ''
+export const paypalAdvanced = () => paypalConfigured() && /^(on|true|1|yes)$/i.test(String(process.env.PAYPAL_ADVANCED || '').trim())
+
+/** How the patient pays: the PayPal buttons (PayPal or guest card), or with Advanced Checkout card fields, Apple Pay or Google Pay. */
+export type Source = 'paypal' | 'card' | 'apple_pay' | 'google_pay'
+export const SOURCES: Source[] = ['paypal', 'card', 'apple_pay', 'google_pay']
+export const asSource = (v: unknown): Source => (SOURCES.includes(v as Source) ? v as Source : 'paypal')
+export const METHOD_LABEL: Record<string, string> = { paypal: 'PayPal', card: 'Card', apple_pay: 'Apple Pay', google_pay: 'Google Pay', venmo: 'Venmo' }
 export function paypalApi(): string {
   if (process.env.PAYPAL_API_URL) return process.env.PAYPAL_API_URL.replace(/\/+$/, '')
   return paypalEnv() === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com'
@@ -67,12 +79,42 @@ export type Order = {
   id: string
   status: string
   purchase_units?: { custom_id?: string; reference_id?: string; payments?: { captures?: Capture[] } }[]
+  payment_source?: Record<string, any>
+}
+
+/** Which way an order was paid, from PayPal's payment_source: paypal, card, apple_pay or google_pay. */
+export function methodOf(order: Order | null): string {
+  const keys = Object.keys(order?.payment_source || {})
+  return keys.find((k) => k in METHOD_LABEL) || keys[0] || ''
+}
+
+/**
+ * 3D Secure (v1.10.0): after the card holder finishes (or skips) their bank's check, PayPal reports the result on the
+ * order. PayPal's recommended actions: go ahead when liability shifts to the bank (POSSIBLE or YES) or when the card
+ * is not enrolled or 3D Secure is not available; ask the patient to try again when the result is unknown; stop when
+ * the bank check failed or was rejected. No result at all means no check was needed.
+ */
+export function threeDs(order: Order | null): 'continue' | 'retry' | 'failed' {
+  const card = order?.payment_source?.card
+  const r = card?.authentication_result
+  if (!card || !r) return 'continue'
+  const ls = String(r.liability_shift || '').toUpperCase()
+  const enrol = String(r.three_d_secure?.enrollment_status || '').toUpperCase()
+  const auth = String(r.three_d_secure?.authentication_status || '').toUpperCase()
+  if (ls === 'POSSIBLE' || ls === 'YES') return 'continue'
+  if (ls === 'UNKNOWN') return 'retry'
+  if (ls === 'NO') {
+    if (enrol === 'N' || enrol === 'U' || enrol === 'B') return auth ? 'failed' : 'continue'
+    if (auth === 'U' || auth === 'C') return 'retry'
+    return 'failed'
+  }
+  return 'retry'
 }
 export type Capture = { id: string; status: string; amount?: { currency_code: string; value: string }; custom_id?: string; create_time?: string }
 
-/** Create the order for one booking's deposit. The reference is PayPal's idempotency key, so a repeat makes no second order. */
-export async function createDepositOrder(ref: string, amount: number, origin: string): Promise<Order> {
-  const { status, json } = await call<Order & { message?: string; details?: unknown }>('POST', '/v2/checkout/orders', {
+/** The order body for one booking's deposit, by how the patient pays. Same reference (custom_id) whichever way. */
+export function orderBody(ref: string, amount: number, origin: string, source: Source = 'paypal'): Record<string, unknown> {
+  const body: Record<string, unknown> = {
     intent: 'CAPTURE',
     purchase_units: [{
       reference_id: ref,
@@ -81,7 +123,9 @@ export async function createDepositOrder(ref: string, amount: number, origin: st
       description: DEPOSIT_DESCRIPTION,
       amount: { currency_code: DEPOSIT_CURRENCY, value: money2(amount) },
     }],
-    payment_source: {
+  }
+  if (source === 'paypal') {
+    body.payment_source = {
       paypal: {
         experience_context: {
           brand_name: BRAND_NAME,
@@ -93,8 +137,23 @@ export async function createDepositOrder(ref: string, amount: number, origin: st
           cancel_url: `${origin}/book-now/`,
         },
       },
-    },
-  }, { 'PayPal-Request-Id': `${ref}-order-${Date.now().toString(36)}` })
+    }
+  } else if (source === 'card') {
+    // card fields on our own page: the bank's 3D Secure check when it asks for one (SCA_WHEN_REQUIRED)
+    body.payment_source = {
+      card: {
+        attributes: { verification: { method: 'SCA_WHEN_REQUIRED' } },
+        experience_context: { return_url: `${origin}/book-now/`, cancel_url: `${origin}/book-now/` },
+      },
+    }
+  }
+  // Apple Pay and Google Pay: the browser confirms the order with the wallet token (paypal.Applepay / Googlepay)
+  return body
+}
+
+/** Create the order for one booking's deposit. */
+export async function createDepositOrder(ref: string, amount: number, origin: string, source: Source = 'paypal'): Promise<Order> {
+  const { status, json } = await call<Order & { message?: string; details?: unknown }>('POST', '/v2/checkout/orders', orderBody(ref, amount, origin, source), { 'PayPal-Request-Id': `${ref}-order-${source}-${Date.now().toString(36)}` })
   if (status >= 300 || !json.id) throw new Error(`PayPal create order ${status}: ${JSON.stringify(json).slice(0, 300)}`)
   return json
 }

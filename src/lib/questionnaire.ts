@@ -24,16 +24,16 @@ import type { Payload, Where } from 'payload'
 import { seal, unseal, newToken, hashToken, encryptionReady, type Sealed } from './crypto'
 import { emailConfigured, siteOrigin } from './email'
 import { deliver, type Result } from './mailer'
-import { liveRecipients } from './recipients'
+import { liveRecipients, questionnaireRecipients } from './recipients'
 import { DEFAULTS } from '@/site.config'
 import { escHtml, fmtDateTime, db } from '@/booking/core'
-import { FORM_ID, cleanAnswers, problems as answerProblems, type Answers } from './ape-questionnaire'
+import { FORM_ID, cleanAnswers, problems as answerProblems, identityProblems, identityDiffers, ID, type Answers } from './ape-questionnaire'
+import { retainUntil, fullName } from '@/booking/patient'
 
 export type { Answers } from './ape-questionnaire'
 
 const TZ = 'Australia/Sydney'
 const LINK_GRACE_DAYS = 7
-const RETAIN_YEARS = 7
 const TEST_HOURS = 24
 const str = (v: unknown) => String(v ?? '').trim()
 
@@ -186,7 +186,24 @@ export async function packAttachments(payload: Payload): Promise<{ attachments: 
 
 // ---------------------------------------------------------------- the welcome email
 
-export type BookingRow = { ref: string; name: string; email: string; slot_start: string | Date; status?: string }
+export type BookingRow = { ref: string; name: string; email: string; slot_start: string | Date; status?: string; dob?: string | Date | null }
+
+/** v1.10.0: the name and date of birth on a booking (no date of birth on bookings made before v1.10.0). */
+export type BookingIdentity = { name: string; dob: string | null }
+export async function bookingIdentity(ref: string): Promise<BookingIdentity | null> {
+  const d = db()
+  if (!d) return null
+  const r = await d.query<{ name: string; first_name: string; last_name: string; dob: string | Date | null }>(`SELECT name, first_name, last_name, to_char(dob, 'YYYY-MM-DD') AS dob FROM ape_bookings WHERE ref = $1`, [ref]).catch(() => [])
+  if (!r[0]) return null
+  const b = r[0]
+  return { name: b.first_name ? fullName(b.first_name, b.last_name) : String(b.name || ''), dob: isoDay(b.dob) }
+}
+export const isoDay = (v: unknown): string | null => {
+  if (!v) return null
+  if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v))
+  return m ? m[1] : null
+}
 type Place = { clinic: string; address: string; mapsUrl: string; phone: string; apeEmail: string }
 
 export async function place(payload: Payload): Promise<Place> {
@@ -364,16 +381,20 @@ export async function submitAnswers(payload: Payload, token: string, raw: unknow
   if (found.state !== 'ok' || !found.row) return { ok: false, state: found.state }
   if (!encryptionReady()) return { ok: false, state: 'no_key' }
   if (!consent) return { ok: false, state: 'consent' }
-  const bad = answerProblems(raw)
+  // v1.10.0: the full name and date of birth at the top are needed to send (a draft saves without them)
+  const bad = { ...answerProblems(raw), ...identityProblems(raw) }
   if (Object.keys(bad).length) return { ok: false, state: 'invalid_answers', problems: bad }
   const answers = cleanAnswers(raw)
   const row = found.row
   const appointment = new Date(row.appointmentAt)
-  const until = new Date(appointment.getTime()); until.setFullYear(until.getFullYear() + RETAIN_YEARS)
+  // kept 7 years after the appointment, or until the patient turns 25 if they were under 18 at the appointment
+  const booking = row.test ? null : await bookingIdentity(String(row.bookingRef))
+  const until = retainUntil(appointment, booking?.dob || String(answers[ID.dob] || '') || null)
+  const differs = booking ? identityDiffers(answers, booking) : false
   const submittedAt = new Date().toISOString()
   await payload.update({
     collection: 'questionnaires', id: row.id, overrideAccess: true,
-    data: { status: 'submitted', submittedAt, form: FORM_ID, sealed: JSON.stringify(seal(JSON.stringify({ form: FORM_ID, answers, submittedAt }))), draft: null, draftSavedAt: null, retainUntil: until.toISOString() },
+    data: { status: 'submitted', submittedAt, form: FORM_ID, sealed: JSON.stringify(seal(JSON.stringify({ form: FORM_ID, answers, submittedAt }))), draft: null, draftSavedAt: null, retainUntil: until.toISOString(), identityDiffers: differs },
   })
   await notifyTeam(row).catch((err) => console.error('questionnaire: notification failed', row.bookingRef, (err as Error).message))
   return { ok: true }
@@ -394,7 +415,7 @@ async function notifyTeam(row: Record<string, any>): Promise<void> {
     return
   }
   const live = await liveRecipients()
-  const r = await deliver('questionnaire-team', { to: live.questionnaire.length ? live.questionnaire : live.team.list, ...m }, { ref: row.bookingRef })
+  const r = await deliver('questionnaire-team', { to: questionnaireRecipients(live).list, ...m }, { ref: row.bookingRef })
   if (!r.ok) {
     const { alertGya } = await import('@/booking/emails')
     await alertGya('questionnaire received email to the team', row.bookingRef).catch(() => {})
@@ -420,11 +441,11 @@ export async function log(payload: Payload, e: { userEmail: string; userId?: str
   }).catch((err) => console.error('questionnaire: log failed', (err as Error).message))
 }
 
-export type ListRow = { id: string; bookingRef: string; patientName: string; appointmentAt: string; status: string; sentAt: string | null; submittedAt: string | null; draftSavedAt: string | null; reviewed: boolean; reviewedBy: string; reviewedAt: string | null; retainUntil: string | null; sentCount: number; test: boolean; testEmail: string }
+export type ListRow = { id: string; bookingRef: string; patientName: string; appointmentAt: string; status: string; sentAt: string | null; submittedAt: string | null; draftSavedAt: string | null; reviewed: boolean; reviewedBy: string; reviewedAt: string | null; retainUntil: string | null; sentCount: number; test: boolean; testEmail: string; identityDiffers: boolean }
 const listRow = (d: Record<string, any>): ListRow => ({
   id: String(d.id), bookingRef: String(d.bookingRef), patientName: String(d.patientName || ''), appointmentAt: String(d.appointmentAt || ''), status: String(d.status),
   sentAt: d.sentAt || null, submittedAt: d.submittedAt || null, draftSavedAt: d.draftSavedAt || null, reviewed: !!d.reviewed, reviewedBy: String(d.reviewedBy || ''), reviewedAt: d.reviewedAt || null,
-  retainUntil: d.retainUntil || null, sentCount: Number(d.sentCount || 1), test: !!d.test, testEmail: d.test ? String(d.testEmail || '') : '',
+  retainUntil: d.retainUntil || null, sentCount: Number(d.sentCount || 1), test: !!d.test, testEmail: d.test ? String(d.testEmail || '') : '', identityDiffers: !!d.identityDiffers,
 })
 
 /** Real questionnaires (no answers), newest first; or only the test ones. */
@@ -452,7 +473,7 @@ export async function countUnreviewed(payload: Payload): Promise<number> {
   }
 }
 
-export type Opened = { row: ListRow; answers: Answers; form: string; legacy?: { title: string; questions: { id: string; heading: string; questions: { id: string; label: string; type: string }[] }[] } }
+export type Opened = { row: ListRow; answers: Answers; form: string; booking?: BookingIdentity | null; legacy?: { title: string; questions: { id: string; heading: string; questions: { id: string; label: string; type: string }[] }[] } }
 
 /** Decrypt one questionnaire for a person allowed to see it, and log it. */
 export async function openQuestionnaire(payload: Payload, id: string, user: DashUser): Promise<Opened | null> {
@@ -463,10 +484,15 @@ export async function openQuestionnaire(payload: Payload, id: string, user: Dash
     throw Object.assign(new Error('no access'), { status: 403 })
   }
   await log(payload, { userEmail: user.email, userId: user.id, action: 'viewed', bookingRef: d.bookingRef, questionnaire: id, note: d.test ? 'test' : undefined })
-  if (d.status !== 'submitted' || !d.sealed) return { row: listRow(d), answers: {}, form: String(d.form || FORM_ID) }
+  const booking = d.test ? null : await bookingIdentity(String(d.bookingRef))
+  if (d.status !== 'submitted' || !d.sealed) return { row: listRow(d), answers: {}, form: String(d.form || FORM_ID), booking }
   const plain = JSON.parse(unseal(JSON.parse(d.sealed) as Sealed)) as { form?: string; answers: Answers; questions?: any[]; title?: string }
-  if (!plain.form && plain.questions) return { row: listRow(d), answers: plain.answers, form: 'v1.7.0', legacy: { title: String(plain.title || ''), questions: plain.questions } }
-  return { row: listRow(d), answers: cleanAnswers(plain.answers), form: String(plain.form || FORM_ID) }
+  if (!plain.form && plain.questions) return { row: listRow(d), answers: plain.answers, form: 'v1.7.0', booking, legacy: { title: String(plain.title || ''), questions: plain.questions } }
+  const answers = cleanAnswers(plain.answers)
+  // worked out again on opening, in case the booking was corrected since
+  const row = listRow(d)
+  if (booking) row.identityDiffers = identityDiffers(answers, booking)
+  return { row, answers, form: String(plain.form || FORM_ID), booking }
 }
 
 export async function setReviewed(payload: Payload, id: string, user: DashUser, reviewed: boolean): Promise<void> {

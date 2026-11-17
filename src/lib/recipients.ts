@@ -56,3 +56,12 @@ export async function liveRecipients(): Promise<Live> {
     bcc: split(process.env.BOOKING_BCC),
   }
 }
+
+/**
+ * v1.10.0: who is told when a questionnaire is completed. Site Settings > Questionnaire notifications go to, else the
+ * same list as new bookings (Who receives booking emails, then the Vercel fallbacks, then the APE inbox).
+ */
+export function questionnaireRecipients(live: Pick<Live, 'questionnaire' | 'team'>): { list: string[]; source: string } {
+  if (live.questionnaire.length) return { list: [...new Set(live.questionnaire)], source: 'Site Settings, Questionnaire notifications go to' }
+  return { list: live.team.list, source: `the booking list (${live.team.source})` }
+}

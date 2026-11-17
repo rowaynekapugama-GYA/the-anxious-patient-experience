@@ -19,6 +19,9 @@ const REDIRECTS = new Map<string, R>((site.redirects as R[]).filter((r) => r.fro
 
 const APP = /^\/(admin|cms|api|_next|questionnaire)(\/|$)/
 const PAY = /^\/book-now\/pay\/?$/
+// v1.10.0: the booking terms page, and Apple Pay's domain check file (served from /api/apple-pay-domain)
+const TERMS = /^\/book-now\/terms\/?$/
+const APPLE_PAY = '/.well-known/apple-developer-merchantid-domain-association'
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|assets/|images/).*)'],
@@ -44,6 +47,8 @@ export async function proxy(req: NextRequest) {
   if (p === '/admin/') return NextResponse.redirect(new URL('/admin' + url.search, url.origin), 308)
   // the private "pay your deposit" page (v1.8.0) is a Next.js page, with or without the trailing slash
   if (PAY.test(p)) return p.endsWith('/') ? NextResponse.rewrite(new URL('/book-now/pay' + url.search, url.origin)) : NextResponse.next()
+  if (TERMS.test(p)) return p.endsWith('/') ? NextResponse.rewrite(new URL('/book-now/terms' + url.search, url.origin)) : NextResponse.redirect(new URL('/book-now/terms/' + url.search, url.origin), 308)
+  if (p === APPLE_PAY) return NextResponse.rewrite(new URL('/api/apple-pay-domain', url.origin))
   // the dashboard: pass the address on, so signing in can come back to it (v1.8.2)
   if (/^\/admin(\/|$)/.test(p)) {
     const h = new Headers(req.headers)

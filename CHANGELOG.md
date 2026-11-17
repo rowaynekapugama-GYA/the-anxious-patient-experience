@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.10.0 (17 Nov 2026): required details with DOB, terms panel, card and wallet payments, questionnaire access by Lorna
+
+Update to the existing repo. Includes v1.9.3, v1.9.2, v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet. From
+Alex's email of 16 Nov 2026.
+
+- **Required booking details.** First name and last name (separate), email, phone and date of birth are all required
+  on Book Now. Phone accepts Australian mobiles and landlines written any common way (spaces, brackets, +61) and is
+  saved as `0412 345 678` or `(02) 8599 9815`. Date of birth is day and month selects plus a year box; no future dates,
+  nothing over 120 years. Under 18 is not blocked (question for Lorna); the dashboard shows the age and an Under 18
+  label. Errors are plain words beside each field with a marker, listed in a summary that takes focus and is
+  announced to screen readers. The team booking email and Bookings show first name, last name, phone and date of
+  birth with the age; the patient's email does not repeat the date of birth; the GYA delivery check still has no
+  patient details. Older bookings keep their single name and show "not given". CSV export has the new columns.
+- **Terms and cancellation policy step.** Book Now now has five steps: time, details, **Terms and cancellation
+  policy**, deposit, confirmed. The terms show in full (no small scroll box) and state the 48-hour rule; the three
+  existing policy lines are word for word, the rest is a draft for Lorna. Tick "I consent to the terms and conditions
+  and cancellation policy above." to continue. The deposit step needs "I have read the terms and conditions and
+  cancellation policy." before sending; it replaces the old tick "I have read and understand the deposit and
+  cancellation policy." Each booking stores the terms version and the time of each tick (shown in Bookings). The
+  patient's booking email has a 48-hour reminder and a link to `/book-now/terms/`. The pay-later page shows the same
+  terms and needs the same tick (recorded too). Terms are edited in Site Settings > **Booking terms**, versioned, with
+  Lorna's approval recorded. Book Now's introduction now says "five simple steps" (applied to the dashboard copy only
+  if it still said four).
+- **Payments.** The deposit step says "Pay by card, or with PayPal. You don't need a PayPal account." The PayPal guest
+  card button was already requested in code (`enable-funding=card`); the account needs **PayPal account optional** on.
+  **PayPal Advanced Checkout** is built and switched off (`PAYPAL_ADVANCED=on` to switch on): card fields in the APE
+  style with 3D Secure when the bank asks (checked before capture; a failed or unfinished check charges nothing and
+  shows a clear message with retry), Apple Pay, Google Pay, and the PayPal button kept. Same server order (custom_id =
+  booking reference), capture and webhook; how it was paid is saved and shown. Shared by Book Now and the pay-later
+  page (`public/assets/pay.js`). Apple Pay's domain file is served at
+  `/.well-known/apple-developer-merchantid-domain-association` from `config/apple-pay/` (404 until added). Set-up:
+  `docs/PAYPAL-ADVANCED-SETUP.md`. No Stripe.
+- **Questionnaire notifications and access.** Site Settings has **Questionnaire notifications go to** (editors can
+  change it; empty uses the booking list). New **Practice owner** flag on a login (GYA only); the migration sets it for
+  lorna-gladwin1@hotmail.co.uk if that login exists and logs it. The practice owner sees the Users screen with only the
+  "Can view patient questionnaires" tick, for anyone including herself, and the line "Only people ticked here can open
+  patient questionnaires. Having a login is not enough." Editors cannot see or change it (screen 404, API 403, Payload
+  field admin-only). Every change is logged (who, for whom, when; shown on the Users screen) and the person given
+  access is emailed (no patient details). "Lorna nominates / GYA switches it on" wording fixed.
+- **Questionnaire name and DOB.** "Your details" at the top: full name and date of birth, filled in from the booking,
+  needed to send (drafts save without them), sealed with the answers. The dashboard view, At a glance and Print show
+  them, with **Name or DOB differs from the booking** when they do not match (also in the list). Lorna's PDF is not
+  changed (ask her to add the lines).
+- **Retention.** Questionnaires are kept 7 years after the appointment, or until the patient turns 25 if they were
+  under 18 at the appointment, whichever is later (from the booking's date of birth, else the questionnaire's).
+- **Database.** Additive only: `ape_bookings` gains first_name, last_name, dob, terms_version, terms_consent_at,
+  terms_read_at, terms_pay_read_at, deposit_method; migration `20261117_010000_v1100_terms_owner` adds
+  users.practice_owner, the booking terms fields, questionnaires.identity_differs and `ape_access_log`.
+- **New environment variables (optional):** `PAYPAL_ADVANCED` (later, not Sensitive), `APPLE_PAY_DOMAIN_ASSOCIATION`
+  (optional, not Sensitive).
+- **Not on the website yet (drafts for Lorna):** the booking collection notice, the privacy policy's booking section
+  and section 14, and the questionnaire collection notice: `docs/FOR-LORNA-v1.10.0.md`.
+- **Checks:** `npm run test:booking` (new, 116 checks), `test:questionnaire` (57), `test:email`, `npm run qa`, a
+  full build migrating a v1.9.3 database, and browser checks on phone and desktop (107), with PayPal, Apple Pay and
+  Google Pay replaced by local stand-ins (the real SDKs cannot load here).
+
 ## 1.9.3 (16 Nov 2026): Lorna's questionnaire offered on Book Now, straight after booking
 
 Update to the existing repo. Includes v1.9.2, v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet.

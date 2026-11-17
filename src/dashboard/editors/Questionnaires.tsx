@@ -12,13 +12,13 @@ import { Icon } from '../ui/icons'
 import { Modal, Notice, TextInput } from '../ui/fields'
 import { when } from '../lib/format'
 import type { ListRow, Opened } from '@/lib/questionnaire'
-import { answerRows, glance } from '@/lib/ape-questionnaire'
+import { answerRows, glance, identityRows } from '@/lib/ape-questionnaire'
 
 const API = '/api/dashboard/questionnaires'
 
 const ERR: Record<string, string> = {
   signed_out: 'Your session has ended. Please sign in again.',
-  no_access: 'Your login does not have access to patient questionnaires. GYA can give it to you if Lorna has nominated you.',
+  no_access: 'Your login does not have access to patient questionnaires. Lorna (the practice owner) can give it to you on the Users screen.',
   admin_only: 'Only a GYA administrator can do this.',
   not_found: 'That questionnaire no longer exists.',
   not_sent: 'The welcome email could not be sent.',
@@ -60,7 +60,7 @@ export function QuestionnairesScreen({ role }: { role: string }) {
     <>
       <StatusNotices data={data} admin={admin} />
       {!data.access && !data.tests ? (
-        <Notice tone="info" icon={Icon.info()}><p><b>Your login does not include access to patient questionnaires.</b> Lorna nominates who can read them and GYA switches it on for each person on the Users screen.</p></Notice>
+        <Notice tone="info" icon={Icon.info()}><p><b>Your login does not include access to patient questionnaires.</b> Only people ticked on the Users screen can open them; having a login is not enough. Lorna, as the practice owner, ticks who has access.</p></Notice>
       ) : (
         <>
           <div className="stat-row" style={{ marginBottom: 18 }}>
@@ -86,7 +86,7 @@ export function QuestionnairesScreen({ role }: { role: string }) {
                   {rows.map((r) => (
                     <tr key={r.id}>
                       <td><b>{r.bookingRef}</b>{r.test ? <><br /><span className="chip test-chip">TEST {r.testEmail}</span></> : null}</td>
-                      <td>{r.patientName || <span className="muted">(name not recorded)</span>}</td>
+                      <td>{r.patientName || <span className="muted">(name not recorded)</span>}{r.identityDiffers ? <><br /><span className="chip warn" title="The name or date of birth on the questionnaire is not the one on the booking">Name or DOB differs from the booking</span></> : null}</td>
                       <td>{r.appointmentAt ? when(r.appointmentAt) : ''}</td>
                       <td>{r.status === 'submitted' ? when(r.submittedAt || '') : <span className="chip grey">Not yet{r.draftSavedAt ? ', started' : ''}{r.sentAt ? `, link sent ${when(r.sentAt)}` : ''}</span>}</td>
                       <td>{r.status !== 'submitted' ? <span className="muted">-</span> : r.reviewed ? <span className="chip good" title={`${r.reviewedBy} ${r.reviewedAt ? when(r.reviewedAt) : ''}`}>{Icon.check()} Reviewed</span> : <span className="chip warn">To review</span>}</td>
@@ -115,11 +115,28 @@ export function QuestionnairesScreen({ role }: { role: string }) {
 // ================================================================ one questionnaire
 const show = (v: string | string[] | null | undefined) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) ? <span className="muted">No answer</span> : Array.isArray(v) ? <ul className="q-answer-list">{v.map((x) => <li key={x}>{x}</li>)}</ul> : <span style={{ whiteSpace: 'pre-wrap' }}>{String(v)}</span>
 
-function Glance({ a }: { a: Opened['answers'] }) {
+const dobLong = (iso: string | null | undefined) => (iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }) : '')
+
+/** v1.10.0: the name and date of birth the patient entered, with the booking's beside them when they differ. */
+function Identity({ a, booking, differs }: { a: Opened['answers']; booking?: { name: string; dob: string | null } | null; differs: boolean }) {
+  const rows = identityRows(a)
+  return (
+    <div className="q-identity">
+      {differs ? <p className="q-differs" role="note"><span aria-hidden="true">!</span> <b>Name or DOB differs from the booking.</b> Please check with the patient before entering it in Core Practice.</p> : null}
+      <dl>
+        {rows.map((r) => <div key={r.label}><dt>{r.label}</dt><dd>{r.value || <span className="muted">Not given</span>}</dd></div>)}
+        {booking && differs ? <div className="q-booking"><dt>On the booking</dt><dd>{booking.name}{booking.dob ? `, ${dobLong(booking.dob)}` : ', no date of birth (booked before v1.10.0)'}</dd></div> : null}
+      </dl>
+    </div>
+  )
+}
+
+function Glance({ a, booking, differs }: { a: Opened['answers']; booking?: { name: string; dob: string | null } | null; differs: boolean }) {
   const g = glance(a)
   return (
     <div className="panel">
       <h2>At a glance</h2>
+      <Identity a={a} booking={booking} differs={differs} />
       <div className="glance">
         <div className="score"><b>{g.score ?? '-'}</b><span>{g.score ? 'anxiety out of 10' : 'no score given'}</span></div>
         <div><h3>What makes them anxious</h3>{g.anxious.length ? <ul>{g.anxious.map((x) => <li key={x}>{x}</li>)}</ul> : <p className="muted">Nothing ticked</p>}</div>
@@ -181,9 +198,10 @@ export function QuestionnaireView({ id, role }: { id: string; role: string }) {
         </div>
       ) : (
         <>
-          <Glance a={data.answers} />
+          <Glance a={data.answers} booking={data.booking} differs={!!r.identityDiffers} />
           <div className="panel q-print">
             <h1 className="q-print-title">Pre-appointment Questionnaire</h1>
+            <section className="qa-q q-print-identity"><h3>Your details</h3><Identity a={data.answers} booking={data.booking} differs={!!r.identityDiffers} /></section>
             {answerRows(data.answers).map((qq) => (
               <section key={qq.num} className="qa-q">
                 <h3><span className="num">{qq.num}</span>{qq.title}{qq.optional ? <span className="muted"> (optional)</span> : null}</h3>

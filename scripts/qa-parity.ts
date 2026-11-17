@@ -2,8 +2,8 @@
  * Proves the content model gives back the approved pages: renders content/ with the v1.4.0 settings and
  * compares every page with the v1.4.0 build (tools/v140/), byte for byte. The only differences allowed are
  * the <!-- config:... --> markers the old build wrote around the settings it filled in, and the changes
- * approved since (APPROVED below): Lauren's photo (v1.6.0), and the privacy policy (v1.6.0, a new page, so it is
- * checked by qa:site and qa:editor instead).
+ * approved since (APPROVED below): Lauren's photo (v1.6.0), "five simple steps" on Book Now (v1.10.0, the terms
+ * step was added), and the privacy policy (v1.6.0, a new page, so it is checked by qa:site and qa:editor instead).
  *
  *   npm run qa:parity
  */
@@ -25,6 +25,7 @@ const APPROVED: [string, RegExp, string][] = [
   ['index.html',
     /<!-- LAUREN'S PHOTO:.*?--><img src="\/images\/team-lauren-bright\.jpg" width="1200" height="1500" (alt="[^"]*") loading="lazy" decoding="async" style="object-position:50% 25%"\/>/,
     '<picture><source type="image/webp" srcset="/images/team-lauren-bright-2026-11-09-800.webp 800w, /images/team-lauren-bright-2026-11-09.webp 1086w" sizes="(max-width: 900px) 92vw, 30vw"/><img src="/images/team-lauren-bright-2026-11-09.jpg" width="1086" height="1448" $1 loading="lazy" decoding="async" style="object-position:45% 22%"/></picture>'],
+  ['book-now/index.html', /online in four simple steps\./, 'online in five simple steps.'],
 ]
 const SKIP = new Set(['privacy-policy/index.html'])
 let bad = 0

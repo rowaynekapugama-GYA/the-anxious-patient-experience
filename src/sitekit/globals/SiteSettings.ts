@@ -80,8 +80,8 @@ export const SiteSettings: GlobalConfig = {
         {
           name: 'notifyEmails',
           type: 'array',
-          label: 'Questionnaire received emails',
-          admin: { description: 'Who is told when a patient submits. Empty uses the booking notification address. The email never contains answers.' },
+          label: 'Questionnaire notifications go to',
+          admin: { description: 'Who is told when a patient completes the online questionnaire. Empty uses Who receives booking emails. The email never contains answers.' },
           fields: [{ name: 'address', type: 'email', label: 'Email address', required: true }],
         },
         // v1.9.0: Lorna's two PDFs (blank uses the originals in public/downloads) and the switches, all edited on
@@ -93,6 +93,23 @@ export const SiteSettings: GlobalConfig = {
         { name: 'noticeApproved', type: 'checkbox', defaultValue: false, label: 'Collection notice approved by Lorna', access: { create: adminFieldOnly, update: adminFieldOnly } },
         { name: 'noticeApprovedBy', type: 'text', access: { create: adminFieldOnly, update: adminFieldOnly } },
         { name: 'noticeApprovedAt', type: 'date', access: { create: adminFieldOnly, update: adminFieldOnly } },
+      ],
+    },
+    {
+      // v1.10.0: the booking terms and cancellation policy shown on Book Now (Site Settings > Booking terms in the
+      // dashboard, src/booking/terms.ts). Blank uses the drafted default. Each saved change gets the next version.
+      name: 'bookingTerms',
+      type: 'group',
+      label: 'Booking terms and cancellation policy',
+      fields: [
+        { name: 'text', type: 'textarea', label: 'Terms and cancellation policy', admin: { description: 'A line starting "## " is a heading and a line starting "- " is a bullet. {phone} and {deposit} are filled in.' } },
+        { name: 'consentLabel', type: 'text', label: 'Tick box on the terms step' },
+        { name: 'readLabel', type: 'text', label: 'Tick box before paying the deposit' },
+        { name: 'version', type: 'number', label: 'Version', admin: { readOnly: true } },
+        { name: 'changedAt', type: 'date', label: 'Last changed', admin: { readOnly: true } },
+        { name: 'changedBy', type: 'text', admin: { readOnly: true } },
+        { name: 'approvedBy', type: 'text', label: 'Approved by' },
+        { name: 'approvedAt', type: 'date', label: 'Approved' },
       ],
     },
     {

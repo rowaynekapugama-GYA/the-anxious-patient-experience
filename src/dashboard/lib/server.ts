@@ -4,7 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getPayload, type Payload } from 'payload'
 import config from '@payload-config'
 
-export type DashUser = { id: number | string; email: string; name?: string; role: 'admin' | 'editor'; mustChangePassword?: boolean }
+export type DashUser = { id: number | string; email: string; name?: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; practiceOwner?: boolean; canViewQuestionnaires?: boolean }
 
 export async function payloadClient(): Promise<Payload> {
   return getPayload({ config })

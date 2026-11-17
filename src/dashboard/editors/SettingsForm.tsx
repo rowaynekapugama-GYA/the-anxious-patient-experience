@@ -20,6 +20,8 @@ export type SettingsState = {
   bookingRecipients: string[]
   /** v1.8.3: where booking emails go when the list is empty (BOOKING_NOTIFY_EMAIL, else the APE inbox) */
   recipientsFallback: string[]
+  /** v1.10.0: Questionnaire notifications go to (empty: the booking list) */
+  questionnaireNotify: string[]
   gyaDeliveryNotice: boolean
   gyaNoticeTo: string
   tracking: { ga4: string; metaPixel: string }
@@ -55,7 +57,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
     for (const [label, v] of [['APE enquiries email', s.apeEmail], ['General practice enquiries email', s.receptionEmail]] as const) {
       if (v.trim() && !EMAIL.test(v.trim())) { toast(`The ${label} does not look right.`, 'bad'); return }
     }
-    const bad = [...s.bookingRecipients, ...(isAdmin && s.gyaNoticeTo ? [s.gyaNoticeTo] : [])].filter((e) => e.trim() && !EMAIL.test(e.trim()))
+    const bad = [...s.bookingRecipients, ...s.questionnaireNotify, ...(isAdmin && s.gyaNoticeTo ? [s.gyaNoticeTo] : [])].filter((e) => e.trim() && !EMAIL.test(e.trim()))
     if (bad.length) { toast(`This address does not look right: ${bad[0]}`, 'bad'); return }
     const link = s.googleReviewLink.trim()
     if (link && !/^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(link)) { toast('The Google review link should be the "Ask for reviews" link from the Business Profile (it starts with https://g.page/ or https://search.google.com/).', 'bad'); return }
@@ -75,6 +77,9 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
         settings.tracking = { ga4: s.tracking.ga4.trim(), metaPixel: s.tracking.metaPixel.trim() }
       }
       await api('/api/globals/site-settings?depth=0', { method: 'POST', body: settings })
+      // v1.10.0: saved through the Welcome pack route, which keeps the rest of that group as it is
+      const notify = s.questionnaireNotify.map((a) => a.trim()).filter(Boolean)
+      if (JSON.stringify(notify) !== JSON.stringify(initial.questionnaireNotify)) await api('/api/dashboard/welcome-pack', { method: 'POST', body: { notifyEmails: notify } })
       await api('/api/globals/seo?depth=0', {
         method: 'POST',
         body: {
@@ -124,7 +129,11 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
           <TextInput label="Google review link" value={s.googleReviewLink} onChange={(v) => set({ googleReviewLink: v })} placeholder="https://g.page/r/.../review" help="From the Google Business Profile: Ask for reviews. Takes effect when you publish." />
         </Panel>
 
-        <Panel id="questionnaire" title="Welcome pack and questionnaire" intro="Lorna's Patient Guide and questionnaire PDFs, the welcome email, when it is sent and who is told when a questionnaire comes in now have their own screen.">
+        <Panel id="booking-terms" title="Booking terms" intro="The terms and cancellation policy patients read and tick on Book Now and before paying the deposit. Each change gets a new version number, and every booking records the version the patient saw.">
+          <a className="btn" href="/admin/settings/booking-terms">Open Booking terms</a>
+        </Panel>
+
+        <Panel id="questionnaire" title="Welcome pack and questionnaire" intro="Lorna's Patient Guide and questionnaire PDFs, the welcome email and when it is sent have their own screen.">
           <a className="btn" href="/admin/settings/welcome-pack">Open Welcome pack</a>
         </Panel>
 
@@ -139,7 +148,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
           ) : null}
         </Panel>
 
-        <Panel id="recipients" title="Who receives booking emails" intro={<>Every new booking request, deposit received and questionnaire received email goes to all of these. Changes apply to the next booking once you press <b>Save settings</b> (no need to publish).{s.bookingRecipients.filter((x) => x.trim()).length ? null : <> While the list is empty they go to <b>{initial.recipientsFallback.join(', ')}</b>.</>}</>}>
+        <Panel id="recipients" title="Who receives booking emails" intro={<>Every new booking request and deposit received email goes to all of these. Changes apply to the next booking once you press <b>Save settings</b> (no need to publish).{s.bookingRecipients.filter((x) => x.trim()).length ? null : <> While the list is empty they go to <b>{initial.recipientsFallback.join(', ')}</b>.</>}</>}>
           {s.bookingRecipients.map((r, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input className="input" aria-label={`Recipient ${i + 1}`} value={r} type="email"
@@ -148,6 +157,17 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
             </div>
           ))}
           <button className="btn small" onClick={() => set({ bookingRecipients: [...s.bookingRecipients, ''] })}>{Icon.plus()} Add an address</button>
+        </Panel>
+        <Panel id="questionnaire-notify" title="Questionnaire notifications go to" intro={<>Each time a patient completes the online questionnaire, these addresses get a short email with the booking reference and a dashboard link. It never contains answers. {s.questionnaireNotify.filter((x) => x.trim()).length ? null : <>While this list is empty, the email goes to <b>Who receives booking emails</b> above.</>}</>}>
+          {s.questionnaireNotify.map((r, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input className="input" aria-label={`Questionnaire notification ${i + 1}`} value={r} type="email"
+                onChange={(e) => set({ questionnaireNotify: s.questionnaireNotify.map((x, n) => (n === i ? e.target.value : x)) })} />
+              <button className="btn small danger" onClick={() => set({ questionnaireNotify: s.questionnaireNotify.filter((_x, n) => n !== i) })}>{Icon.trash()} Remove</button>
+            </div>
+          ))}
+          <button className="btn small" onClick={() => set({ questionnaireNotify: [...s.questionnaireNotify, ''] })}>{Icon.plus()} Add an address</button>
+          <p className="help" style={{ marginTop: 10 }}>The email only tells people a questionnaire arrived. To open it, a person also needs to be ticked on the Users screen.</p>
         </Panel>
         {isAdmin ? (
           <>

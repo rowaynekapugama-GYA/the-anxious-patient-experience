@@ -376,7 +376,11 @@ export interface User {
   role: 'admin' | 'editor';
   lastLoginAt?: string | null;
   /**
-   * Off for everyone until given, GYA administrators included. Lorna nominates who has it. Every view is logged.
+   * Can choose who opens patient questionnaires (Users screen). Set by GYA only.
+   */
+  practiceOwner?: boolean | null;
+  /**
+   * Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard's Users screen, and every change and every view is logged.
    */
   canViewQuestionnaires?: boolean | null;
   mustChangePassword?: boolean | null;
@@ -425,6 +429,7 @@ export interface Questionnaire {
   draftSavedAt?: string | null;
   test?: boolean | null;
   testEmail?: string | null;
+  identityDiffers?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -772,6 +777,7 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
   lastLoginAt?: T;
+  practiceOwner?: T;
   canViewQuestionnaires?: T;
   mustChangePassword?: T;
   updatedAt?: T;
@@ -816,6 +822,7 @@ export interface QuestionnairesSelect<T extends boolean = true> {
   draftSavedAt?: T;
   test?: T;
   testEmail?: T;
+  identityDiffers?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -967,7 +974,7 @@ export interface SiteSetting {
   questionnaire?: {
     sendWhen?: ('confirmed' | 'requested') | null;
     /**
-     * Who is told when a patient submits. Empty uses the booking notification address. The email never contains answers.
+     * Who is told when a patient completes the online questionnaire. Empty uses Who receives booking emails. The email never contains answers.
      */
     notifyEmails?:
       | {
@@ -982,6 +989,19 @@ export interface SiteSetting {
     noticeApproved?: boolean | null;
     noticeApprovedBy?: string | null;
     noticeApprovedAt?: string | null;
+  };
+  bookingTerms?: {
+    /**
+     * A line starting "## " is a heading and a line starting "- " is a bullet. {phone} and {deposit} are filled in.
+     */
+    text?: string | null;
+    consentLabel?: string | null;
+    readLabel?: string | null;
+    version?: number | null;
+    changedAt?: string | null;
+    changedBy?: string | null;
+    approvedBy?: string | null;
+    approvedAt?: string | null;
   };
   tracking?: {
     ga4?: string | null;
@@ -1101,6 +1121,18 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         noticeApproved?: T;
         noticeApprovedBy?: T;
         noticeApprovedAt?: T;
+      };
+  bookingTerms?:
+    | T
+    | {
+        text?: T;
+        consentLabel?: T;
+        readLabel?: T;
+        version?: T;
+        changedAt?: T;
+        changedBy?: T;
+        approvedBy?: T;
+        approvedAt?: T;
       };
   tracking?:
     | T

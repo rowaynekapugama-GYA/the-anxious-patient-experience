@@ -25,6 +25,7 @@ export default async function SettingsPage() {
         clinic: { name: str(m.clinic?.name), street: str(m.clinic?.street), suburb: str(m.clinic?.suburb), state: str(m.clinic?.state), postcode: str(m.clinic?.postcode), mapsUrl: str(m.clinic?.mapsUrl) },
         bookingRecipients: ((g.bookingRecipients as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? []),
         recipientsFallback: resolveTeam([]).list,
+        questionnaireNotify: ((g.questionnaire?.notifyEmails as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? []),
         gyaDeliveryNotice: isAdmin ? g.gyaDeliveryNotice !== false : true,
         gyaNoticeTo: isAdmin ? str(g.gyaNoticeTo) : '',
         tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel) } : { ga4: '', metaPixel: '' },

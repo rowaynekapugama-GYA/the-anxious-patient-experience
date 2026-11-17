@@ -14,7 +14,7 @@ export type Kind =
   | 'invite' | 'reset' | 'password-changed'
   | 'booking-patient' | 'booking-team' | 'gya-notice'
   | 'deposit-patient' | 'deposit-team'
-  | 'welcome' | 'questionnaire-team' | 'alert'
+  | 'welcome' | 'questionnaire-team' | 'alert' | 'access'
 
 export const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'invite', label: 'Login invite' },
@@ -28,6 +28,7 @@ export const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'welcome', label: 'Welcome pack (patient)' },
   { kind: 'questionnaire-team', label: 'Questionnaire received (team)' },
   { kind: 'alert', label: 'Email failure alert (GYA)' },
+  { kind: 'access', label: 'Questionnaire access given' },
 ]
 export const kindLabel = (k: string) => KINDS.find((x) => x.kind === k)?.label ?? k
 

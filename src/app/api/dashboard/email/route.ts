@@ -13,7 +13,7 @@ import { json, routeUser } from '@/dashboard/lib/routeAuth'
 import { origin, passwordChangedEmail, passwordEmail, sendPasswordLink } from '@/dashboard/lib/passwordLink'
 import { emailConfigured, emailProvider } from '@/lib/email'
 import { allow, deliver, failedCount, KINDS, kindLabel, recent, type Kind, type Result } from '@/lib/mailer'
-import { liveRecipients, type Live } from '@/lib/recipients'
+import { liveRecipients, questionnaireRecipients, type Live } from '@/lib/recipients'
 import { noticeEmail, sendWelcome } from '@/lib/questionnaire'
 import { encryptionReady } from '@/lib/crypto'
 import { depositEmails } from '@/booking/deposit'
@@ -30,9 +30,10 @@ function who(kind: Kind, live: Live): { to: string; source: string } {
     case 'invite': case 'reset': case 'password-changed': return { to: 'the person whose login it is', source: 'their login email' }
     case 'booking-patient': case 'deposit-patient': case 'welcome': return { to: `the patient (Reply-To: ${live.apeInbox})`, source: 'Book Now' }
     case 'booking-team': case 'deposit-team': return { ...team, to: `${team.to}${live.bcc.length ? ` (bcc ${live.bcc.join(', ')})` : ''} (Reply-To: the patient)` }
-    case 'questionnaire-team': return live.questionnaire.length ? { to: live.questionnaire.join(', '), source: 'Site Settings, questionnaire notifications' } : team
+    case 'questionnaire-team': { const r = questionnaireRecipients(live); return { to: r.list.join(', '), source: r.source } }
     case 'gya-notice': return { to: live.gya.on ? live.gya.to : 'switched off', source: live.gya.on ? live.gya.source : 'Site Settings' }
     case 'alert': return { to: live.gya.to, source: live.gya.source }
+    case 'access': return { to: 'the person given questionnaire access', source: 'Users screen' }
   }
 }
 
@@ -75,6 +76,7 @@ function sampleBooking(address: string): emails.BookingRow {
   return {
     ref: 'APE-TEST01', slot_start: start, name: 'Test Patient GYA', email: address, phone: '0400 000 000',
     notes: 'Sample note for a test email.', price: 250, special: true, status: 'requested', created_at: new Date(),
+    first_name: 'Test', last_name: 'Patient GYA', dob: '1990-03-14', terms_version: '1 (2026-11-17)', terms_consent_at: new Date(), terms_read_at: new Date(),
   }
 }
 

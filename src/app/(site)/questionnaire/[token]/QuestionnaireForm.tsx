@@ -3,9 +3,24 @@
  * Lorna's Pre-appointment Questionnaire on screen (v1.9.0): her intro, every question, helper line and shaded note in
  * her order and words. Nothing is required. "Save and finish later" keeps the answers (encrypted) for the same
  * private link; "Send my answers" sends them to the APE team. No analytics, nothing in the URL, nothing in storage.
+ * v1.10.0: "Your details" at the top: full name and date of birth, filled in from the booking, needed to send (a draft
+ * saves without them). They are sealed with the answers.
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { FORM, QUESTIONS, optionsOf, type Answers, type Field, type Question } from '@/lib/ape-questionnaire'
+import { FORM, QUESTIONS, ID, IDENTITY, optionsOf, type Answers, type Field, type Question } from '@/lib/ape-questionnaire'
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const splitDob = (v: unknown) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || '')); return m ? { d: String(Number(m[3])), m: String(Number(m[2])), y: m[1] } : { d: '', m: '', y: '' } }
+function dobCheck(p: { d: string; m: string; y: string }): string {
+  if (!p.d && !p.m && !p.y.trim()) return 'Please enter your date of birth.'
+  const d = Number(p.d), m = Number(p.m), y = Number(p.y)
+  if (!d || !m || !/^\d{4}$/.test(p.y.trim())) return 'Please check your date of birth: choose the day and month and type the year, for example 1985.'
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  if (dt.getUTCDate() !== d || dt.getUTCMonth() !== m - 1) return 'Please check your date of birth: that date does not exist.'
+  if (dt.getTime() > Date.now()) return 'Your date of birth cannot be in the future.'
+  if (y < new Date().getFullYear() - 120) return 'Please check the year of your date of birth.'
+  return ''
+}
 
 type Props = { token: string; initial: Answers; savedAt: string | null; notice: string; consentLabel: string; phone: string }
 type Phase = 'idle' | 'saving' | 'sending' | 'done' | 'gone'
@@ -20,6 +35,13 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
   const [error, setError] = useState('')
   const [consentErr, setConsentErr] = useState('')
   const [problems, setProblems] = useState<Record<string, string>>({})
+  const [dob, setDob] = useState(() => splitDob(initial[ID.dob]))
+  const setDobPart = (k: 'd' | 'm' | 'y', v: string) => {
+    const next = { ...dob, [k]: v }
+    setDob(next)
+    const ok = next.d && next.m && /^\d{4}$/.test(next.y.trim())
+    set(ID.dob, ok ? `${next.y.trim()}-${String(next.m).padStart(2, '0')}-${String(next.d).padStart(2, '0')}` : undefined)
+  }
   const dirty = useRef(false)
   const top = useRef<HTMLDivElement>(null)
 
@@ -67,6 +89,18 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
   async function send(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    // v1.10.0: name and date of birth first
+    const idProblems: Record<string, string> = {}
+    if (!String(a[ID.name] || '').trim()) idProblems[ID.name] = 'Please enter your full name.'
+    const dobErr = dobCheck(dob)
+    if (dobErr) idProblems[ID.dob] = dobErr
+    if (Object.keys(idProblems).length) {
+      setProblems(idProblems)
+      const first = document.getElementById(idProblems[ID.name] ? 'q-name' : 'q-dob-day')
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' }); first?.focus({ preventScroll: true })
+      return
+    }
+    setProblems({})
     if (!consent) { setConsentErr('Please tick this box so we can use your answers.'); document.getElementById('q-consent')?.focus(); return }
     setConsentErr(''); setPhase('sending')
     try {
@@ -74,7 +108,8 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
       if (r.ok && j.ok) { dirty.current = false; setPhase('done'); window.dispatchEvent(new Event('ape-q-done')); return }
       if (j.state === 'invalid_answers' && j.problems) {
         setProblems(j.problems); setPhase('idle')
-        document.getElementById(`f-${Object.keys(j.problems)[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const k = Object.keys(j.problems)[0]
+        document.getElementById(k === ID.name || k === ID.dob ? 'f-identity' : `f-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         return
       }
       if (j.state === 'busy') throw new Error('busy')
@@ -107,6 +142,34 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
   const busy = phase === 'saving' || phase === 'sending'
   return (
     <form className="qn-form" onSubmit={send} noValidate>
+      <section className="qn-card qn-identity" id="f-identity" aria-labelledby="t-identity">
+        <div className="qn-head"><div>
+          <h2 className="qn-title" id="t-identity">{IDENTITY.heading}</h2>
+          <p className="qn-helper">{IDENTITY.lead}</p>
+        </div></div>
+        <div className="qn-field">
+          <label className="qn-label" htmlFor="q-name">{IDENTITY.name} <span className="qn-req">(needed to send)</span></label>
+          <input id="q-name" className="qn-input" type="text" autoComplete="name" maxLength={120} value={String(a[ID.name] ?? '')} onChange={(e) => set(ID.name, e.target.value)}
+            aria-invalid={problems[ID.name] ? true : undefined} aria-describedby={problems[ID.name] ? 'q-name-err' : undefined} />
+          {problems[ID.name] ? <p className="qn-err" id="q-name-err" role="alert"><span className="sr-only">Error: </span>{problems[ID.name]}</p> : null}
+        </div>
+        <fieldset className="qn-field qn-dob" aria-describedby={problems[ID.dob] ? 'q-dob-err' : undefined}>
+          <legend className="qn-label">{IDENTITY.dob} <span className="qn-req">(needed to send)</span></legend>
+          <div className="qn-dob-parts">
+            <label><span>Day</span>
+              <select id="q-dob-day" className="qn-input" autoComplete="bday-day" value={dob.d} onChange={(e) => setDobPart('d', e.target.value)} aria-invalid={problems[ID.dob] ? true : undefined}>
+                <option value="">Day</option>{Array.from({ length: 31 }, (_, i) => <option key={i} value={String(i + 1)}>{i + 1}</option>)}
+              </select></label>
+            <label><span>Month</span>
+              <select id="q-dob-month" className="qn-input" autoComplete="bday-month" value={dob.m} onChange={(e) => setDobPart('m', e.target.value)} aria-invalid={problems[ID.dob] ? true : undefined}>
+                <option value="">Month</option>{MONTHS.map((mo, i) => <option key={mo} value={String(i + 1)}>{mo}</option>)}
+              </select></label>
+            <label><span>Year (4 digits)</span>
+              <input id="q-dob-year" className="qn-input" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoComplete="bday-year" value={dob.y} onChange={(e) => setDobPart('y', e.target.value.replace(/\D/g, ''))} aria-invalid={problems[ID.dob] ? true : undefined} /></label>
+          </div>
+          {problems[ID.dob] ? <p className="qn-err" id="q-dob-err" role="alert"><span className="sr-only">Error: </span>{problems[ID.dob]}</p> : null}
+        </fieldset>
+      </section>
       {QUESTIONS.map((q) => <QuestionCard key={q.id} q={q} a={a} set={set} toggle={toggle} problems={problems} />)}
 
       <section className="qn-end" aria-labelledby="qn-notice-h">
@@ -123,7 +186,7 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
         </div>
         <p className="qn-status" role="status" aria-live="polite">{status}</p>
         {error ? <p className="qn-err" role="alert">{error}</p> : null}
-        <p className="qn-small">Every question is optional. Your answers are only sent when you press Send my answers.</p>
+        <p className="qn-small">Your name and date of birth are needed to send. Every question is optional. Your answers are only sent when you press Send my answers.</p>
       </section>
     </form>
   )

@@ -104,12 +104,24 @@ export const Users: CollectionConfig = {
       access: { create: () => false, update: () => false },
     },
     {
+      // v1.10.0: the practice owner (Lorna) chooses who can open patient questionnaires, on the Users screen. Only a
+      // GYA administrator can make someone a practice owner.
+      name: 'practiceOwner',
+      type: 'checkbox',
+      defaultValue: false,
+      saveToJWT: true,
+      label: 'Practice owner',
+      admin: { description: 'Can choose who opens patient questionnaires (Users screen). Set by GYA only.' },
+      access: { create: adminFieldOnly, update: adminFieldOnly },
+    },
+    {
       name: 'canViewQuestionnaires',
       type: 'checkbox',
       defaultValue: false,
       saveToJWT: true,
       label: 'Can view patient questionnaires',
-      admin: { description: 'Off for everyone until given, GYA administrators included. Lorna nominates who has it. Every view is logged.' },
+      admin: { description: 'Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard\'s Users screen, and every change and every view is logged.' },
+      // changed through /api/dashboard/questionnaire-access, which checks who is asking, logs it and emails the person
       access: { create: adminFieldOnly, update: adminFieldOnly },
     },
     {

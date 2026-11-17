@@ -25,5 +25,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const reviewHref = review.docs[0] ? `/admin/pages/${review.docs[0].id}` : '/admin/pages'
   const canView = !!(u as { canViewQuestionnaires?: boolean }).canViewQuestionnaires
   const toReview = canView ? await countUnreviewed(payload) : 0
-  return <Shell user={{ name: u.name, email: u.email, role: u.role }} toConfirm={await toConfirm()} toReview={toReview} reviewHref={reviewHref}>{children}</Shell>
+  return <Shell user={{ name: u.name, email: u.email, role: u.role, practiceOwner: !!u.practiceOwner }} toConfirm={await toConfirm()} toReview={toReview} reviewHref={reviewHref}>{children}</Shell>
 }

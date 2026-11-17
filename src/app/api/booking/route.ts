@@ -1,8 +1,9 @@
 /**
  * Booking requests for The Anxious Patient Experience™ (POST /api/booking/)
  *
- * The website does not connect to Core Practice. A patient chooses a time, enters their details and ticks the
- * deposit policy; this route:
+ * The website does not connect to Core Practice. A patient chooses a time, enters their details (v1.10.0: first and
+ * last name, email, phone and date of birth, all required), ticks the terms and cancellation policy, then ticks that
+ * they have read it before the deposit; this route:
  *   1. checks the time again on the server (listed day and time, from the start date, at least 24 hours away,
  *      not blocked, not already requested), works out the fee (opening special or standard) and saves the booking,
  *      all in one locked step so two people can never get the same time or more than the special allows;
@@ -21,11 +22,13 @@ import crypto from 'node:crypto'
 import * as core from '@/booking/core'
 import { onBookingRequested } from '@/lib/questionnaire'
 import * as deposit from '@/booking/deposit'
-import { paypalConfigured, paypalClientId } from '@/lib/paypal'
+import { paypalConfigured, paypalClientId, paypalAdvanced, paypalEnv } from '@/lib/paypal'
 import { after } from 'next/server'
 import * as emails from '@/booking/emails'
 import { deliver } from '@/lib/mailer'
 import { liveRecipients } from '@/lib/recipients'
+import { checkDetails, fullName } from '@/booking/patient'
+import * as terms from '@/booking/terms'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,8 +37,8 @@ export const maxDuration = 90
 
 
 const INSERT = `
-  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special)
-  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok
+  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, first_name, last_name, dob, terms_version, terms_consent_at, terms_read_at)
+  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok, $13, $14, $15::date, $16, $17::timestamptz, $18::timestamptz
   FROM (SELECT ($7::boolean AND (SELECT count(*) FROM ape_bookings WHERE special AND status <> 'cancelled') < $10::int) AS ok) s
   WHERE NOT EXISTS (SELECT 1 FROM ape_blocks b WHERE b.day = $11::date AND (b.time IS NULL OR b.time = $12))
   ON CONFLICT DO NOTHING
@@ -63,16 +66,22 @@ export async function POST(req: Request) {
   // Spam trap: a hidden field people never see. Pretend it worked and save or send nothing.
   if (core.clean(body.website, 200)) return core.send(200, { ok: true, ref, price: cfg.pricing.appointment, special: false })
 
-  const name = core.oneLine(core.clean(body.name, 120))
-  const email = core.clean(body.email, 200)
-  const phone = core.oneLine(core.clean(body.phone, 40))
+  // v1.10.0: first and last name, email, an Australian phone number and a date of birth, all required
+  const checked = checkDetails(body, new Date(now))
+  const fields: Record<string, string> = checked.ok ? {} : { ...checked.fields }
   const notes = core.clean(body.notes, 2000)
-  const fields: Record<string, string> = {}
-  if (!name) fields.name = 'required'
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fields.email = 'invalid'
   if (body.consent !== true) fields.consent = 'required'
-  if (body.policy !== true) fields.policy = 'required'
-  if (Object.keys(fields).length) return core.send(400, { ok: false, error: 'invalid', fields })
+  // the terms step's tick and the deposit step's "I have read" tick (it replaced the old deposit policy tick)
+  if (body.termsConsent !== true) fields.termsConsent = 'required'
+  if (body.termsRead !== true) fields.termsRead = 'required'
+  if (!checked.ok || Object.keys(fields).length) return core.send(400, { ok: false, error: 'invalid', fields })
+  const { firstName, lastName, email, phone, dob } = checked.details
+  const name = fullName(firstName, lastName)
+  const consentAt = terms.tickTime(body.termsConsentAt, now)
+  const readAt = terms.tickTime(body.termsReadAt, now)
+  // the version the page showed (sent back by the browser), else the one in use now
+  const shown = core.clean(body.termsVersion, 40)
+  const termsVersion = /^\d{1,4} \(\d{4}-\d{2}-\d{2}\)$/.test(shown) ? shown : await currentTermsLabel()
 
   const slot = core.checkSlot(cfg, core.clean(body.slotStart, 40), now)
   if (slot.error) return core.send(slot.error === 'too_soon' ? 409 : 400, { ok: false, error: slot.error })
@@ -88,7 +97,8 @@ export async function POST(req: Request) {
     const o = cfg.openingSpecial
     const results = await d.tx([
       ['SELECT pg_advisory_xact_lock(4242001)', []],
-      [INSERT, [ref, slot.start!.toISOString(), name, email, phone, notes, core.inSpecialWindow(cfg, slot.day!), o.price, cfg.pricing.appointment, o.maxBookings, slot.day, slot.time]],
+      [INSERT, [ref, slot.start!.toISOString(), name, email, phone, notes, core.inSpecialWindow(cfg, slot.day!), o.price, cfg.pricing.appointment, o.maxBookings, slot.day, slot.time,
+        firstName, lastName, dob, termsVersion, consentAt.toISOString(), readAt.toISOString()]],
     ])
     saved = results[1][0]
   } catch (err) {
@@ -132,13 +142,23 @@ export async function POST(req: Request) {
   try {
     const { getPayload } = await import('payload')
     const { default: config } = await import('@payload-config')
-    questionnaireUrl = (await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString() })).link
+    questionnaireUrl = (await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString(), dob })).link
   } catch (err) {
     console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
   }
   return core.send(200, {
     ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: cfg.pricing.deposit, notified, ackSent,
     ...(questionnaireUrl ? { questionnaire: { url: questionnaireUrl.replace(/^https?:\/\/[^/]+/, '') } } : {}),
-    ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD' } } : {}),
+    ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD', advanced: paypalAdvanced(), env: paypalEnv() } } : {}),
   })
+}
+
+async function currentTermsLabel(): Promise<string> {
+  try {
+    const { getPayload } = await import('payload')
+    const { default: config } = await import('@payload-config')
+    return (await terms.loadTerms(await getPayload({ config }))).label
+  } catch {
+    return terms.fromSettings(null).label
+  }
 }

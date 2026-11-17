@@ -6,10 +6,10 @@ import { usePathname } from 'next/navigation'
 import { Icon } from './icons'
 import { BRAND } from '../brand'
 
-type NavItem = { href: string; label: string; icon: keyof typeof Icon; adminOnly?: boolean; count?: number }
+type NavItem = { href: string; label: string; icon: keyof typeof Icon; adminOnly?: boolean; ownerToo?: boolean; count?: number }
 
 export function Shell({ user, children, toConfirm = 0, toReview = 0, reviewHref = '/admin/pages' }: {
-  user: { name?: string; email: string; role: string }
+  user: { name?: string; email: string; role: string; practiceOwner?: boolean }
   children: React.ReactNode
   /** booking requests still to confirm */
   toConfirm?: number
@@ -37,7 +37,7 @@ export function Shell({ user, children, toConfirm = 0, toReview = 0, reviewHref 
     { href: '/admin/seo', label: 'SEO', icon: 'seo' },
     { href: '/admin/settings', label: 'Site Settings', icon: 'settings' },
     { href: '/admin/redirects', label: 'Redirects', icon: 'redirects', adminOnly: true },
-    { href: '/admin/users', label: 'Users', icon: 'users', adminOnly: true },
+    { href: '/admin/users', label: 'Users', icon: 'users', adminOnly: true, ownerToo: true },
   ]
   const on = (href: string) => (href === '/admin' ? path === '/admin' || path === '/admin/'
     : href === reviewHref ? false
@@ -54,7 +54,7 @@ export function Shell({ user, children, toConfirm = 0, toReview = 0, reviewHref 
       <aside className={`pd-side${open ? ' open' : ''}`} aria-label="Dashboard menu" onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false) }}>
         <div className="brand"><img src={BRAND.logoOnDark} alt={BRAND.name} /></div>
         <ul className="pd-nav">
-          {items.filter((i) => i === 'sep' || !i.adminOnly || isAdmin).map((i, n) => i === 'sep'
+          {items.filter((i) => i === 'sep' || !i.adminOnly || isAdmin || (i.ownerToo && !!user.practiceOwner)).map((i, n) => i === 'sep'
             ? <li key={`s${n}`} className="sep" aria-hidden="true" />
             : (
               <li key={i.href}>

@@ -8,7 +8,8 @@ Care), with the APE online booking screens built into it:
 
 - **Pages**: click words on the real page to change them, click a photo to replace it, reorder or hide sections, set
   each page's SEO. Footer words (tagline, disclaimer, copyright) can be changed from any page.
-- **Blog Posts, Media Library, SEO, Site Settings, Redirects and Users** (Redirects and Users are GYA only).
+- **Blog Posts, Media Library, SEO, Site Settings, Redirects and Users** (Redirects are GYA only; Users is GYA plus
+  the practice owner, who only chooses who can open patient questionnaires, v1.10.0).
 - **Bookings**: requests from Book Now, with Mark confirmed, Deposit received, Cancel and Restore, a count beside the
   menu item and a CSV download.
 - **Availability**: block leave (a period, a day or a single time) and change the weekly booking days and times.
@@ -23,7 +24,8 @@ someone presses **Publish website**.
 
 For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md`. This release's handover
 (env vars, the email audit; its Stripe section is superseded by PayPal in v1.8.0): `docs/HANDOVER-v1.6.0.md`. v1.7.0: `docs/GO-LIVE-DOMAIN.md`,
-`docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`.
+`docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`. v1.10.0: `docs/PAYPAL-ADVANCED-SETUP.md` (for Andy and Ram)
+and `docs/FOR-LORNA-v1.10.0.md` (wording and questions for Lorna).
 
 ## Vercel environment variables (v1.6.0)
 
@@ -48,6 +50,8 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
 | `QUESTIONNAIRE_ENABLED` | Production, Preview | Leave unset. Since v1.9.0 the switches are in the dashboard (Site Settings > Welcome pack); `false` here is only an emergency off switch for the online questionnaire. | optional |
 | `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist; keep a copy in the GYA password manager. | add when Lorna approves |
+| `PAYPAL_ADVANCED` | Preview first, then Production | `on` switches on PayPal Advanced Checkout (card fields, Apple Pay, Google Pay). Not Sensitive. Leave unset until PayPal approves it (`docs/PAYPAL-ADVANCED-SETUP.md`). | v1.10.0, later |
+| `APPLE_PAY_DOMAIN_ASSOCIATION` | Production | Optional: the contents of PayPal's Apple Pay domain file, if it is not put in `config/apple-pay/`. Public, not Sensitive. | v1.10.0, optional |
 | `BOOKING_BCC` | optional | Extra copies of each request | optional |
 | `ALLOW_FIRST_USER` | | Only for the very first login. | **delete** if still there |
 | `ADMIN_PASSWORD` | | Not used since v1.5.0 | **delete** if still there |
@@ -170,7 +174,36 @@ dates, **Show the pop-up after (seconds)**, the heading and the wording (with `{
 under Opening special in the dashboard and apply straight away (`ape_meta`, key `special`); the price and the number
 of places stay in `content/booking.json` (GYA).
 
-## PayPal deposit (v1.8.0)
+## Book Now details, terms and questionnaire access (v1.10.0)
+
+- **Required details**: first name, last name, email, phone (Australian mobile or landline, saved as `0412 345 678`
+  or `(02) 8599 9815`) and date of birth (day and month selects, year box; no future dates, nothing over 120 years).
+  Checked in the browser and again on the server (`src/booking/patient.ts`). Errors are plain words beside each field,
+  listed in a summary that screen readers announce. Under 18 is not blocked; the dashboard shows the age and an
+  Under 18 label. Older bookings keep their single name and show "not given" for the date of birth.
+- **Five steps**: time, details, **Terms and cancellation policy** (full text, "I consent ..." tick), deposit ("I have
+  read ..." tick, which replaced the old deposit policy tick), confirmed. Each booking stores the terms version and
+  the time of each tick (`terms_version`, `terms_consent_at`, `terms_read_at`, and `terms_pay_read_at` for the
+  pay-later page). Terms are edited in Site Settings > Booking terms (`src/booking/terms.ts`), also at `/book-now/terms/`.
+- **Retention**: questionnaires are kept 7 years after the appointment, or until the patient turns 25 if they were
+  under 18 at the appointment, whichever is later (`retainUntil` in `src/booking/patient.ts`, from the booking's date of
+  birth, else the one on the questionnaire).
+- **Questionnaire access**: only logins ticked "Can view patient questionnaires" can open them. A **Practice owner**
+  (set by GYA; the v1.10.0 migration sets it for lorna-gladwin1@hotmail.co.uk if that login exists, and logs it) sees
+  the Users screen and can tick it for anyone. Editors cannot see or change it. Changes go through
+  `/api/dashboard/questionnaire-access` (`src/lib/access.ts`), are logged in `ape_access_log` and email the person given
+  access. **Questionnaire notifications go to** in Site Settings (empty: the booking list).
+- **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
+  answers; the dashboard flags "Name or DOB differs from the booking".
+
+## PayPal deposit (v1.8.0, cards and wallets v1.10.0)
+
+- v1.10.0: the deposit step says "Pay by card, or with PayPal. You don't need a PayPal account." PayPal's guest
+  **Debit or Credit Card** button is requested (`enable-funding=card`); the account must have **PayPal account
+  optional** on. With `PAYPAL_ADVANCED=on` the step shows card fields (3D Secure `SCA_WHEN_REQUIRED`, checked before
+  capture), Apple Pay and Google Pay, plus the PayPal button, through the same order, capture and webhook
+  (`public/assets/pay.js`, shared by Book Now and the pay-later page). Apple Pay's domain file is served from
+  `config/apple-pay/` at `/.well-known/apple-developer-merchantid-domain-association` (404 until added).
 
 - The patient pays the $100 deposit **inside Book Now** with PayPal Checkout (PayPal or a debit/credit card, guest
   checkout). Server side with the Orders v2 REST API (`src/lib/paypal.ts`): the server creates the order (amount from
@@ -246,6 +279,10 @@ docs/                    HOW-TO-UPDATE.md (for the practice), screenshots/, buil
 
 ## Checks
 
+v1.10.0 tests (each needs a migrated TEST database in `DATABASE_URL`, never the live one): `npm run test:booking`
+(required fields, dates of birth, phone numbers, retention, terms record, 3D Secure decisions, questionnaire access,
+notification fallback, the mismatch flag), `npm run test:questionnaire`, `npm run test:email`.
+
 `npm run qa` runs them all: `typecheck`, `qa:parity` (content renders back to v1.4.0 byte for byte), `qa:editor`
 (the editor shows every page exactly as it goes live), `qa:site`, `qa:banned` and `qa:secrets`. See CHANGELOG 1.5.0
 for the full verification.
@@ -286,6 +323,9 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
 | Domain: theanxiouspatientexperience.com.au at VentraIP | `docs/GO-LIVE-DOMAIN.md` (waiting on VentraIP access) |
 | Lorna's approval of the welcome email wording, collection notice and privacy wording; who reads questionnaires; the encryption key | Site Settings > Welcome pack; both switches off until then |
+| v1.10.0: terms draft, the two tick boxes, the late-cancellation deposit rule, under-18s, privacy and collection notice drafts | `docs/FOR-LORNA-v1.10.0.md`; Site Settings > Booking terms (Draft until approved) |
+| v1.10.0: PayPal Advanced Checkout approval, Apple Pay domain file, fees | `docs/PAYPAL-ADVANCED-SETUP.md` (Andy and Ram) |
+| v1.10.0: Next.js 16.4.4 has a moderate advisory (GHSA-mfr8-8qww-v76h, fixed in 16.4.6) | Patch upgrade in its own small release |
 | Google Business Profile option and admin email | `docs/GOOGLE-BUSINESS-PROFILE.md` |
 | Google review link | Site Settings > Google review link (after the profile exists) |
 | GA4 / Meta Pixel IDs | Site Settings > Tracking (GYA only) |
@@ -301,7 +341,9 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 - [ ] PayPal: sandbox run of docs/TEST-BOOKING.md on the preview, then one live $100 booking refunded in PayPal
 - [ ] Payout bank account linked and confirmed in the PayPal business account by the account owner
 - [ ] Privacy Policy: legal entity and Privacy Officer confirmed by Lorna
-- [ ] Book Now hero "pay your deposit online in four simple steps" true once the PayPal variables are in
+- [ ] Book Now hero "pay your deposit online in five simple steps" true once the PayPal variables are in
+- [ ] PayPal business account: **PayPal account optional** on (guest card checkout)
+- [ ] Lorna approved the booking terms (Site Settings > Booking terms) and the v1.10.0 privacy drafts
 - [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
 - [ ] New copy signed off (CHANGELOG 1.5.0, 1.4.0, 1.3.0)
 - [ ] `NEXT_PUBLIC_SERVER_URL` set to the domain; QR regenerated if the flyer is not yet printed; GA4 added

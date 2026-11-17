@@ -4,6 +4,24 @@
  * Blocked days and times (set in the dashboard) and times already requested are left out.
  */
 import * as core from '@/booking/core'
+import * as terms from '@/booking/terms'
+
+/** v1.10.0: the booking terms for the Book Now terms step (filled in, with its version and the two tick labels). */
+async function currentTerms(cfg: core.Cfg) {
+  try {
+    const { getPayload } = await import('payload')
+    const { default: config } = await import('@payload-config')
+    const payload = await getPayload({ config })
+    const t = await terms.loadTerms(payload)
+    const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
+    const phone = String(s?.phone || '').trim() || cfg.contact.phone
+    return { text: terms.fill(t.text, { phone, deposit: core.money(cfg.pricing.deposit) }), version: t.label, consentLabel: t.consentLabel, readLabel: t.readLabel }
+  } catch (err) {
+    console.error('availability: could not read the booking terms, using the draft', (err as Error).message)
+    const t = terms.fromSettings(null)
+    return { text: terms.fill(t.text, { phone: cfg.contact.phone, deposit: core.money(cfg.pricing.deposit) }), version: t.label, consentLabel: t.consentLabel, readLabel: t.readLabel }
+  }
+}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,5 +36,5 @@ export async function GET(req: Request) {
   }
   const out = core.availability(r.cfg, r.state, Date.now())
   const summary = new URL(req.url).searchParams.get('summary') === '1'
-  return core.send(200, { ok: true, bookable: r.state.db, ...(summary ? { special: out.special } : out) })
+  return core.send(200, { ok: true, bookable: r.state.db, ...(summary ? { special: out.special } : { ...out, terms: await currentTerms(r.cfg) }) })
 }

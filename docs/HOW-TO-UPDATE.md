@@ -17,6 +17,13 @@ reception@thecronulladentists.com.au and theanxiouspatientexperience@gmail.com. 
 email GYA with the new address: we add it to the list and the person gets their own link to choose a password.
 Removing an address from the list does not delete the login, so tell us when someone should no longer have access.
 
+### Who can open patient questionnaires (v1.10.0)
+Having a login is **not** enough. Only people ticked **Can view patient questionnaires** can open them. Lorna is the
+practice owner, so she sees **Users** in the menu and can tick or untick that box for anyone, herself included. Every
+change is recorded (who, for whom, when: **Questionnaire access changes** at the bottom of the screen), and the person
+given access gets a short email. Other editors do not see the Users screen. Logins themselves are still added and
+removed by GYA.
+
 Changes to wording, photos, posts and settings are saved in the dashboard first, and go on the website when you
 press **Publish website** (the website updates in about two minutes). Bookings and availability are different: they
 change on the website straight away.
@@ -46,14 +53,16 @@ minutes, check junk mail, then call GYA on 1300 889 840.
 ## Bookings
 
 ### When a booking request comes in
-1. You get an email at the APE inbox (theanxiouspatientexperience@gmail.com) with every detail of the request, and
+1. You get an email at the APE inbox (theanxiouspatientexperience@gmail.com) with every detail of the request
+   (since v1.10.0 the first name, last name, phone and date of birth with the age are all required, so you have what
+   you need for Core Practice), and
    the patient gets an email saying their request has been received, with the deposit link. Replying to your email
    replies straight to the patient. The request also shows under **Bookings** as **To confirm** (the number beside
    Bookings in the menu is how many are waiting). The time is held, so nobody else can book it online.
 2. Block the time in Core Practice and enter the patient.
 3. Reply to the patient to confirm and send the new patient information pack.
-4. Press **Mark confirmed**. The deposit looks after itself: patients pay the $100 on the website with PayPal or a
-   card, the booking shows **Received** and you get a "Deposit received" email. You never need to open PayPal to
+4. Press **Mark confirmed**. The deposit looks after itself: patients pay the $100 on the website by card (no PayPal
+   account needed) or with PayPal, the booking shows **Received** and you get a "Deposit received" email. You never need to open PayPal to
    check. If a patient has not paid, the booking sits under the **Deposit not paid** filter and their email has a
    private pay link that works for 14 days. If someone pays another way, press **Mark deposit received manually**
    and add a note.
@@ -61,7 +70,16 @@ minutes, check junk mail, then call GYA on 1300 889 840.
 ### Refunds
 Refunds are done in PayPal (Activity > the payment > Refund). The booking then shows **Refunded** here by itself.
 
-Click a patient's name to see their note. **Download for Excel (CSV)** saves the list.
+Click a patient's name to see their note, first and last name, date of birth, and the terms they agreed to: the
+version of the terms and cancellation policy they saw, when they ticked "I consent", and when they ticked "I have
+read" before the deposit (and on the pay-later page, if they paid there). Bookings made before 17 November 2026 show
+"not given" for the date of birth. Patients under 18 at the appointment show an **Under 18** label.
+**Download for Excel (CSV)** saves the list, with all of these columns.
+
+### The terms and cancellation policy
+Site Settings > **Open Booking terms**. The wording patients read and tick on Book Now and the pay-later page. Saving
+a change gives it the next version number (each booking keeps the version the patient saw). Once Lorna has approved
+a version, press **Lorna has approved version ...** to record it. The terms must still mention 48 hours.
 
 ### If a patient cancels
 Press **Cancel booking**. The time opens up on the website again (and an opening special place is freed). The
@@ -103,18 +121,21 @@ the booking.
 ### Changing the PDFs or the email
 Site Settings > **Open Welcome pack**. To update the guide or the questionnaire, press **Choose another PDF** and
 upload the new file; **Use the standard version** goes back to the APE version GYA made from your files. The email wording, the collection notice
-and who gets "questionnaire received" emails are on the same screen. Press **Save**; no Publish needed.
+and who gets questionnaire notifications are on the same screen. Press **Save**; no Publish needed.
 
 ### Knowing when one arrives
-The people listed under **Questionnaire received emails** get an email with the booking reference and appointment
-date (never the answers). The Questionnaires item in the menu shows how many are waiting to be reviewed.
+Each time a patient sends the online questionnaire, an email goes to the addresses under **Questionnaire
+notifications go to** (Site Settings, also on the Welcome pack screen), or to **Who receives booking emails** while
+that list is empty. It has the booking reference and appointment date only, never answers, names or dates of birth. The Questionnaires item in the menu shows how many are waiting to be reviewed.
 
 ### Reading a questionnaire
-Open **Questionnaires**, press **Open** on the entry. **At a glance** at the top shows the anxiety score, what
+Open **Questionnaires**, press **Open** on the entry. **At a glance** at the top shows the full name and date of
+birth the patient entered (with **Name or DOB differs from the booking** if they do not match, so you can check
+before entering it in Core Practice), the anxiety score, what
 makes them anxious and how they would like the appointment to feel; every answer follows in the same order as your
 questionnaire. Press **Mark reviewed** when done, and **Print / Save as PDF** for the clinical record. You can only
-open questionnaires if your login has been given access: Lorna decides who, and GYA switches it on for each person
-(Users, **Can view patient questionnaires**). Every time a questionnaire is opened, a record is kept of who and when.
+open questionnaires if your login has been ticked: Lorna does this on the **Users** screen (see Who can open patient
+questionnaires above). Every time a questionnaire is opened, a record is kept of who and when.
 
 ## Google reviews
 The page at **/review/** is for QR codes and messages (it is not in the menu). Every star and the button go to the

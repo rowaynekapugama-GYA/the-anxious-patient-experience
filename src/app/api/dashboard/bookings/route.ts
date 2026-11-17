@@ -18,6 +18,8 @@ import type { Payload } from 'payload'
 import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalEnv } from '@/lib/paypal'
 import * as emails from '@/booking/emails'
+import { ageOn, sydneyToday } from '@/booking/patient'
+import { termsView } from '@/booking/terms'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,7 +33,12 @@ function bookingRow(r: Record<string, any>, tz: string) {
   return {
     ref: r.ref, start: start.toISOString(), day: p.day, time: p.hm,
     when: core.fmtDateTime(start, tz, true),
-    name: r.name, email: r.email, phone: r.phone, notes: r.notes,
+    name: emails.nameOf(r as emails.BookingRow), email: r.email, phone: r.phone, notes: r.notes,
+    // v1.10.0: first and last name and date of birth with today's age (null on bookings made before v1.10.0: "not given")
+    firstName: String(r.first_name || ''), lastName: String(r.last_name || ''),
+    dob: emails.dobIso(r.dob), age: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, sydneyToday()) : null,
+    ageAtAppointment: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, new Date(`${p.day}T00:00:00Z`)) : null,
+    terms: termsView(r),
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
     deposit: deposit.depositView(r as Partial<deposit.BookingRow>),
     createdAt: new Date(r.created_at).toISOString(),

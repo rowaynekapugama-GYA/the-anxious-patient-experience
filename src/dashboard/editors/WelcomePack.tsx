@@ -125,8 +125,8 @@ export function WelcomePack() {
       </div>
 
       <div className="panel" id="notify">
-        <h2>Questionnaire received emails</h2>
-        <p className="help">Who is told when a patient sends their questionnaire: the booking reference and appointment date only, never answers. Empty uses the booking email list.</p>
+        <h2>Questionnaire notifications go to</h2>
+        <p className="help">Who is told when a patient sends their questionnaire: the booking reference and appointment date only, never answers. Empty uses Who receives booking emails. The same list is in Site Settings.</p>
         {notify.map((r, i) => (
           <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <input className="input" aria-label={`Notification address ${i + 1}`} value={r} onChange={(e) => { setNotify(notify.map((x, n) => (n === i ? e.target.value : x))); setDirty(true) }} />
@@ -155,7 +155,7 @@ export function WelcomePack() {
           </ul>
           {sw.onlineWanted && !sw.online ? <Notice tone="warn" icon={Icon.warn()}><p>Switched on but not live, because {sw.blockers.join('; ')}.</p></Notice> : null}
           <h3 style={{ marginTop: 20 }}>Who can read answers</h3>
-          {data.readers?.length ? <ul>{data.readers.map((r) => <li key={r.email}>{r.name ? `${r.name}, ` : ''}{r.email}</li>)}</ul> : <p className="help">Nobody yet. Once Lorna names who should read questionnaires, tick &quot;Can view patient questionnaires&quot; for each of them on the <a href="/admin/users">Users</a> screen.</p>}
+          {data.readers?.length ? <ul>{data.readers.map((r) => <li key={r.email}>{r.name ? `${r.name}, ` : ''}{r.email}</li>)}</ul> : <p className="help">Nobody yet. Lorna, as the practice owner, ticks &quot;Can view patient questionnaires&quot; for each person on the <a href="/admin/users">Users</a> screen. Having a login is not enough.</p>}
           <p className="help">Test the welcome email and a test questionnaire from <a href="/admin/settings/email">Email check</a>.</p>
         </div>
       ) : null}

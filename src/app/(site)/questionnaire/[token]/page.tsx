@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { lookupToken, loadWords, readDraft, tooMany } from '@/lib/questionnaire'
-import { FORM } from '@/lib/ape-questionnaire'
+import { lookupToken, loadWords, readDraft, tooMany, bookingIdentity } from '@/lib/questionnaire'
+import { FORM, ID } from '@/lib/ape-questionnaire'
 import { getSettings } from '@/lib/site'
 import { QuestionnaireForm } from './QuestionnaireForm'
 import { EmbedBridge } from './EmbedBridge'
@@ -43,6 +43,11 @@ export default async function QuestionnairePage({ params, searchParams }: { para
   }
   const row = found.row
   const words = await loadWords(payload)
+  // v1.10.0: the name and date of birth from the booking, unless the patient has already saved their own
+  const initial = readDraft(row)
+  const booking = found.test ? { name: String(row.patientName || ''), dob: null } : await bookingIdentity(String(row.bookingRef))
+  if (booking && !initial[ID.name] && booking.name) initial[ID.name] = booking.name
+  if (booking && !initial[ID.dob] && booking.dob) initial[ID.dob] = booking.dob
   const when = row.appointmentAt ? new Date(row.appointmentAt).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
   return (
     <section className="qn-page">
@@ -60,7 +65,7 @@ export default async function QuestionnairePage({ params, searchParams }: { para
           {FORM.intro.map((p) => <p key={p}>{p}</p>)}
           <p className="qn-confidential">{FORM.confidential}</p>
         </section>
-        <QuestionnaireForm token={token} initial={readDraft(row)} savedAt={row.draftSavedAt || null} notice={words.notice} consentLabel={words.consent} phone={s.phone} />
+        <QuestionnaireForm token={token} initial={initial} savedAt={row.draftSavedAt || null} notice={words.notice} consentLabel={words.consent} phone={s.phone} />
       </div>
     </section>
   )

@@ -167,13 +167,17 @@ async function main() {
   before = sent.length
   const noConsent = await q.submitAnswers(payload, token, raw, false)
   check('sending without the tick is refused', !noConsent.ok && (noConsent as any).state === 'consent')
+  // v1.10.0: the full name and date of birth at the top are needed to send
+  const noId = await q.submitAnswers(payload, token, raw, true)
+  check('sending without name and DOB is refused (v1.10.0)', !noId.ok && (noId as any).state === 'invalid_answers' && !!(noId as any).problems.patient_name && !!(noId as any).problems.patient_dob)
   const teamList = (await (await import('../src/lib/recipients')).liveRecipients()).team.list
-  const sub = await q.submitAnswers(payload, token, { ...raw, q02: ['Fear of being in pain', 'Other'] }, true)
+  const sub = await q.submitAnswers(payload, token, { ...raw, q02: ['Fear of being in pain', 'Other'], patient_name: 'Zelda Quartermaine', patient_dob: '1988-06-05' }, true)
   const rowAfterSubmit = (await payload.find({ collection: 'questionnaires', where: { bookingRef: { equals: 'APE-UNIT12' } }, overrideAccess: true, depth: 0 })).docs[0] as any
   check('sending: stored encrypted, draft cleared, team told', sub.ok && rowAfterSubmit.status === 'submitted' && !rowAfterSubmit.draft && !rowAfterSubmit.sealed.includes(SECRET_ANSWER) && sent.length === before + 1 && sent[sent.length - 1].to.join() === teamList.join())
   check('the link shows thank you once sent', (await q.lookupToken(payload, token)).state === 'submitted')
   check('no email so far contains an answer', sent.every((s) => !`${s.subject} ${s.text} ${s.html}`.includes(SECRET_ANSWER) && !/drill|Walking/.test(`${s.text} ${s.html}`)))
-  check('the team notice has no patient name', !/Zelda|Quartermaine/.test(`${sent[sent.length - 1].subject} ${sent[sent.length - 1].text}`))
+  check('the team notice has no patient name or DOB', !/Zelda|Quartermaine|1988|5 June/.test(`${sent[sent.length - 1].subject} ${sent[sent.length - 1].text} ${sent[sent.length - 1].html}`))
+  check('name and DOB are sealed with the answers', !rowAfterSubmit.sealed.includes('Quartermaine') && !rowAfterSubmit.sealed.includes('1988-06-05'))
 
   // ---------------------------------------------------------------- 6. who can read answers
   const id = String(rowAfterSubmit.id)
@@ -184,7 +188,7 @@ async function main() {
   try { await q.openQuestionnaire(payload, id, { id: 'a1', email: 'admin@example.com', role: 'admin', canViewQuestionnaires: false }) } catch (e) { denied = (e as { status?: number }).status === 403 }
   check('an administrator without access is refused for a real patient', denied)
   const opened = await q.openQuestionnaire(payload, id, { id: 'l1', email: 'lorna@example.com', role: 'editor', canViewQuestionnaires: true })
-  check('a person with access reads the answers', !!opened && opened.answers.q11 === SECRET_ANSWER && opened.form === form.FORM_ID)
+  check('a person with access reads the answers', !!opened && opened.answers.q11 === SECRET_ANSWER && opened.form === form.FORM_ID && opened.answers.patient_name === 'Zelda Quartermaine' && opened.answers.patient_dob === '1988-06-05')
   const logRows = await payload.find({ collection: 'questionnaire-log', where: { questionnaire: { equals: id } }, overrideAccess: true, depth: 0 })
   check('the refusals and the view are logged', logRows.docs.filter((x: any) => x.action === 'denied').length === 2 && logRows.docs.some((x: any) => x.action === 'viewed'))
 
@@ -194,7 +198,7 @@ async function main() {
   check('a test row is made', (await q.lookupToken(payload, tToken)).test === true)
   check('test rows are not in the real list', !(await q.listQuestionnaires(payload)).some((r) => r.test) && (await q.listQuestionnaires(payload, { tests: true })).length >= 1)
   before = sent.length
-  await q.submitAnswers(payload, tToken, { q01: '3' }, true)
+  await q.submitAnswers(payload, tToken, { q01: '3', patient_name: 'Test Patient GYA', patient_dob: '1990-01-01' }, true)
   check('a test submission tells only the test address, marked TEST', sent.length === before + 1 && sent[sent.length - 1].to.join() === 'tester@example.com' && sent[sent.length - 1].subject.startsWith('[TEST]'))
   check('test rows do not count as "to review"', (await q.countUnreviewed(payload)) === (await payload.count({ collection: 'questionnaires', where: { and: [{ status: { equals: 'submitted' } }, { reviewed: { not_equals: true } }, { test: { not_equals: true } }] }, overrideAccess: true })).totalDocs)
   const tRow = (await q.listQuestionnaires(payload, { tests: true })).find((r) => r.testEmail === 'tester@example.com')!

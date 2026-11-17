@@ -544,3 +544,25 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
   .user-actions .btn { flex: 1 1 auto; }
   .user-actions .danger { margin-left: 0; }
 }
+
+/* v1.10.0: Users screen, questionnaire access */
+.access-line { margin-bottom: 14px; }
+.access-log { margin-top: 18px; background: #fff; border: 1px solid var(--pd-line, #dcdcde); border-radius: 8px; padding: 10px 14px; }
+.access-log summary { cursor: pointer; font-weight: 600; }
+.access-log ul { margin: 10px 0 0; padding-left: 18px; }
+.access-log li { margin: 4px 0; line-height: 1.5; }
+.terms-preview h3 { font-size: 15px; margin: 14px 0 6px; }
+.terms-preview p, .terms-preview li { font-size: 14px; line-height: 1.55; margin: 0 0 6px; }
+.terms-preview ul { padding-left: 18px; margin: 0 0 8px; }
+/* v1.10.0: booking detail */
+.booking-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; margin: 4px 0 10px; }
+.booking-facts dt { font-size: 12px; color: var(--pd-muted, #646970); }
+.booking-facts dd { margin: 0; font-weight: 600; }
+/* v1.10.0: name and date of birth on a questionnaire */
+.q-identity { margin: 0 0 14px; }
+.q-identity dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 18px; margin: 0; }
+.q-identity dt { font-size: 12.5px; color: var(--pd-muted); }
+.q-identity dd { margin: 0; font-weight: 600; font-size: 15px; }
+.q-differs { display: flex; gap: 8px; align-items: flex-start; background: #fcf9e8; border: 1px solid #dba617; border-left-width: 4px; border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; }
+.q-differs > span { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #996800; color: #fff; font-weight: 700; flex: none; }
+@media print { .q-differs { border: 2px solid #000; background: none; } }

@@ -1,12 +1,15 @@
 /**
- * POST /api/paypal/capture  {token, orderId}
+ * POST /api/paypal/capture  {token, orderId, source?}
  * The patient approved the payment in PayPal: capture it, mark the booking's deposit received and email both sides.
  * Checked: the order belongs to this booking (custom_id), the amount is the deposit, and a repeat capture of the same
  * order changes nothing. The webhook (/api/paypal/webhook) is the backup if this request never arrives.
+ * v1.10.0: a card paid in the card fields is captured only when its 3D Secure result allows it (PayPal's recommended
+ * actions, src/lib/paypal.ts threeDs); otherwise nothing is charged and the patient is asked to try again. How the
+ * deposit was paid (PayPal, card, Apple Pay, Google Pay) is saved on the booking.
  */
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
-import { paypalConfigured, captureOrder, DEPOSIT_CURRENCY, money2 } from '@/lib/paypal'
+import { paypalConfigured, captureOrder, getOrder, threeDs, methodOf, asSource, DEPOSIT_CURRENCY, money2 } from '@/lib/paypal'
 import { tooMany } from '@/lib/questionnaire'
 
 export const runtime = 'nodejs'
@@ -31,6 +34,12 @@ export async function POST(req: Request) {
     const row = found.row
     if (row.paypal_order_id && row.paypal_order_id !== orderId) return core.send(409, { ok: false, error: 'order_mismatch' })
 
+    if (asSource(body.source) === 'card') {
+      const before = await getOrder(orderId)
+      if (!before || String(before.purchase_units?.[0]?.custom_id || '').toUpperCase() !== row.ref) return core.send(409, { ok: false, error: 'order_mismatch' })
+      const check = threeDs(before)
+      if (check !== 'continue') return core.send(402, { ok: false, error: check === 'retry' ? 'card_check_retry' : 'card_check_failed' })
+    }
     const { order, capture } = await captureOrder(orderId)
     const unit = order.purchase_units?.[0]
     if (String(unit?.custom_id || '').toUpperCase() !== row.ref) return core.send(409, { ok: false, error: 'order_mismatch' })
@@ -43,7 +52,7 @@ export async function POST(req: Request) {
       console.error('paypal capture: unexpected amount', row.ref, capture.amount)
       return core.send(409, { ok: false, error: 'amount_mismatch' })
     }
-    const fresh = await deposit.recordCapture(d, row.ref, { captureId: capture.id, orderId, amount, at: capture.create_time })
+    const fresh = await deposit.recordCapture(d, row.ref, { captureId: capture.id, orderId, amount, at: capture.create_time, method: methodOf(order) || asSource(body.source) })
     if (fresh) await deposit.sendDepositReceived(cfg, row, amount, capture.id)
     return core.send(200, { ok: true, status: 'paid', captureId: capture.id, amount })
   } catch (err) {

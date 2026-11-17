@@ -14,6 +14,10 @@ import * as deposit from '@/booking/deposit'
 import { deliver, type Kind, type Result } from '@/lib/mailer'
 import { liveRecipients, type Live } from '@/lib/recipients'
 import { paypalConfigured } from '@/lib/paypal'
+import { siteOrigin } from '@/lib/email'
+import { DEFAULTS } from '@/site.config'
+import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
+import { REMINDER } from './terms'
 
 const { TM } = core
 export const RETRY_SECONDS = 60
@@ -22,7 +26,22 @@ export type BookingRow = {
   ref: string; slot_start: string | Date; name: string; email: string; phone: string; notes: string
   price: number | string; special: boolean; status: string; created_at: string | Date; deposit_status?: string
   email_patient?: string; email_team?: string
+  // v1.10.0 (blank or null on bookings made before v1.10.0)
+  first_name?: string; last_name?: string; dob?: string | Date | null
+  terms_version?: string; terms_consent_at?: string | Date | null; terms_read_at?: string | Date | null
 }
+
+/** "YYYY-MM-DD" from a date column (pg gives a Date at local midnight) or a string. */
+export function dobIso(v: unknown): string | null {
+  if (!v) return null
+  if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v))
+  return m ? m[1] : null
+}
+/** The patient's name: first and last since v1.10.0, the single name before that. */
+export const nameOf = (b: Pick<BookingRow, 'name' | 'first_name' | 'last_name'>) => (b.first_name ? fullName(b.first_name, b.last_name || '') : b.name)
+export const firstOf = (b: Pick<BookingRow, 'name' | 'first_name'>) => (b.first_name || String(b.name || '').split(' ')[0] || 'there')
+export const termsUrl = () => `${siteOrigin(DEFAULTS.siteUrl)}/book-now/terms/`
 
 function table(rows: [string, string][]): string {
   return '<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;font:15px/1.5 Arial,sans-serif;color:#284858">'
@@ -51,6 +70,9 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
   const f = facts(cfg, b)
   const paypal = paypalConfigured()
   const depositAmt = cfg.pricing.deposit
+  const dob = dobIso(b.dob)
+  const tz = cfg.booking.timeZone
+  const tick = (v: unknown) => (v ? `${core.fmtDateTime(new Date(v as string), tz, true)} (Sydney time)` : '')
   const rows: [string, string][] = [
     ['Reference', b.ref],
     ['Requested time', f.when],
@@ -58,11 +80,13 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     ['Fee', f.fee],
     ['Deposit', paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
     ['Location', f.clinicLine],
-    ['Name', b.name],
+    ...(b.first_name ? [['First name', b.first_name], ['Last name', b.last_name || '']] as [string, string][] : [['Name', b.name]] as [string, string][]),
+    ['Date of birth', dob ? `${fmtDob(dob)} (age ${ageOn(dob, sydneyToday())})` : 'Not given'],
     ['Email', b.email],
     ['Phone', b.phone || 'Not provided'],
     ['Note from patient', b.notes || 'None'],
-    ['Deposit and cancellation policy', 'Read and accepted'],
+    ['Terms and cancellation policy', b.terms_consent_at ? `Consented ${tick(b.terms_consent_at)}${b.terms_version ? `, version ${b.terms_version}` : ''}` : 'Read and accepted'],
+    ['Read before the deposit', b.terms_read_at ? `Ticked ${tick(b.terms_read_at)}` : 'Yes'],
     ['Collection notice', 'Agreed'],
     ['Submitted', f.submitted],
   ]
@@ -81,7 +105,7 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
 export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: { payLink?: string; test?: boolean } = {}): core.Email {
   const f = facts(cfg, b)
   const depositAmt = cfg.pricing.deposit
-  const first = b.name.split(' ')[0]
+  const first = firstOf(b)
   const lines = [
     ...(o.test ? ['TEST EMAIL with sample details, no booking was made.'] : []),
     `Hi ${first},`,
@@ -90,6 +114,7 @@ export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: 
     o.payLink
       ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
       : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
+    `${REMINDER} You can read the full terms here: ${termsUrl()}`,
     'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
     `If anything changes or you have a question, simply reply to this email or call us on ${cfg.contact.phone}.`,
     `Warm regards,\n${TM} team`,

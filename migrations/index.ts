@@ -3,6 +3,7 @@ import * as migration_20261111_013051_v170_questionnaire from './20261111_013051
 import * as migration_20261113_070622_v183_email_settings from './20261113_070622_v183_email_settings';
 import * as migration_20261116_010034_v184_last_login from './20261116_010034_v184_last_login';
 import * as migration_20261116_012208_v190_welcome_pack from './20261116_012208_v190_welcome_pack';
+import * as migration_20261117_010000_v1100_terms_owner from './20261117_010000_v1100_terms_owner';
 
 export const migrations = [
   {
@@ -29,5 +30,10 @@ export const migrations = [
     up: migration_20261116_012208_v190_welcome_pack.up,
     down: migration_20261116_012208_v190_welcome_pack.down,
     name: '20261116_012208_v190_welcome_pack',
+  },
+  {
+    up: migration_20261117_010000_v1100_terms_owner.up,
+    down: migration_20261117_010000_v1100_terms_owner.down,
+    name: '20261117_010000_v1100_terms_owner',
   },
 ];

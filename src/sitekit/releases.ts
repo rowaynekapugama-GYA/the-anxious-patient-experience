@@ -167,4 +167,27 @@ export const UPDATES: Update[] = [
       return out.join('; ')
     },
   },
+  {
+    id: 'v1.10.0-book-now-steps',
+    describe: 'Book Now has five steps now (a terms and cancellation step was added), so the introduction says five',
+    async apply(payload) {
+      const OLD = 'Book your first appointment and pay your deposit online in four simple steps.'
+      const NEW = 'Book your first appointment and pay your deposit online in five simple steps.'
+      const doc = await pageDoc(payload, 'book-now')
+      const rows = doc?.sections ?? []
+      if (!doc) return 'no Book Now page in the dashboard'
+      let changed = false
+      const sections = rows.map((r) => ({
+        ...r,
+        content: plainRows((r.content ?? []).map((c) => {
+          // only while it still has the old words: if the practice has changed it, it is left alone
+          if (String(c.text ?? '').trim() === OLD) { changed = true; return { ...c, text: NEW } }
+          return c
+        })),
+      }))
+      if (!changed) return 'already changed, left alone'
+      await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
+      return 'applied'
+    },
+  },
 ]
