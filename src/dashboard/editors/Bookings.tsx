@@ -16,6 +16,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 export type Booking = {
   ref: string; start: string; day: string; time: string; when: string; name: string; email: string; phone: string
   notes: string; price: number; special: boolean; status: 'requested' | 'confirmed' | 'cancelled'; depositPaid: boolean; createdAt: string
+  heldUntil?: string | null; cancelReason?: string
   deposit: { status: 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'; label: string; amount: number | null; paidAt: string | null; note: string; captureId: string | null; paypalUrl: string | null; method?: string }
   /** v1.8.3: '' (before v1.8.3) | sent | retry | failed */
   emails: { patient: string; team: string }
@@ -126,12 +127,12 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     const future = b.filter((x) => new Date(x.start).getTime() >= now)
     return {
       upcoming: future.filter((x) => x.status !== 'cancelled').length,
-      todo: future.filter((x) => x.status === 'requested').length,
+      todo: future.filter((x) => x.status === 'requested' && !x.heldUntil).length,
       past: b.filter((x) => new Date(x.start).getTime() < now && x.status !== 'cancelled').length,
       cancelled: b.filter((x) => x.status === 'cancelled').length,
       all: b.length,
-      unpaid: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid).length,
-      deposits: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid).length,
+      unpaid: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid && !x.heldUntil).length,
+      deposits: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid && !x.heldUntil).length,
     }
   }, [data, now])
 
@@ -140,7 +141,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     const ok = filter === 'all' ? true
       : filter === 'cancelled' ? b.status === 'cancelled'
         : filter === 'past' ? !future && b.status !== 'cancelled'
-          : filter === 'todo' ? future && b.status === 'requested'
+          : filter === 'todo' ? future && b.status === 'requested' && !b.heldUntil
             : filter === 'unpaid' ? future && b.status !== 'cancelled' && !b.depositPaid
               : future && b.status !== 'cancelled'
     return ok && (!q || `${b.name} ${b.email} ${b.phone} ${b.ref} ${b.notes}`.toLowerCase().includes(q.toLowerCase()))
@@ -209,8 +210,14 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     </>
   }
   const emailCell = (b: Booking) => <span className="ticks">{tick(b.emails.patient, 'patient')}<small>Patient</small>{tick(b.emails.team, 'team')}<small>Team</small></span>
+  // v1.12.0: pay to book. A new booking waits for its deposit (time held); unpaid in time, it is released
+  const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit' })
   const statusChip = (b: Booking) => b.status === 'confirmed' ? <span className="chip good">Confirmed</span>
-    : b.status === 'cancelled' ? <span className="chip grey">Cancelled</span> : <span className="chip warn">To confirm</span>
+    : b.status === 'cancelled' ? (b.cancelReason === 'not_paid'
+      ? <span className="chip grey" title="The patient did not finish paying the deposit, so the time was released">Released: not paid</span>
+      : <span className="chip grey">Cancelled</span>)
+      : b.heldUntil ? <span className="chip blue" title="The patient is paying the deposit online. Nothing to do yet: the team is emailed once it is paid.">Paying now (held until {hhmm(b.heldUntil)})</span>
+        : <span className="chip warn">To confirm</span>
 
   return (
     <>
@@ -252,7 +259,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td className="email-ticks">{emailCell(b)}</td>
                     {showWelcome ? <td>{welcomeCell(b)}</td> : null}
                     <td className="row-actions">
-                      {b.status === 'requested' ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
+                      {b.status === 'requested' && !b.heldUntil ? <button className="btn small primary" disabled={busy === b.ref} onClick={() => update(b, { status: 'confirmed' }, `${b.name}'s booking is marked confirmed.`)}>{Icon.check()} Mark confirmed</button> : null}
                       {b.status !== 'cancelled' && !b.depositPaid ? <button className="btn small" disabled={busy === b.ref} onClick={() => setManual({ b, note: '' })}>Mark received manually</button> : null}
                       {b.status !== 'cancelled' ? <button className="btn small danger" disabled={busy === b.ref} onClick={() => setAsk(b)}>Cancel booking</button> : null}
                       {b.status === 'cancelled' ? <button className="btn small" disabled={busy === b.ref} onClick={() => update(b, { status: 'requested' }, 'Booking restored. Please confirm it again.')}>Restore</button> : null}
@@ -296,7 +303,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       <div className="panel">
         <h2>When a booking request comes in</h2>
         <ol className="steps-help">
-          <li>You get an email at the APE inbox, and the request shows here as <b>To confirm</b>. The time is held, so nobody else can book it online.</li>
+          <li>You get an email at the APE inbox, and the request shows here as <b>To confirm</b>. The time is held, so nobody else can book it online. With online payment set up, patients pay the $100 deposit while booking: the request (and the email) arrives once it is paid. While they pay it shows as <b>Paying now</b>; if they don&apos;t finish within 30 minutes the time is released and shows under Cancelled as <b>Released: not paid</b>.</li>
           <li>Block the time in Core Practice and enter the patient.</li>
           <li>Reply to the patient to confirm and send the new patient information pack.</li>
           <li>Press <b>Mark confirmed</b>.{data.questionnaire?.welcome ? ' The website then emails the patient the welcome pack (Lorna\'s Patient Guide and questionnaire).' : ''} When the deposit is paid online, Deposit received ticks itself; otherwise press <b>Deposit received</b>.</li>

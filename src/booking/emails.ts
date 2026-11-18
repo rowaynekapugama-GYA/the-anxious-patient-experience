@@ -13,7 +13,7 @@ import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
 import { deliver, type Kind, type Result } from '@/lib/mailer'
 import { liveRecipients, type Live } from '@/lib/recipients'
-import { paypalConfigured } from '@/lib/paypal'
+import { paypalConfigured, METHOD_LABEL } from '@/lib/paypal'
 import { siteOrigin } from '@/lib/email'
 import { DEFAULTS } from '@/site.config'
 import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
@@ -27,6 +27,7 @@ export type BookingRow = {
   ref: string; slot_start: string | Date; name: string; email: string; phone: string; notes: string
   price: number | string; special: boolean; status: string; created_at: string | Date; deposit_status?: string
   email_patient?: string; email_team?: string
+  deposit_amount?: string | number | null; deposit_paid_at?: string | Date | null; deposit_method?: string; paypal_capture_id?: string | null
   // v1.10.0 (blank or null on bookings made before v1.10.0)
   first_name?: string; last_name?: string; dob?: string | Date | null
   terms_version?: string; terms_consent_at?: string | Date | null; terms_read_at?: string | Date | null
@@ -75,12 +76,16 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
   const dob = dobIso(b.dob)
   const tz = cfg.booking.timeZone
   const tick = (v: unknown) => (v ? `${core.fmtDateTime(new Date(v as string), tz, true)} (Sydney time)` : '')
+  // v1.12.0: with pay to book, this email goes once the deposit is paid, so it says so
+  const paid = deposit.isPaid(String(b.deposit_status || 'unpaid'))
+  const how = (METHOD_LABEL as Record<string, string>)[String(b.deposit_method || '')] || ''
+  const paidLine = `${core.money(Number(b.deposit_amount) || depositAmt)}: paid online${how ? ` (${how})` : ''}${b.deposit_paid_at ? `, ${tick(b.deposit_paid_at)}` : ''}${b.paypal_capture_id ? `. PayPal transaction ${b.paypal_capture_id}` : ''}`
   const rows: [string, string][] = [
     ['Reference', b.ref],
     ['Requested time', f.when],
     ['Appointment', `${TM}: New Patient Appointment (70 minutes)`],
     ['Fee', f.fee],
-    ['Deposit', paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
+    ['Deposit', paid ? paidLine : paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
     ['Location', f.clinicLine],
     ...(b.first_name ? [['First name', b.first_name], ['Last name', b.last_name || '']] as [string, string][] : [['Name', b.name]] as [string, string][]),
     ['Date of birth', dob ? `${fmtDob(dob)} (age ${ageOn(dob, sydneyToday())})` : 'Not given'],
@@ -93,7 +98,7 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     ['Submitted', f.submitted],
   ]
   const nextStep = 'Next step: block this time in Core Practice, reply to the patient to confirm and send the new patient information pack, then mark it confirmed under Bookings in the website dashboard (/admin).'
-  const intro = `${o.test ? 'TEST EMAIL with sample details, no booking was made. ' : ''}New booking request for ${TM}. This time is held on the website but not yet confirmed.`
+  const intro = `${o.test ? 'TEST EMAIL with sample details, no booking was made. ' : ''}New booking request for ${TM}.${paid ? ' The deposit has been paid online.' : ''} This time is held on the website but not yet confirmed.`
   return {
     to: live.team.list,
     ...(live.bcc.length && !o.test ? { bcc: live.bcc } : {}),
@@ -113,7 +118,9 @@ export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: 
     `Hi ${first},`,
     `Thank you for your booking request for ${TM} New Patient Appointment.`,
     `Requested time: ${f.when}\nLocation: ${f.clinicLine}\nFee: ${f.fee}\nReference: ${b.ref}`,
-    o.payLink
+    deposit.isPaid(String(b.deposit_status || 'unpaid'))
+      ? `Your ${core.money(Number(b.deposit_amount) || depositAmt)} deposit has been received, so your time is secured. It comes off the cost of your appointment on the day.${b.paypal_capture_id ? ` PayPal transaction: ${b.paypal_capture_id}.` : ''}`
+      : o.payLink
       ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
       : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
     `${REMINDER} You can read the full deposit policy here: ${termsUrl()}`,

@@ -110,7 +110,7 @@ async function main() {
   const on = await q.onBookingConfirmed(payload, b11)
   const m = sent[sent.length - 1]
   check('Mark confirmed with it on: sent', on.sent && sent.length === before + 1 && m.to[0] === 'zelda.patient@example.com')
-  check('subject is "Your APE welcome pack and questionnaire"', m.subject === 'Your APE welcome pack and questionnaire', m.subject)
+  check('subject is "Your APE appointment is confirmed" (v1.12.0)', m.subject === 'Your APE appointment is confirmed', m.subject)
   const fsm = await import('node:fs')
   check('the attachments are the APE versions in public/downloads (v1.9.2)', m.attachments.length === 2 && m.attachments.every((x) => Buffer.from(x.fileblob, 'base64').equals(fsm.readFileSync(`public/downloads/${x.filename === 'APE-Patient-Guide.pdf' ? 'ape-patient-guide' : 'ape-pre-appointment-questionnaire'}.pdf`))))
   check('both PDFs attached', m.attachments.map((a) => a.filename).sort().join(',') === 'APE-Patient-Guide.pdf,APE-Pre-appointment-Questionnaire.pdf' && m.attachments.every((a) => Buffer.from(a.fileblob, 'base64').subarray(0, 5).toString() === '%PDF-'))

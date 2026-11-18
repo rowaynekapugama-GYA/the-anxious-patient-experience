@@ -61,7 +61,7 @@ export function PayDeposit({ token, clientId, amount, phone, advanced, env, asse
         policyAgreedAt: ok.now ? ok.at : null, policyVersion: ok.now ? policy.version : '',
         onStart: (source: string) => track('deposit_started', { method: source }),
         onPaid: (source: string) => { track('deposit_paid', { value: Number(amount), currency: 'AUD', method: source }); setState('paid') },
-        onState: (st: string, msg: string) => { setState(st as typeof state); setDetail(msg || '') },
+        onState: (st: string, msg: string) => { setState((st === 'released' ? 'error' : st) as typeof state); setDetail(msg || '') },
       })
     }).catch(() => setState('error'))
     return () => { gone = true }

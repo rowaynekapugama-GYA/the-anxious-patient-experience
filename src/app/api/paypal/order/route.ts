@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const cfg = core.loadConfig()
     await core.ensureSchema(d, cfg)
     const found = await deposit.bookingForToken(d, String(body.token || ''))
-    if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: found.state })
+    if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: deposit.releasedUnpaid(found.row) ? 'released' : found.state })
     const source = asSource(body.source)
     if (source !== 'paypal' && !paypalAdvanced()) return core.send(400, { ok: false, error: 'source_off' })
     const row = found.row as deposit.BookingRow & { terms_consent_at?: string | null; terms_pay_read_at?: string | null }
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
     } else if (body.policyAgreed !== true && !row.terms_consent_at && !row.terms_pay_read_at) {
       return core.send(400, { ok: false, error: 'policy' })
     }
+    await deposit.extendHold(d, found.row.ref) // v1.12.0: a payment in progress keeps its held time
     const order = await createDepositOrder(found.row.ref, cfg.pricing.deposit, siteOrigin(siteOriginFallback()), source)
     await deposit.rememberOrder(d, found.row.ref, order.id)
     return core.send(200, { ok: true, id: order.id })

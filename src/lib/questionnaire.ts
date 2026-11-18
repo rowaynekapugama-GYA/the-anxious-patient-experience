@@ -87,10 +87,14 @@ export async function packSwitches(payload: Payload): Promise<Switches> {
 export const DEFAULT_NOTICE = 'The Anxious Patient Experience team at The Cronulla Dentists asks these questions so we can get to know you and plan an appointment that feels calm and in your control. Some answers are health information. They are encrypted, stored in Australia and read only by the team members who look after your care, and they are never sent by email. Every question is optional: you can leave anything blank and talk it through with us instead. We keep your answers with your dental records for at least 7 years. You can ask to see or correct them at any time. Our Privacy Policy (section 14) explains more.'
 export const DEFAULT_CONSENT = 'I have read this notice and I am happy for the APE team to use my answers to plan my care.'
 
-export const DEFAULT_SUBJECT = 'Your APE welcome pack and questionnaire'
+// v1.12.0: the welcome email is the patient's confirmation (sent on Mark confirmed), so its subject says so
+export const DEFAULT_SUBJECT = 'Your APE appointment is confirmed'
+export const OLD_SUBJECT = 'Your APE welcome pack and questionnaire'
+export const OLD_FIRST_LINE = "We're looking forward to meeting you on {when}."
+export const NEW_FIRST_LINE = "Your appointment is confirmed for {when}, and we're looking forward to meeting you."
 export const DEFAULT_BODY = `Hi {first},
 
-Thank you for booking your first visit with The Anxious Patient Experience at The Cronulla Dentists. We're looking forward to meeting you on {when}.
+Thank you for booking your first visit with The Anxious Patient Experience at The Cronulla Dentists. Your appointment is confirmed for {when}, and we're looking forward to meeting you.
 
 Attached to this email are two things to read in your own time:
 - Your Patient Guide, which explains what to expect before and during your appointment, and how to find us.
@@ -317,13 +321,20 @@ async function alreadyWelcomed(ref: string): Promise<boolean> {
  * the Book Now page can offer the questionnaire straight away (optional). If the welcome email also goes at request
  * time, it carries that same link. Returns the link for the patient's own browser only; it is never logged.
  */
-export async function onBookingRequested(payload: Payload, b: BookingRow): Promise<{ link: string | null }> {
+export async function onBookingRequested(payload: Payload, b: BookingRow, o: { welcome?: boolean } = {}): Promise<{ link: string | null }> {
   const sw = await packSwitches(payload)
   const link = sw.online ? (await issueLink(payload, b)).link : null
-  if (sw.welcome && sw.sendWhen === 'requested') {
+  // v1.12.0: with pay to book, a request only counts once the deposit is paid, so the welcome email waits (afterPaid)
+  if (o.welcome !== false && sw.welcome && sw.sendWhen === 'requested') {
     await sendWelcome(payload, b, { link }).catch((err) => console.error('welcome: failed', b.ref, (err as Error).message))
   }
   return { link }
+}
+/** v1.12.0: a pay-to-book booking has just been paid: the welcome email goes now if it is set to go at request time. */
+export async function onBookingPaid(payload: Payload, b: BookingRow): Promise<void> {
+  const sw = await packSwitches(payload)
+  if (!sw.welcome || sw.sendWhen !== 'requested' || await alreadyWelcomed(b.ref)) return
+  await sendWelcome(payload, b).catch((err) => console.error('welcome: failed', b.ref, (err as Error).message))
 }
 /** Mark confirmed: send the pack now, once, unless it is switched off or went out at request time. */
 export async function onBookingConfirmed(payload: Payload, b: BookingRow): Promise<{ sent: boolean; reason?: string }> {

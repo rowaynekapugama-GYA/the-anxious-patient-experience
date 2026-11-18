@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.12.0 (18 Nov 2026): pay to book, the confirmation email, where to find the questionnaire
+
+Update to the existing repo (on top of 1.11.0). From Lorna's call with Rowayne on 18 Nov 2026.
+
+- **Pay to book.** With online payment set up (PayPal), patients pay the $100 deposit while booking. Step 3's button
+  is **Continue to payment**; the time is held for 30 minutes while they pay and the booking only counts, and is only
+  emailed to the team and the patient, once the deposit is paid. The emails say it is paid (no separate "Deposit
+  received" for these). **Pay later** is gone. Unpaid after 30 minutes, the time is released (nothing charged); Book
+  Now goes back to the times with a message, and that booking's pay link says the time was released. The dashboard
+  shows **Paying now (held until ...)** while they pay (no Mark confirmed, not counted as To confirm) and **Released:
+  not paid** under Cancelled. Without online payment, requests are taken as before.
+- **Confirmation email.** The welcome email is switched on (once; switching it off later in Site Settings > Welcome
+  pack stays off) and is now the patient's confirmation: subject "Your APE appointment is confirmed", first line
+  "Your appointment is confirmed for [date and time], and we're looking forward to meeting you." Sent on **Mark
+  confirmed**, with Lorna's Patient Guide and questionnaire attached. The online questionnaire stays off.
+- **For Lorna:** a PDF guide "Where to find the questionnaire" (not in the repo, sent with the email).
+- **Migrations:** additive (`hold_until`, `cancel_reason` on bookings).
+- **Checks:** tsc, `npm run qa`, test:booking (139, with 14 new pay-to-book checks), test:questionnaire, test:email,
+  Playwright on phone and desktop: v1.11.0 checks (74) and pay to book (21).
+
 ## 1.11.0 (18 Nov 2026): Lorna's deposit policy pop-up, booking sources and analytics
 
 Update to the existing repo (on top of 1.10.0). From Lorna's email of 18 Nov 2026. Two commits: the Next.js security

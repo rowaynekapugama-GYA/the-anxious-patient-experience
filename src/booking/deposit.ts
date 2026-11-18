@@ -16,7 +16,7 @@ export type DepositStatus = 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'
 export type BookingRow = {
   ref: string; slot_start: string | Date; name: string; email: string; phone: string; status: string; price: number | string
   deposit_paid: boolean; deposit_status: DepositStatus; deposit_amount: string | null; deposit_paid_at: string | null; deposit_note: string
-  deposit_method?: string
+  deposit_method?: string; hold_until?: string | Date | null; cancel_reason?: string
   paypal_order_id: string | null; paypal_capture_id: string | null; pay_token_hash: string | null; pay_token_expires: string | null
 }
 export const isPaid = (s: string) => s === 'paid' || s === 'manual'
@@ -32,6 +32,7 @@ export const payLinkFor = (token: string) => `${siteOrigin(siteOriginFallback())
 /** The booking a pay token belongs to, with why it cannot be paid if it cannot. */
 export async function bookingForToken(d: core.Db, token: string): Promise<{ state: 'ok' | 'paid' | 'expired' | 'cancelled' | 'invalid'; row?: BookingRow }> {
   if (!/^[A-Za-z0-9_-]{40,50}$/.test(token)) return { state: 'invalid' }
+  await core.releaseHolds(d) // v1.12.0: an unpaid hold that has run out is released first (state 'cancelled', reason not_paid)
   const rows = await d.query<BookingRow>(`SELECT * FROM ape_bookings WHERE pay_token_hash = $1`, [hashToken(token)])
   const row = rows[0]
   if (!row) return { state: 'invalid' }
@@ -40,6 +41,13 @@ export async function bookingForToken(d: core.Db, token: string): Promise<{ stat
   if (row.pay_token_expires && new Date(row.pay_token_expires).getTime() < Date.now()) return { state: 'expired', row }
   return { state: 'ok', row }
 }
+
+/** v1.12.0: a payment is starting, so a held booking keeps its time a little longer (never shortened). */
+export async function extendHold(d: core.Db, ref: string): Promise<void> {
+  await d.query(`UPDATE ape_bookings SET hold_until = greatest(hold_until, now() + ($2 || ' minutes')::interval) WHERE ref = $1 AND hold_until IS NOT NULL`, [ref, String(core.HOLD_EXTEND_MINUTES)])
+}
+/** v1.12.0: was this booking released because its deposit was not paid in time? */
+export const releasedUnpaid = (row?: Pick<BookingRow, 'status' | 'cancel_reason'>) => !!row && row.status === 'cancelled' && row.cancel_reason === 'not_paid'
 
 export async function rememberOrder(d: core.Db, ref: string, orderId: string): Promise<void> {
   await d.query(`UPDATE ape_bookings SET paypal_order_id = $2, updated_at = now() WHERE ref = $1`, [ref, orderId])
@@ -80,7 +88,7 @@ export async function recordFailure(d: core.Db, ref: string, note: string): Prom
 /** The team ticks or unticks the deposit by hand (a bank transfer, cash, a phone payment). */
 export async function setManual(d: core.Db, ref: string, paid: boolean, note: string, by: string): Promise<boolean> {
   const r = paid
-    ? await d.query(`UPDATE ape_bookings SET deposit_status = 'manual', deposit_paid = true, deposit_paid_at = now(), deposit_note = $2, updated_at = now() WHERE ref = $1 AND deposit_status <> 'paid' RETURNING ref`, [ref, `${note}${note ? ' ' : ''}(marked by ${by})`.trim()])
+    ? await d.query(`UPDATE ape_bookings SET deposit_status = 'manual', deposit_paid = true, deposit_paid_at = now(), deposit_note = $2, hold_until = NULL, updated_at = now() WHERE ref = $1 AND deposit_status <> 'paid' RETURNING ref`, [ref, `${note}${note ? ' ' : ''}(marked by ${by})`.trim()])
     : await d.query(`UPDATE ape_bookings SET deposit_status = 'unpaid', deposit_paid = false, deposit_paid_at = NULL, deposit_note = $2, updated_at = now() WHERE ref = $1 AND deposit_status IN ('manual', 'failed', 'refunded') RETURNING ref`, [ref, `${note}${note ? ' ' : ''}(unmarked by ${by})`.trim()])
   return r.length > 0
 }

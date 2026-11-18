@@ -7,6 +7,7 @@
  */
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
+import { afterPaid } from '@/booking/paid'
 import { paypalConfigured, verifyWebhook, refOfResource, DEPOSIT_CURRENCY, type WebhookEvent } from '@/lib/paypal'
 
 export const runtime = 'nodejs'
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
       const amount = Number(res.amount?.value || 0)
       if (res.amount?.currency_code !== DEPOSIT_CURRENCY || amount <= 0) return core.send(200, { ok: true, ignored: 'amount' })
       const fresh = await deposit.recordCapture(d, ref, { captureId, amount, at: res.create_time })
-      if (fresh) await deposit.sendDepositReceived(cfg, row, amount, captureId)
+      if (fresh) await afterPaid(d, cfg, row, amount, captureId)
       return core.send(200, { ok: true, applied: fresh })
     }
     if (event.event_type === 'PAYMENT.CAPTURE.DENIED') {

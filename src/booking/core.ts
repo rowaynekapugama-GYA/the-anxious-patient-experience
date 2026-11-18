@@ -271,6 +271,11 @@ const SCHEMA = [
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT ''`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source_medium text NOT NULL DEFAULT ''`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source_campaign text NOT NULL DEFAULT ''`,
+  // v1.12.0: pay to book. With online payment set up, a new booking holds its time until hold_until while the patient
+  // pays; unpaid by then, it is released (cancelled, cancel_reason 'not_paid'; its pay link then says so and takes no
+  // payment). Null: no hold (paid, or no online payment).
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS hold_until timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS cancel_reason text NOT NULL DEFAULT ''`,
   // v1.10.0: who gave or took away questionnaire access or practice owner, for whom and when (also made by the
   // v1.10.0 migration)
   `CREATE TABLE IF NOT EXISTS ape_access_log (
@@ -299,6 +304,23 @@ const SCHEMA = [
      ref text,
      received_at timestamptz NOT NULL DEFAULT now())`,
 ]
+
+/** v1.12.0: how long a new booking holds its time while the patient pays the deposit (pay to book). */
+export const HOLD_MINUTES = 30
+/** Extra time given when the patient starts a payment, so a payment in progress is never released under them. */
+export const HOLD_EXTEND_MINUTES = 15
+
+/**
+ * v1.12.0: release every unpaid hold that has run out, so the time can be booked again. Runs whenever times are read
+ * or a payment link is used, and when the dashboard opens; no scheduled job is needed.
+ */
+export async function releaseHolds(d: Db): Promise<number> {
+  const r = await d.query(
+    `UPDATE ape_bookings SET status = 'cancelled', cancel_reason = 'not_paid', updated_at = now()
+      WHERE status = 'requested' AND hold_until IS NOT NULL AND hold_until < now() AND deposit_status = 'unpaid'
+      RETURNING ref`).catch(() => [])
+  return r.length
+}
 
 export function ensureSchema(d: Db, cfg: Cfg): Promise<void> {
   if (!schemaReady) {
@@ -355,6 +377,7 @@ export async function readState(): Promise<{ cfg: Cfg; state: State }> {
     return { cfg: base, state: { db: false, blocks: (base.booking.initialBlockedDates || []).filter(isDay).map((day) => ({ day, time: null, note: '' })), taken: new Set(), specialUsed: 0, schedule: null } }
   }
   await ensureSchema(d, base)
+  await releaseHolds(d)
   const [blocks, taken, used, schedule] = await Promise.all([
     d.query(`SELECT to_char(day, 'YYYY-MM-DD') AS day, time, note FROM ape_blocks WHERE day >= current_date - 2 ORDER BY day, time NULLS FIRST`),
     d.query(`SELECT slot_start FROM ape_bookings WHERE status <> 'cancelled' AND slot_start >= now() - interval '2 days'`),

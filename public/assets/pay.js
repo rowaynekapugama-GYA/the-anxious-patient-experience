@@ -27,6 +27,7 @@
     cardCheckRetry: 'Your bank’s security check was not finished, so nothing has been charged. Please try again.',
     cardCheckFailed: 'Your bank did not confirm this card, so nothing has been charged. Please try again, use another card, or choose another way to pay.',
     walletCancelled: 'No payment was taken. You can try again, or choose another way to pay.',
+    released: 'This time was released because the payment wasn\u2019t finished within 30 minutes. Nothing has been charged. Please choose a time again.',
     secure: 'Payments are processed securely by PayPal. Your card details are not stored on this website.'
   };
 
@@ -64,24 +65,27 @@
 
   /* box: an element to fill. o: { clientId, token, amount, advanced, env, from ('book-now' | 'pay-page'),
      policyAgreedAt, policyVersion, onStart(source), onPaid(source), onState(state, message) } with state
-     'ready' | 'cancelled' | 'error' | 'busy'. The deposit policy is agreed before this is shown (policy.js). */
+     'ready' | 'cancelled' | 'error' | 'busy' | 'released' (v1.12.0: the held time ran out before payment). The deposit policy is agreed before this is shown (policy.js). */
   function mount(box, o) {
     var done = false;
     var amount = Number(o.amount) || 100;
-    function state(s, msg) { if (o.onState) o.onState(s, msg || ''); }
+    var released = false;
+    /* v1.12.0: 'released' (the held time ran out before paying) wins over any later error message */
+    function state(s, msg) { if (released) return; if (s === 'released') released = true; if (o.onState) o.onState(s, msg || ''); }
     function createOrder(source) {
       if (o.onStart) { try { o.onStart(source); } catch (e) { /* analytics only */ } }
       return post('/api/paypal/order', { token: o.token, source: source, policyAgreed: true, policyAgreedAt: o.policyAgreedAt || null, policyVersion: o.policyVersion || '', from: o.from || 'book-now' })
-        .then(function (j) { if (!j.httpOk || !j.id) throw new Error(j.error || 'order'); return j.id; });
+        .then(function (j) { if (!j.httpOk || !j.id) { var e = new Error(j.error || 'order'); e.code = j.error; if (e.code === 'released') state('released', TEXT.released); throw e; } return j.id; });
     }
     function capture(orderId, source) {
       return post('/api/paypal/capture', { token: o.token, orderId: orderId, source: source }).then(function (j) {
         if (j.httpOk && j.ok) { if (!done) { done = true; if (o.onPaid) o.onPaid(source); } return true; }
-        var e = new Error(j.error || 'capture'); e.code = j.error; throw e;
+        var e = new Error(j.error || 'capture'); e.code = j.error; if (e.code === 'released') state('released', TEXT.released); throw e;
       });
     }
     function failMessage(err) {
       var c = err && err.code;
+      if (c === 'released') return TEXT.released;
       if (c === 'card_check_retry') return TEXT.cardCheckRetry;
       if (c === 'card_check_failed') return TEXT.cardCheckFailed;
       return '';

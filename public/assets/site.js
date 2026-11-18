@@ -384,16 +384,16 @@
     feeSpecial: function (p, r) { return 'Fee: ' + moneyStr(p) + ' opening special (usually ' + moneyStr(r) + '). Health fund rebates available.'; },
     feeStandard: function (p) { return 'Fee: ' + moneyStr(p) + '. Health fund rebates available.'; },
     depositLater: 'Deposit details will be sent with your confirmation.',
-    depositPaypal: 'Next you can pay the $100 deposit by card, or with PayPal. You don\u2019t need a PayPal account.',
+    depositPaypal: 'Next you pay the $100 deposit by card, or with PayPal, to complete your booking. You don\u2019t need a PayPal account.',
     sendLater: 'Send booking request',
-    sendPaypal: 'Send request and pay deposit',
+    sendPaypal: 'Continue to payment',
     payHeading: 'Pay your $100 deposit',
-    payIntro: 'Your time is held. Paying the deposit now secures it; the deposit comes off the cost of your appointment.',
+    /* v1.12.0: pay to book. The time is held while the patient pays; the booking is only made once the deposit is paid */
+    payIntro: 'Your time is held for 30 minutes while you pay. Your booking is complete once the deposit is paid, and it comes off the cost of your appointment.',
     payLoading: 'Loading secure payment options',
-    payCancelled: 'No payment was taken. You can try again, or pay later using the link in your email.',
-    payFail: 'Sorry, the payment could not be completed. Nothing has been charged. Please try again, or pay later using the link in your email.',
-    payLater: 'Pay later',
-    payLaterNote: 'Your booking request has been sent and the private payment link is in your email for 14 days.',
+    payCancelled: 'No payment was taken. Your time is still held for now, so you can try again above.',
+    payFail: 'Sorry, the payment could not be completed. Nothing has been charged. Please try again, or call us on ' + PHONE + '.',
+    payReleased: 'This time was released because the payment wasn\u2019t finished within 30 minutes. Nothing has been charged. Please choose a time again.',
     paidLine: 'Your $100 deposit has been received. Thank you.',
     unpaidLine: 'Your $100 deposit has not been paid yet. You can pay it securely here:',
     unpaidLink: 'Pay your deposit',
@@ -626,7 +626,7 @@
           '<div class="pay-area" id="paypal-buttons" aria-live="polite"></div>' +
           (state.payState === 'cancelled' ? '<p class="pay-later" role="status">' + esc(state.payMsg || UI.payCancelled) + '</p>' : '') +
           (state.payState === 'error' ? '<p class="err send-err" role="alert">' + esc(state.payMsg || UI.payFail) + '</p>' : '') +
-          '<p class="pay-later">' + esc(UI.payLaterNote) + ' <button type="button" class="btn btn-ghost" data-act="later">' + esc(UI.payLater) + '</button></p></div>';
+          '</div>';
       } else {
         h += '<div><h3>' + t(COPY.steps[2]) + '</h3>' + policyBox +
           chosenHtml(' style="margin-top:0"') +
@@ -694,7 +694,6 @@
     var a = act.getAttribute('data-act');
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) { state.errors = {}; go(2); }
-    if (a === 'later' && state.ref) go(4);
     if (a === 'q-open' && state.questionnaire) openQuestionnaire();
     if (a === 'pay' && !state.sending) {
       if (!bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
@@ -822,6 +821,11 @@
     var area = document.getElementById('paypal-buttons');
     if (area) area.parentNode.insertBefore(p, area.nextSibling);
   }
+  /* v1.12.0: the held time ran out before the deposit was paid; start again from the times (nothing was charged) */
+  function releasedHold() {
+    state.ref = ''; state.payment = null; state.paid = false; state.payState = 'idle'; state.payMsg = ''; state.questionnaire = null;
+    backToTimes(UI.payReleased);
+  }
   function mountPaypal() {
     var pay = state.payment;
     if (!pay) return;
@@ -832,7 +836,10 @@
         clientId: pay.clientId, token: pay.token, amount: (state.deposit && state.deposit.amount) || 100, advanced: !!pay.advanced, env: pay.env || 'sandbox', from: 'book-now',
         onStart: function (source) { track('deposit_started', { method: source }); },
         onPaid: function (source) { state.paid = true; state.payState = 'idle'; track('deposit_paid', { value: Number((state.deposit && state.deposit.amount) || 100), currency: 'AUD', method: source }); go(4); },
-        onState: function (st, msg) { state.payState = st; state.payMsg = msg; payNote(st, msg); }
+        onState: function (st, msg) {
+          if (st === 'released') { releasedHold(); return; }
+          state.payState = st; state.payMsg = msg; payNote(st, msg);
+        }
       });
     }).catch(function () { state.payState = 'error'; state.payMsg = ''; payNote('error'); });
   }

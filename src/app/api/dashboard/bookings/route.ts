@@ -43,6 +43,9 @@ function bookingRow(r: Record<string, any>, tz: string) {
     // v1.11.0: where the visit came from
     source: { label: sourceLabel(r.source), source: String(r.source || ''), medium: String(r.source_medium || ''), campaign: String(r.source_campaign || '') },
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
+    // v1.12.0: pay to book. Held while the patient pays (until this time), or released because it was not paid in time
+    heldUntil: r.status === 'requested' && r.hold_until && r.deposit_status === 'unpaid' ? new Date(r.hold_until).toISOString() : null,
+    cancelReason: String(r.cancel_reason || ''),
     deposit: deposit.depositView(r as Partial<deposit.BookingRow>),
     createdAt: new Date(r.created_at).toISOString(),
     // v1.8.3: '' (before v1.8.3) | sent | retry | failed
@@ -161,6 +164,8 @@ export async function POST(req: Request) {
       if (body.status !== undefined) {
         if (!['requested', 'confirmed', 'cancelled'].includes(String(body.status))) return core.send(400, { ok: false, error: 'invalid' })
         params.push(body.status); sets.push(`status = $${params.length}`)
+        // v1.12.0: a booking the team confirms, restores or cancels is no longer an unpaid hold
+        sets.push('hold_until = NULL', `cancel_reason = ''`)
       }
       // the deposit by hand (v1.8.0): a note and who did it, never over a PayPal payment
       if (body.depositPaid !== undefined) {

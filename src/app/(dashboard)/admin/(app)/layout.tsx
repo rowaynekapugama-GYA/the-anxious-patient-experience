@@ -8,7 +8,7 @@ async function toConfirm(): Promise<number> {
   const d = db()
   if (!d) return 0
   try {
-    const r = await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND slot_start >= now()`)
+    const r = await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND hold_until IS NULL AND slot_start >= now()`)
     return Number(r[0]?.n) || 0
   } catch {
     return 0

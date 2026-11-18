@@ -25,7 +25,7 @@ export default async function Home() {
   const home = await payload.find({ collection: 'pages', where: { pageSlug: { equals: 'home' } }, limit: 1, depth: 0, overrideAccess: true, select: { pageSlug: true } })
   const d = db()
   const bookings = d ? await d.query(`SELECT ref, name, slot_start, status, special FROM ape_bookings WHERE status <> 'cancelled' AND slot_start >= now() ORDER BY (status = 'requested') DESC, slot_start LIMIT 5`).catch(() => []) : []
-  const toConfirm = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
+  const toConfirm = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND hold_until IS NULL AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
   const unpaid = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status <> 'cancelled' AND NOT deposit_paid AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
   // v1.11.0: where bookings came from in the last 30 days (cancelled ones too: they still found the website)
   const srcRows = d ? await d.query<{ source: string; n: number }>(`SELECT source, count(*)::int AS n FROM ape_bookings WHERE created_at >= now() - interval '30 days' GROUP BY source`).catch(() => []) : []

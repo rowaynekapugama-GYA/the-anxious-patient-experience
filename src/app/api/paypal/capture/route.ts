@@ -9,6 +9,7 @@
  */
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
+import { afterPaid } from '@/booking/paid'
 import { paypalConfigured, captureOrder, getOrder, threeDs, methodOf, asSource, DEPOSIT_CURRENCY, money2 } from '@/lib/paypal'
 import { tooMany } from '@/lib/questionnaire'
 
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     await core.ensureSchema(d, cfg)
     const found = await deposit.bookingForToken(d, String(body.token || ''))
     if (found.state === 'paid' && found.row) return core.send(200, { ok: true, status: 'paid', already: true })
-    if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: found.state })
+    if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: deposit.releasedUnpaid(found.row) ? 'released' : found.state })
     const row = found.row
     if (row.paypal_order_id && row.paypal_order_id !== orderId) return core.send(409, { ok: false, error: 'order_mismatch' })
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
       return core.send(409, { ok: false, error: 'amount_mismatch' })
     }
     const fresh = await deposit.recordCapture(d, row.ref, { captureId: capture.id, orderId, amount, at: capture.create_time, method: methodOf(order) || asSource(body.source) })
-    if (fresh) await deposit.sendDepositReceived(cfg, row, amount, capture.id)
+    if (fresh) await afterPaid(d, cfg, row, amount, capture.id)
     return core.send(200, { ok: true, status: 'paid', captureId: capture.id, amount })
   } catch (err) {
     console.error('paypal capture: failed', (err as Error).message)

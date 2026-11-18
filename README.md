@@ -198,6 +198,24 @@ of places stay in `content/booking.json` (GYA).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
 
+## Pay to book and the confirmation email (v1.12.0)
+
+- **Pay to book** (only when PayPal is set up; without it, requests are taken as before): Book Now's step 3 button is
+  **Continue to payment**. The booking is saved with `hold_until` = now + 30 minutes (`core.HOLD_MINUTES`) and nothing
+  is emailed. Paying (Book Now, or the webhook as a backup) runs `afterPaid` (`src/booking/paid.ts`): the hold ends and
+  the team and patient booking emails go out, saying the deposit is paid (no separate "Deposit received" for these).
+  No Pay later button. Starting a payment extends the hold by 15 minutes, never shortens it. Unpaid holds are released
+  by `core.releaseHolds` (status cancelled, `cancel_reason` 'not_paid') whenever times are read, a pay link is used or
+  the dashboard opens; no scheduled job. A released booking's pay link says so and the order and capture routes
+  refuse it (`released`), so nothing is charged; Book Now goes back to the times with a message. Bookings shows
+  **Paying now (held until ...)** (no Mark confirmed, not counted) and **Released: not paid** under Cancelled.
+  Bookings with no hold (made before PayPal, or chased by the team) keep the 14-day pay link and the usual emails.
+- **Confirmation email**: the welcome email is switched on once by the release (`v1.12.0-welcome-email-on`, recorded
+  in `ape_meta`, so switching it off later in Site Settings > Welcome pack stays off). Subject "Your APE appointment
+  is confirmed" and first line "Your appointment is confirmed for {when}..." (default, or replaced in saved wording
+  only where it was unchanged). Sent on Mark confirmed with both PDFs. The online questionnaire stays off.
+- Migrations: additive (`hold_until`, `cancel_reason` on `ape_bookings`).
+
 ## Deposit policy pop-up, booking sources and Google Analytics (v1.11.0)
 
 - **Four steps again**: time, details, deposit, confirmed. Between the details and the deposit, Lorna's **deposit

@@ -25,8 +25,7 @@ import * as deposit from '@/booking/deposit'
 import { paypalConfigured, paypalClientId, paypalAdvanced, paypalEnv } from '@/lib/paypal'
 import { after } from 'next/server'
 import * as emails from '@/booking/emails'
-import { deliver } from '@/lib/mailer'
-import { liveRecipients } from '@/lib/recipients'
+import { sendRequestEmails } from '@/booking/paid'
 import { checkDetails, fullName } from '@/booking/patient'
 import * as terms from '@/booking/terms'
 import { cleanSource } from '@/booking/source'
@@ -115,21 +114,23 @@ export async function POST(req: Request) {
   // 2. Emails (v1.8.3: built from the saved booking in src/booking/emails.ts, every attempt logged, a failure tried
   // again after a minute and then flagged in Bookings; GYA gets a delivery check without patient details)
   // v1.8.0: a private pay link for this booking (shown in the flow and in the email), only when PayPal is set up
+  // v1.12.0: pay to book. With PayPal set up, the time is held for core.HOLD_MINUTES while the patient pays, and the
+  // emails go when the deposit is paid (src/booking/paid.ts); unpaid, the hold is released. Without PayPal, a request
+  // is taken as before and the team follows up the deposit.
   const paypal = paypalConfigured()
   const payToken = paypal ? await deposit.issuePayToken(d, ref).catch(() => '') : ''
   const link = payToken ? deposit.payLinkFor(payToken) : ''
-  const live = await liveRecipients()
-  const res = await emails.sendBookingEmails(d, cfg, ref, ['team', 'patient'], 'first', { payLink: link, live })
-  const notified = !!res.team?.ok
-  const ackSent = !!res.patient?.ok
-  if (live.gya.on) {
-    const outcomes: emails.Outcome[] = [
-      { label: 'New booking email to the team', ok: notified, id: res.team?.id ?? '', error: res.team?.error ?? '', retrying: !notified },
-      { label: 'Booking request received, to the patient', ok: ackSent, id: res.patient?.id ?? '', error: res.patient?.error ?? '', retrying: !ackSent },
-    ]
-    await deliver('gya-notice', emails.gyaNoticeEmail(cfg, { ref, slot_start: slot.start! }, outcomes, live.gya.to), { ref })
+  const payNow = !!payToken
+  let notified = false
+  let ackSent = false
+  let holdUntil: string | null = null
+  if (payNow) {
+    const h = await d.query(`UPDATE ape_bookings SET hold_until = now() + ($2 || ' minutes')::interval WHERE ref = $1 RETURNING hold_until`, [ref, String(core.HOLD_MINUTES)])
+    holdUntil = h[0]?.hold_until ? new Date(h[0].hold_until).toISOString() : null
+  } else {
+    ({ notified, ackSent } = await sendRequestEmails(d, cfg, ref, slot.start!, link))
   }
-  if (!notified || !ackSent) {
+  if (!payNow && (!notified || !ackSent)) {
     // try once more after a minute, after the patient has their answer (Bookings and the email screen also retry)
     after(async () => {
       await new Promise((r) => setTimeout(r, (emails.RETRY_SECONDS + 2) * 1000))
@@ -142,14 +143,14 @@ export async function POST(req: Request) {
   try {
     const { getPayload } = await import('payload')
     const { default: config } = await import('@payload-config')
-    questionnaireUrl = (await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString(), dob })).link
+    questionnaireUrl = (await onBookingRequested(await getPayload({ config }), { ref, name, email, slot_start: slot.start!.toISOString(), dob }, { welcome: !payNow })).link
   } catch (err) {
     console.error('booking: welcome email step failed (the booking is saved)', ref, (err as Error).message)
   }
   return core.send(200, {
     ok: true, ref, price, special, regular: cfg.pricing.appointment, deposit: cfg.pricing.deposit, notified, ackSent,
     ...(questionnaireUrl ? { questionnaire: { url: questionnaireUrl.replace(/^https?:\/\/[^/]+/, '') } } : {}),
-    ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD', advanced: paypalAdvanced(), env: paypalEnv() } } : {}),
+    ...(paypal && payToken ? { payment: { provider: 'paypal', clientId: paypalClientId(), token: payToken, payUrl: link, currency: 'AUD', advanced: paypalAdvanced(), env: paypalEnv(), holdUntil, holdMinutes: core.HOLD_MINUTES } } : {}),
   })
 }
 

@@ -226,4 +226,38 @@ export const UPDATES: Update[] = [
       return "applied (Lorna's wording, approved)"
     },
   },
+  {
+    id: 'v1.12.0-welcome-email-on',
+    describe: 'The welcome email is switched on once (it is the patient\'s confirmation on Mark confirmed; Lorna agreed on her call of 18 Nov 2026)',
+    async apply(payload) {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      // once only: if someone switches it off in the dashboard afterwards, that stays
+      await d.query(`CREATE TABLE IF NOT EXISTS ape_meta (key text PRIMARY KEY, value text NOT NULL DEFAULT '')`)
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.12.0-welcome-email-on', now()::text) ON CONFLICT DO NOTHING RETURNING key`)
+      if (!first.length) return 'already applied once, the dashboard setting is kept'
+      const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { questionnaire?: Record<string, any> }
+      const q = s.questionnaire || {}
+      if (q.welcomeEmailOn) return 'already on'
+      await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { questionnaire: { ...q, welcomeEmailOn: true } } as never })
+      return 'switched on (sent when a booking is marked confirmed; the online questionnaire stays as it is)'
+    },
+  },
+  {
+    id: 'v1.12.0-welcome-subject',
+    describe: 'The welcome email says the appointment is confirmed: subject "Your APE appointment is confirmed" and its first line (only where unchanged)',
+    async apply(payload) {
+      const qn = await import('@/lib/questionnaire')
+      const g = await payload.findGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
+      const subject = String(g?.welcomeSubject || '').trim()
+      const body = String(g?.welcomeBody || '')
+      const data: Record<string, string> = {}
+      if (subject === qn.OLD_SUBJECT) data.welcomeSubject = qn.DEFAULT_SUBJECT
+      if (body.includes(qn.OLD_FIRST_LINE)) data.welcomeBody = body.split(qn.OLD_FIRST_LINE).join(qn.NEW_FIRST_LINE)
+      if (!Object.keys(data).length) return subject || body ? 'nothing to change (new wording already, or the practice has its own)' : 'nothing saved, the new wording is the default'
+      await payload.updateGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: data as never })
+      return `applied (${Object.keys(data).join(', ')})`
+    },
+  },
 ]

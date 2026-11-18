@@ -53,6 +53,12 @@ minutes, check junk mail, then call GYA on 1300 889 840.
 ## Bookings
 
 ### When a booking request comes in
+v1.12.0: once online payment is set up, patients pay the $100 deposit while they book. Their time is held for 30
+minutes while they pay; the request (and both emails) only arrive once it is paid. While they are paying the booking
+shows as **Paying now** (nothing to do yet). If they don't finish within 30 minutes, the time is released and the
+booking shows under **Cancelled** as **Released: not paid**. Until online payment is set up, requests come in as
+before and the team follows up the deposit.
+
 1. You get an email at the APE inbox (theanxiouspatientexperience@gmail.com) with every detail of the request
    (since v1.10.0 the first name, last name, phone and date of birth with the age are all required, so you have what
    you need for Core Practice), and
@@ -61,7 +67,9 @@ minutes, check junk mail, then call GYA on 1300 889 840.
    Bookings in the menu is how many are waiting). The time is held, so nobody else can book it online.
 2. Block the time in Core Practice and enter the patient.
 3. Reply to the patient to confirm and send the new patient information pack.
-4. Press **Mark confirmed**. The deposit looks after itself: patients pay the $100 on the website by card (no PayPal
+4. Press **Mark confirmed**. The patient is emailed "Your APE appointment is confirmed" with the date, time, address
+   and directions, and your Patient Guide and questionnaire attached (v1.12.0: this confirmation email is now on).
+   The deposit looks after itself: patients pay the $100 on the website by card (no PayPal
    account needed) or with PayPal, the booking shows **Received** and you get a "Deposit received" email. You never need to open PayPal to
    check. If a patient has not paid, the booking sits under the **Deposit not paid** filter and their email has a
    private pay link that works for 14 days. If someone pays another way, press **Mark deposit received manually**
@@ -114,11 +122,13 @@ Wednesdays at 9:00 am, 10:20 am and 11:40 am.
 
 ## Welcome pack and questionnaires
 
-Both parts start switched off. GYA switches them on once you have approved the welcome email wording, the
-collection notice and the privacy wording.
+The welcome email is on (v1.12.0): it is the patient's confirmation, sent when you press **Mark confirmed**. The
+online questionnaire stays off until you have approved the collection notice and the privacy wording and GYA has
+set the encryption key; until then patients get the questionnaire as a PDF in that email. Where to find completed
+questionnaires: Questionnaires in the menu (GYA's PDF "Where to find the questionnaire").
 
 ### What patients get
-When you press **Mark confirmed**, the patient is emailed "Your APE welcome pack and questionnaire" with your
+When you press **Mark confirmed**, the patient is emailed "Your APE appointment is confirmed" with your
 Patient Guide and your Pre-appointment Questionnaire attached, the address, your train and parking directions and
 the phone number. Once the online questionnaire is on, the email also has a private link so they can fill it in on
 their phone or computer, save it and come back later. Patients are also offered the questionnaire straight after

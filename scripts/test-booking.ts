@@ -1,5 +1,6 @@
 /**
- * Booking details, deposit policy, payments, booking sources and questionnaire access tests (v1.10.0, v1.11.0), with
+ * Booking details, deposit policy, payments, pay to book, booking sources and questionnaire access tests (v1.10.0 to
+ * v1.12.0), with
  * SMTP2GO replaced by a local
  * stand-in. Needs a TEST database (DATABASE_URL) that has been migrated: it adds logins and bookings marked UNIT and
  * removes them again. Never run it against the live database.
@@ -242,6 +243,60 @@ async function main() {
   await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { text: '## Our own\nWords about 48 hours.', version: 5 } } as never })
   check('release: wording the practice changed itself is left alone', /left alone/.test(await upd.apply(payload)))
   await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { ...(keepTerms || {}), text: keepTerms?.text || '' } } as never })
+
+  // ------------------------------------------------------------ v1.12.0: pay to book
+  {
+    const PAID = await import('../src/booking/paid')
+    const DEP = await import('../src/booking/deposit')
+    const cfg = core.loadConfig()
+    await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.12.0'`)
+    process.env.PAYPAL_CLIENT_ID = 'unit-client'; process.env.PAYPAL_CLIENT_SECRET = 'unit-secret'
+    const st = await core.readState()
+    const free = core.availability(st.cfg, st.state, Date.now()).slots as { start: string }[]
+    sent.length = 0
+    const r = await post({ ...base, slotStart: free[free.length - 1].start, notes: 'UNIT v1.12.0' })
+    const j = await r.json() as { ok: boolean; ref: string; payment?: { holdUntil?: string; holdMinutes?: number; token?: string } }
+    const held = (await d.query(`SELECT * FROM ape_bookings WHERE ref = $1`, [j.ref]))[0]
+    check('pay to book: with PayPal set up, the time is held for 30 minutes', j.ok && j.payment?.holdMinutes === 30 && !!held?.hold_until && Math.abs(new Date(held.hold_until).getTime() - Date.now() - 30 * 60000) < 120000)
+    check('pay to book: nothing is emailed before the deposit is paid', sent.length === 0, String(sent.length))
+    check('pay to book: a held time cannot be booked by someone else', (await post({ ...base, slotStart: free[free.length - 1].start, email: 'other@example.com', notes: 'UNIT v1.12.0' })).status === 409)
+    // paid: the booking emails go now, saying the deposit is paid, and the hold ends
+    await DEP.recordCapture(d, j.ref, { captureId: 'CAPUNIT1', amount: 100, method: 'card' })
+    const paidRow = (await d.query(`SELECT * FROM ape_bookings WHERE ref = $1`, [j.ref]))[0]
+    await PAID.afterPaid(d, cfg, paidRow as never, 100, 'CAPUNIT1')
+    const tm = sent.find((m) => /New booking request/.test(m.subject))
+    const pm = sent.find((m) => /We have received/.test(m.subject))
+    check('paid: the team email goes, saying the deposit was paid by card with the transaction', !!tm && /The deposit has been paid online/.test(tm.text) && /Deposit: \$100: paid online \(Card\)/.test(tm.text) && /CAPUNIT1/.test(tm.text), tm?.text.split('\n').find((l) => /^Deposit/.test(l)))
+    check('paid: the patient email says the deposit has been received, with no pay link', !!pm && /Your \$100 deposit has been received, so your time is secured/.test(pm.text) && !/book-now\/pay/.test(pm.text))
+    check('paid: no separate "Deposit received" emails for a pay-to-book booking', !sent.some((m) => /Deposit received/.test(m.subject)))
+    check('paid: the hold ends', (await d.query(`SELECT hold_until FROM ape_bookings WHERE ref = $1`, [j.ref]))[0].hold_until === null)
+    sent.length = 0
+    await PAID.afterPaid(d, cfg, paidRow as never, 100, 'CAPUNIT1')
+    check('paid: a booking with no hold (pay link later) gets the usual "Deposit received" emails instead', sent.some((m) => /Deposit received/.test(m.subject)) && !sent.some((m) => /New booking request/.test(m.subject)))
+    // unpaid: released after the hold
+    const r2 = await post({ ...base, slotStart: free[free.length - 2].start, notes: 'UNIT v1.12.0' })
+    const j2 = await r2.json() as { ref: string; payment?: { token?: string } }
+    await DEP.extendHold(d, j2.ref)
+    check('starting a payment never shortens the hold', new Date((await d.query(`SELECT hold_until FROM ape_bookings WHERE ref = $1`, [j2.ref]))[0].hold_until).getTime() > Date.now() + 25 * 60000)
+    await d.query(`UPDATE ape_bookings SET hold_until = now() - interval '1 minute' WHERE ref = $1`, [j2.ref])
+    const found = await DEP.bookingForToken(d, j2.payment!.token!)
+    const rel = (await d.query(`SELECT status, cancel_reason FROM ape_bookings WHERE ref = $1`, [j2.ref]))[0]
+    check('unpaid after the hold: released (cancelled, not paid); its pay link says so and takes no payment', rel.status === 'cancelled' && rel.cancel_reason === 'not_paid' && found.state === 'cancelled' && DEP.releasedUnpaid(found.row))
+    check('released: the time can be booked again', (await core.readState()).state.taken.has(new Date(free[free.length - 2].start).toISOString()) === false)
+    // a paid booking is never released, whatever its hold says
+    await d.query(`UPDATE ape_bookings SET hold_until = now() - interval '1 minute' WHERE ref = $1`, [j.ref])
+    await core.releaseHolds(d)
+    check('a paid booking is never released', (await d.query(`SELECT status FROM ape_bookings WHERE ref = $1`, [j.ref]))[0].status === 'requested')
+    delete process.env.PAYPAL_CLIENT_ID; delete process.env.PAYPAL_CLIENT_SECRET
+    sent.length = 0
+    const r3 = await post({ ...base, slotStart: free[free.length - 3].start, notes: 'UNIT v1.12.0' })
+    const j3 = await r3.json() as { ok: boolean; ref: string; payment?: unknown }
+    check('without PayPal: a request is taken as before (no hold, emails go straight away)', j3.ok && !j3.payment && (await d.query(`SELECT hold_until FROM ape_bookings WHERE ref = $1`, [j3.ref]))[0].hold_until === null && sent.some((m) => /New booking request/.test(m.subject)))
+    await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.12.0'`)
+    // the welcome email is the confirmation
+    const QN = await import('../src/lib/questionnaire')
+    check('welcome email subject: "Your APE appointment is confirmed"', QN.DEFAULT_SUBJECT === 'Your APE appointment is confirmed')
+  }
 
   // ------------------------------------------------------------ questionnaire access: owner yes, editor no, admin yes
   check('permissions: practice owner can manage access', access.canManageAccess({ email: 'o', role: 'editor', practiceOwner: true }))

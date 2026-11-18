@@ -26,6 +26,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   await core.ensureSchema(d, cfg)
   const found = await deposit.bookingForToken(d, String(t || ''))
   if (found.state === 'paid') return <Message heading="Your deposit has already been received."><p>Thank you. There is nothing more to pay.</p></Message>
+  if (found.state === 'cancelled' && deposit.releasedUnpaid(found.row)) return <Message heading="This time has been released."><p>The deposit was not paid within 30 minutes of booking, so the time was released and nothing was charged. You are welcome to <a href="/book-now/">choose a time again</a>.</p></Message>
   if (found.state === 'cancelled') return <Message heading="This booking has been cancelled."><p>If that is unexpected, please get in touch and we will sort it out.</p></Message>
   if (found.state !== 'ok' || !found.row) return <Message heading="This payment link is no longer active."><p>Links work for 14 days. Please reply to your booking email and we will send you a fresh one.</p></Message>
   const row = found.row

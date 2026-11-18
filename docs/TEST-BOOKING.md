@@ -33,14 +33,14 @@ Preview address: Vercel > Deployments > the latest Preview.
 
 Use a clearly fake name such as `Test Patient GYA`.
 
-1. **Make a booking.** `/book-now/`: pick a time, press Continue with the details empty and check every field says
+1. **Make a booking.** (v1.12.0: with PayPal set up, the button on step 3 is **Continue to payment**, and the
+   emails in step 3 below only arrive once the deposit is paid.) `/book-now/`: pick a time, press Continue with the details empty and check every field says
    what is missing (v1.10.0: first name, last name, email, phone and date of birth are required). Then enter the test
    name, your email, a phone number and a date of birth, tick consent, Continue. v1.11.0: the **deposit policy pop-up**
    opens (Your Appointment Deposit). Press **I Agree & Continue** without ticking: it explains the box must be ticked.
    Press Escape (or Go back, or the X): you are back on your details with everything still filled in. Continue again,
-   tick the box, **I Agree & Continue**. The deposit step shows the three short policy lines (no tick); press **Send
-   request and pay deposit**. Expect "Pay by card, or with PayPal. You don't need a PayPal account." and the PayPal and
-   **Debit or Credit Card** buttons. Note the reference. At this moment the booking exists as To confirm, Deposit not paid.
+   tick the box, **I Agree & Continue**. The deposit step shows the three short policy lines (no tick); press **Continue to payment**. Expect "Pay by card, or with PayPal. You don't need a PayPal account." and the PayPal and
+   **Debit or Credit Card** buttons. Note the reference. At this moment the booking shows as Paying now (held 30 minutes) and nothing is emailed yet.
 2. **Pay with the sandbox buyer account.** Press the PayPal button, sign in with the sandbox buyer, approve. Expect
    the "You're booked in" screen with "Your $100 deposit has been received". In the dashboard the booking shows
    Deposit **Received**; open the row to see the PayPal transaction and the **View in PayPal** link.
@@ -49,15 +49,17 @@ Use a clearly fake name such as `Test Patient GYA`.
    [ref]". Check junk mail.
 4. **Pay with a sandbox card.** Make a second booking; on the PayPal step choose **Debit or Credit Card** and use a
    sandbox test card (developer.paypal.com > Testing Tools > Credit card generator). Expect the same result.
-5. **Abandon, then pay later** (v1.11.0: the pay page says "You agreed to our deposit policy on ..." for a booking
-   that agreed to the current version; otherwise **Continue to payment** opens the same pop-up first). Make a third booking; on the PayPal step press **Pay later** (or close the PayPal
-   window). Expect "You're booked in" with "Your $100 deposit has not been paid yet" and a Pay your deposit button;
-   dashboard shows Not paid and the booking under the **Deposit not paid** filter. Open the booking: it shows the date
+5. **Pay to book** (v1.12.0). Make a third booking and stop at the payment buttons: there is no Pay later, the page
+   says the time is held for 30 minutes, the dashboard shows it as **Paying now** and no email has arrived. Close the
+   tab. After 30 minutes the time is free again on Book Now and the booking shows under Cancelled as **Released: not
+   paid**; its pay link says the time was released. (To check sooner on a preview, wait 30 minutes or ask GYA.)
+   For the pay-later page itself, use a booking the team chases: one made before online payment was set up shows
+   Not paid under the **Deposit not paid** filter. Open the booking: it shows the date
    of birth, "Deposit policy agreed: [date], version 2 (2026-11-18)" and "Came from: ..." (Direct if you typed the
    address; open Book Now from one of the links in `docs/TRACKING-LINKS.md` to see Instagram or a clinic website). Open the **Pay your deposit**
    link from the patient email in a fresh private window, pay, and check the dashboard flips to Received and the
    "Deposit received" emails arrive. Open the same link again: it says the deposit has already been received.
-6. **Mark confirmed** on one booking: "Your APE welcome pack and questionnaire" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.
+6. **Mark confirmed** on one booking: "Your APE appointment is confirmed" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.
 7. **Fill in the questionnaire** from the link: the name and date of birth at the top are filled in from the booking
    (change one to see the "differs from the booking" flag in the dashboard); press Save and finish later, open the link again (the answers are still there), then Send my answers. Check the "Questionnaire received" email (reference and date only) and open it in Questionnaires with a login that has questionnaire access (At a glance, every answer, Print).
 8. **Refund one payment.** In the sandbox PayPal business account (sandbox.paypal.com, the business sandbox login):
