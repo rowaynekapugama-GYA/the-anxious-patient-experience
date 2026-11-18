@@ -1,5 +1,6 @@
 /**
- * Booking details, terms, payments and questionnaire access tests (v1.10.0), with SMTP2GO replaced by a local
+ * Booking details, deposit policy, payments, booking sources and questionnaire access tests (v1.10.0, v1.11.0), with
+ * SMTP2GO replaced by a local
  * stand-in. Needs a TEST database (DATABASE_URL) that has been migrated: it adds logins and bookings marked UNIT and
  * removes them again. Never run it against the live database.
  *
@@ -110,10 +111,22 @@ async function main() {
 
   // ------------------------------------------------------------ terms
   const t0 = T.fromSettings(null)
-  check('terms: the draft is used until saved, version 1 (2026-11-17)', !t0.saved && t0.label === '1 (2026-11-17)')
-  check('terms: the draft states the 48-hour rule', /48 hours/.test(t0.text))
-  check('terms: the old policy lines are in the draft word for word', t0.text.includes("- 48 hours' notice or more: your deposit can be transferred to a new appointment or refunded.") && t0.text.includes("- Less than 48 hours' notice or non-attendance: your deposit may be retained."))
-  check('terms: the two tick labels', t0.consentLabel === 'I consent to the terms and conditions and cancellation policy above.' && t0.readLabel === 'I have read the terms and conditions and cancellation policy.')
+  check("policy: Lorna's wording is the default, version 2 (2026-11-18), approved by her", !t0.saved && t0.label === '2 (2026-11-18)' && /Lorna Gladwin/.test(t0.approvedBy))
+  const lorna = [
+    '## Your Appointment Deposit',
+    'To secure your appointment, a {deposit} deposit is required at the time of booking. This deposit will be deducted from the cost of your appointment on the day.',
+    '## Cancellations and Rescheduling',
+    'We understand that sometimes plans change. If you need to cancel or rearrange your appointment, please contact us more than 48 hours in advance. Your deposit can be transferred to a future appointment or refunded where applicable.',
+    'Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.',
+    'If you do not attend your appointment without notifying us, your deposit will be non-refundable and non-transferable.',
+    "## We're Here to Help",
+    "We understand that dental anxiety can make attending an appointment feel difficult. If you're feeling overwhelmed or something unexpected has happened, please contact us as early as possible. We'd much rather hear from you and talk things through.",
+  ]
+  check("policy: Lorna's wording word for word, in order", lorna.every((l) => t0.text.includes(l)) && lorna.map((l) => t0.text.indexOf(l)).every((v, i, a) => i === 0 || v > a[i - 1]))
+  check("policy: Lorna's tick box word for word", t0.consentLabel === 'I understand and agree to the deposit policy, including how my deposit will be applied to my appointment and the conditions under which it may be forfeited.')
+  const filled = T.fill(t0.text, { phone: '(02) 8599 9815', deposit: '$150' })
+  check('policy: the amount follows the deposit setting (never a typed $100)', filled.includes('a $150 deposit is required') && !/\$100/.test(filled) && !/\$100/.test(T.DEFAULT_TERMS))
+  check("policy: the patient email reminder is Lorna's sentence", T.REMINDER === 'Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.')
   const t3 = T.fromSettings({ text: '## A\n- one\n- two\n\npara', version: 3, changedAt: '2026-12-02T01:00:00.000Z' })
   check('terms: a saved version keeps its number and date', t3.saved && t3.label === '3 (2026-12-02)')
   const bl = T.blocks('## Heading\nline one\nline two\n\n- a\n- b\npara')
@@ -172,16 +185,23 @@ async function main() {
   const d = core.db()!
   await core.ensureSchema(d, core.loadConfig())
   await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.10.0'`)
+  const SRC = await import('../src/booking/source')
+  check('source: utm source kept, cleaned', JSON.stringify(SRC.cleanSource({ source: 'Instagram<script>', medium: 'social', campaign: 'ape-launch' })) === JSON.stringify({ source: 'instagramscript', medium: 'social', campaign: 'ape-launch' }))
+  check('source: nothing sent is empty', SRC.cleanSource(null).source === '')
+  check('source: labels', SRC.sourceLabel('instagram') === 'Instagram' && SRC.sourceLabel('l.instagram.com') === 'Instagram' && SRC.sourceLabel('caringbah-website') === 'Caringbah website'
+    && SRC.sourceLabel('cronulla-website') === 'Cronulla website' && SRC.sourceLabel('google.com.au') === 'Google' && SRC.sourceLabel('direct') === 'Direct' && SRC.sourceLabel('') === 'Not recorded' && SRC.sourceLabel('example.org') === 'example.org')
   const state = await core.readState()
   const slots = core.availability(state.cfg, state.state, Date.now()).slots as { start: string }[]
   check('a time is free to book in the test database', slots.length > 0)
   const { POST } = await import('../src/app/api/booking/route')
   const post = (body: unknown) => POST(new Request('http://localhost/api/booking', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
   const consentAt = new Date(Date.now() - 120_000).toISOString()
-  const readAt = new Date(Date.now() - 30_000).toISOString()
-  const base = { slotStart: slots[slots.length - 1].start, ...full, notes: 'UNIT v1.10.0', consent: true, termsConsent: true, termsConsentAt: consentAt, termsRead: true, termsReadAt: readAt, termsVersion: '1 (2026-11-17)' }
-  const miss = await post({ ...base, termsRead: false })
-  check('booking: refused without "I have read" ticked', miss.status === 400 && JSON.stringify(await miss.json()).includes('termsRead'))
+  const base = { slotStart: slots[slots.length - 1].start, ...full, notes: 'UNIT v1.10.0', consent: true, policyAgreed: true, policyAgreedAt: consentAt, policyVersion: '2 (2026-11-18)', source: { source: 'instagram', medium: 'social', campaign: 'ape-launch' } }
+  const { policyAgreed: _drop, ...noAgree } = base
+  const miss = await post(noAgree)
+  check('booking: a direct POST without agreeing to the deposit policy is refused', miss.status === 400 && JSON.stringify(await miss.json()).includes('"policy":"required"'))
+  const miss1 = await post({ ...base, policyAgreed: 'yes' })
+  check('booking: only a real agreement counts (not "yes")', miss1.status === 400)
   const miss2 = await post({ ...base, dob: { day: '', month: '', year: '' } })
   check('booking: refused without a date of birth', miss2.status === 400)
   sent.length = 0
@@ -192,15 +212,16 @@ async function main() {
   check('record: first and last name, and the full name', row?.first_name === 'Zelda' && row?.last_name === 'Quartermaine' && row?.name === 'Zelda Quartermaine')
   check('record: phone stored normalised', row?.phone === '0499 111 222')
   check('record: date of birth', row?.dob_s === '1988-06-05')
-  check('record: terms version and both tick times', row?.terms_version === '1 (2026-11-17)' && new Date(row.terms_consent_at).toISOString() === consentAt && new Date(row.terms_read_at).toISOString() === readAt)
+  check('record: deposit policy agreed, with the time and version', row?.terms_version === '2 (2026-11-18)' && new Date(row.terms_consent_at).toISOString() === consentAt && row.terms_read_at === null)
   const tv = T.termsView(row)
-  check('record: shown in the dashboard', tv.version === '1 (2026-11-17)' && tv.consentAt === consentAt && tv.readAt === readAt)
+  check('record: shown in the dashboard', tv.version === '2 (2026-11-18)' && tv.consentAt === consentAt && tv.readAt === null)
+  check('record: where the booking came from', row?.source === 'instagram' && row?.source_medium === 'social' && row?.source_campaign === 'ape-launch')
   const teamMail = sent.find((m) => /New booking request/.test(m.subject))
   const patientMail = sent.find((m) => /We have received/.test(m.subject))
   check('team email: first name, last name, phone and DOB', !!teamMail && /First name: Zelda/.test(teamMail.text) && /Last name: Quartermaine/.test(teamMail.text) && /Date of birth: 5 June 1988 \(age 38\)/.test(teamMail.text) && /Phone: 0499 111 222/.test(teamMail.text), teamMail?.text.slice(0, 80))
-  check('team email: terms consent recorded', !!teamMail && /Terms and cancellation policy: Consented .*version 1 \(2026-11-17\)/.test(teamMail.text))
+  check('team email: deposit policy agreement recorded', !!teamMail && /Deposit policy: Agreed .*version 2 \(2026-11-18\)/.test(teamMail.text) && /Where they came from: Instagram/.test(teamMail.text))
   check('patient email: no date of birth', !!patientMail && !/1988|5 June|Date of birth/.test(patientMail.text + patientMail.html))
-  check('patient email: the 48-hour reminder and the link to the full terms', !!patientMail && /48-hour cancellation policy/.test(patientMail.text) && patientMail.text.includes('https://theanxiouspatientexperience.com.au/book-now/terms/'))
+  check("patient email: Lorna's 48-hour sentence and the link to the full policy", !!patientMail && patientMail.text.includes('Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.') && patientMail.text.includes('https://theanxiouspatientexperience.com.au/book-now/terms/'))
   check('patient email: first name only in the greeting', !!patientMail && /Hi Zelda,/.test(patientMail.text))
   const gya = emails.gyaNoticeEmail(core.loadConfig(), { ref: body.ref, slot_start: row.slot_start }, [], 'gya@example.com')
   check('GYA notice: no name, phone or DOB', !/Zelda|Quartermaine|0499|1988/.test(gya.text + gya.html))
@@ -208,6 +229,19 @@ async function main() {
   const old = emails.teamEmail(core.loadConfig(), { ref: 'APE-OLD001', slot_start: new Date(), name: 'Old Booking', email: 'o@example.com', phone: '', notes: '', price: 350, special: false, status: 'requested', created_at: new Date() }, { team, bcc: [] })
   check('older booking: single name, DOB "Not given"', /Name: Old Booking/.test(old.text) && /Date of birth: Not given/.test(old.text))
   await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.10.0'`)
+
+  // ------------------------------------------------------------ v1.11.0 release: Lorna's policy replaces the v1.10.0 draft
+  const { UPDATES } = await import('../src/sitekit/releases')
+  const upd = UPDATES.find((u) => u.id === 'v1.11.0-deposit-policy')!
+  const keepTerms = (await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>).bookingTerms
+  await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { text: T.V1_DRAFT_TERMS, consentLabel: T.V1_CONSENT, version: 1, changedAt: '2026-11-17T00:00:00.000Z' } } as never })
+  const r1 = await upd.apply(payload)
+  const after1 = T.fromSettings((await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>).bookingTerms)
+  check('release: the v1.10.0 draft becomes Lorna\'s wording, version 2, approved', /applied/.test(r1) && after1.text === T.DEFAULT_TERMS && after1.version === 2 && after1.consentLabel === T.DEFAULT_CONSENT && /Lorna/.test(after1.approvedBy), r1)
+  check('release: running it again changes nothing', /left alone/.test(await upd.apply(payload)))
+  await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { text: '## Our own\nWords about 48 hours.', version: 5 } } as never })
+  check('release: wording the practice changed itself is left alone', /left alone/.test(await upd.apply(payload)))
+  await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { ...(keepTerms || {}), text: keepTerms?.text || '' } } as never })
 
   // ------------------------------------------------------------ questionnaire access: owner yes, editor no, admin yes
   check('permissions: practice owner can manage access', access.canManageAccess({ email: 'o', role: 'editor', practiceOwner: true }))

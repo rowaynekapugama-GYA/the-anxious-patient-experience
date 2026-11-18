@@ -2,8 +2,8 @@
  * Booking requests for The Anxious Patient Experience™ (POST /api/booking/)
  *
  * The website does not connect to Core Practice. A patient chooses a time, enters their details (v1.10.0: first and
- * last name, email, phone and date of birth, all required), ticks the terms and cancellation policy, then ticks that
- * they have read it before the deposit; this route:
+ * last name, email, phone and date of birth, all required) and (v1.11.0) agrees to Lorna's deposit policy in the
+ * pop-up before the deposit step; this route:
  *   1. checks the time again on the server (listed day and time, from the start date, at least 24 hours away,
  *      not blocked, not already requested), works out the fee (opening special or standard) and saves the booking,
  *      all in one locked step so two people can never get the same time or more than the special allows;
@@ -29,6 +29,7 @@ import { deliver } from '@/lib/mailer'
 import { liveRecipients } from '@/lib/recipients'
 import { checkDetails, fullName } from '@/booking/patient'
 import * as terms from '@/booking/terms'
+import { cleanSource } from '@/booking/source'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -37,8 +38,8 @@ export const maxDuration = 90
 
 
 const INSERT = `
-  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, first_name, last_name, dob, terms_version, terms_consent_at, terms_read_at)
-  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok, $13, $14, $15::date, $16, $17::timestamptz, $18::timestamptz
+  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, first_name, last_name, dob, terms_version, terms_consent_at, source, source_medium, source_campaign)
+  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok, $13, $14, $15::date, $16, $17::timestamptz, $18, $19, $20
   FROM (SELECT ($7::boolean AND (SELECT count(*) FROM ape_bookings WHERE special AND status <> 'cancelled') < $10::int) AS ok) s
   WHERE NOT EXISTS (SELECT 1 FROM ape_blocks b WHERE b.day = $11::date AND (b.time IS NULL OR b.time = $12))
   ON CONFLICT DO NOTHING
@@ -71,17 +72,16 @@ export async function POST(req: Request) {
   const fields: Record<string, string> = checked.ok ? {} : { ...checked.fields }
   const notes = core.clean(body.notes, 2000)
   if (body.consent !== true) fields.consent = 'required'
-  // the terms step's tick and the deposit step's "I have read" tick (it replaced the old deposit policy tick)
-  if (body.termsConsent !== true) fields.termsConsent = 'required'
-  if (body.termsRead !== true) fields.termsRead = 'required'
+  // v1.11.0: Lorna's deposit policy, agreed in the pop-up ("I Agree & Continue"). No agreement, no booking.
+  if (body.policyAgreed !== true) fields.policy = 'required'
   if (!checked.ok || Object.keys(fields).length) return core.send(400, { ok: false, error: 'invalid', fields })
   const { firstName, lastName, email, phone, dob } = checked.details
   const name = fullName(firstName, lastName)
-  const consentAt = terms.tickTime(body.termsConsentAt, now)
-  const readAt = terms.tickTime(body.termsReadAt, now)
-  // the version the page showed (sent back by the browser), else the one in use now
-  const shown = core.clean(body.termsVersion, 40)
+  const consentAt = terms.tickTime(body.policyAgreedAt, now)
+  // the version the pop-up showed (sent back by the browser), else the one in use now
+  const shown = core.clean(body.policyVersion, 40)
   const termsVersion = /^\d{1,4} \(\d{4}-\d{2}-\d{2}\)$/.test(shown) ? shown : await currentTermsLabel()
+  const src = cleanSource(body.source)
 
   const slot = core.checkSlot(cfg, core.clean(body.slotStart, 40), now)
   if (slot.error) return core.send(slot.error === 'too_soon' ? 409 : 400, { ok: false, error: slot.error })
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     const results = await d.tx([
       ['SELECT pg_advisory_xact_lock(4242001)', []],
       [INSERT, [ref, slot.start!.toISOString(), name, email, phone, notes, core.inSpecialWindow(cfg, slot.day!), o.price, cfg.pricing.appointment, o.maxBookings, slot.day, slot.time,
-        firstName, lastName, dob, termsVersion, consentAt.toISOString(), readAt.toISOString()]],
+        firstName, lastName, dob, termsVersion, consentAt.toISOString(), src.source, src.medium, src.campaign]],
     ])
     saved = results[1][0]
   } catch (err) {
@@ -162,3 +162,4 @@ async function currentTermsLabel(): Promise<string> {
     return terms.fromSettings(null).label
   }
 }
+

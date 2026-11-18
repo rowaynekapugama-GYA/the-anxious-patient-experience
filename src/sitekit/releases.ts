@@ -169,25 +169,61 @@ export const UPDATES: Update[] = [
   },
   {
     id: 'v1.10.0-book-now-steps',
-    describe: 'Book Now has five steps now (a terms and cancellation step was added), so the introduction says five',
+    describe: 'v1.10.0 changed "four simple steps" to five; v1.11.0 went back to four steps, so this no longer does anything',
+    async apply() {
+      return 'superseded by v1.11.0, nothing to do'
+    },
+  },
+  {
+    id: 'v1.11.0-book-now-steps',
+    describe: 'Book Now is back to four steps (the terms step became a pop-up), so the introduction says four again',
     async apply(payload) {
-      const OLD = 'Book your first appointment and pay your deposit online in four simple steps.'
-      const NEW = 'Book your first appointment and pay your deposit online in five simple steps.'
+      const OLD = 'Book your first appointment and pay your deposit online in five simple steps.'
+      const NEW = 'Book your first appointment and pay your deposit online in four simple steps.'
       const doc = await pageDoc(payload, 'book-now')
-      const rows = doc?.sections ?? []
       if (!doc) return 'no Book Now page in the dashboard'
       let changed = false
-      const sections = rows.map((r) => ({
+      const sections = (doc.sections ?? []).map((r) => ({
         ...r,
         content: plainRows((r.content ?? []).map((c) => {
-          // only while it still has the old words: if the practice has changed it, it is left alone
+          // only while it still says five: if the practice has changed it since, it is left alone
           if (String(c.text ?? '').trim() === OLD) { changed = true; return { ...c, text: NEW } }
           return c
         })),
       }))
-      if (!changed) return 'already changed, left alone'
+      if (!changed) return 'not "five simple steps", left alone'
       await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
       return 'applied'
+    },
+  },
+  {
+    id: 'v1.11.0-deposit-policy',
+    describe: "Lorna's deposit policy (her email of 18 Nov 2026) replaces the v1.10.0 draft terms, marked approved by her",
+    async apply(payload) {
+      const terms = await import('@/booking/terms')
+      const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { bookingTerms?: Record<string, any> }
+      const cur = s.bookingTerms || {}
+      const text = String(cur.text || '').trim()
+      // nothing saved: the default is already Lorna's wording. Saved and changed from the v1.10.0 draft: left alone.
+      if (!text) return "nothing saved, Lorna's wording is the default"
+      if (text !== terms.V1_DRAFT_TERMS.trim()) return 'the practice has its own wording, left alone'
+      const label = String(cur.consentLabel || '').trim()
+      await payload.updateGlobal({
+        slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true },
+        data: {
+          bookingTerms: {
+            ...cur,
+            text: terms.DEFAULT_TERMS,
+            consentLabel: !label || label === terms.V1_CONSENT ? terms.DEFAULT_CONSENT : label,
+            version: Math.max(1, Number(cur.version) || 1) + 1,
+            changedAt: '2026-11-18T00:00:00.000Z',
+            changedBy: 'v1.11.0 release',
+            approvedBy: terms.APPROVED_BY_LORNA,
+            approvedAt: '2026-11-18T00:00:00.000Z',
+          },
+        } as never,
+      })
+      return "applied (Lorna's wording, approved)"
     },
   },
 ]

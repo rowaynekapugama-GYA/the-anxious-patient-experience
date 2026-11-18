@@ -35,9 +35,11 @@ Use a clearly fake name such as `Test Patient GYA`.
 
 1. **Make a booking.** `/book-now/`: pick a time, press Continue with the details empty and check every field says
    what is missing (v1.10.0: first name, last name, email, phone and date of birth are required). Then enter the test
-   name, your email, a phone number and a date of birth, tick consent, Continue. Read the **Terms and cancellation
-   policy** step, tick "I consent ...", Continue. On the deposit step tick "I have read ...", press **Send request and
-   pay deposit**. Expect "Pay by card, or with PayPal. You don't need a PayPal account." and the PayPal and
+   name, your email, a phone number and a date of birth, tick consent, Continue. v1.11.0: the **deposit policy pop-up**
+   opens (Your Appointment Deposit). Press **I Agree & Continue** without ticking: it explains the box must be ticked.
+   Press Escape (or Go back, or the X): you are back on your details with everything still filled in. Continue again,
+   tick the box, **I Agree & Continue**. The deposit step shows the three short policy lines (no tick); press **Send
+   request and pay deposit**. Expect "Pay by card, or with PayPal. You don't need a PayPal account." and the PayPal and
    **Debit or Credit Card** buttons. Note the reference. At this moment the booking exists as To confirm, Deposit not paid.
 2. **Pay with the sandbox buyer account.** Press the PayPal button, sign in with the sandbox buyer, approve. Expect
    the "You're booked in" screen with "Your $100 deposit has been received". In the dashboard the booking shows
@@ -47,10 +49,12 @@ Use a clearly fake name such as `Test Patient GYA`.
    [ref]". Check junk mail.
 4. **Pay with a sandbox card.** Make a second booking; on the PayPal step choose **Debit or Credit Card** and use a
    sandbox test card (developer.paypal.com > Testing Tools > Credit card generator). Expect the same result.
-5. **Abandon, then pay later** (v1.10.0: the pay page shows the terms and needs the "I have read" tick first). Make a third booking; on the PayPal step press **Pay later** (or close the PayPal
+5. **Abandon, then pay later** (v1.11.0: the pay page says "You agreed to our deposit policy on ..." for a booking
+   that agreed to the current version; otherwise **Continue to payment** opens the same pop-up first). Make a third booking; on the PayPal step press **Pay later** (or close the PayPal
    window). Expect "You're booked in" with "Your $100 deposit has not been paid yet" and a Pay your deposit button;
    dashboard shows Not paid and the booking under the **Deposit not paid** filter. Open the booking: it shows the date
-   of birth, the terms version and both tick times. Open the **Pay your deposit**
+   of birth, "Deposit policy agreed: [date], version 2 (2026-11-18)" and "Came from: ..." (Direct if you typed the
+   address; open Book Now from one of the links in `docs/TRACKING-LINKS.md` to see Instagram or a clinic website). Open the **Pay your deposit**
    link from the patient email in a fresh private window, pay, and check the dashboard flips to Received and the
    "Deposit received" emails arrive. Open the same link again: it says the deposit has already been received.
 6. **Mark confirmed** on one booking: "Your APE welcome pack and questionnaire" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.

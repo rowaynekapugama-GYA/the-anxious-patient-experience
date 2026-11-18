@@ -4,7 +4,7 @@ import { paypalConfigured, paypalClientId, paypalAdvanced, paypalEnv } from '@/l
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import * as terms from '@/booking/terms'
-import { TermsView } from '@/booking/TermsView'
+import { Analytics } from '@/lib/AnalyticsTag'
 import { getSettings } from '@/lib/site'
 import { PayDeposit } from './PayDeposit'
 
@@ -31,6 +31,10 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const row = found.row
   const when = core.fmtDateTime(new Date(row.slot_start), cfg.booking.timeZone, true)
   const tm = await terms.loadTerms(await getPayload({ config }))
+  // agreed to the current version already (in the Book Now pop-up, or earlier on this page)?
+  const r = row as typeof row & { terms_version?: string; terms_consent_at?: string | Date | null; terms_pay_read_at?: string | Date | null }
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null)
+  const agreedAt = r.terms_version === tm.label ? iso(r.terms_pay_read_at) || iso(r.terms_consent_at) : null
   return (
     <section className="hero-simple legal-page">
       <div className="wrap prose legal pay-page">
@@ -38,13 +42,11 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
         <h1>Pay your {core.money(cfg.pricing.deposit)} deposit</h1>
         <p className="legal-updated">For your appointment on {when} (Sydney time). Reference {row.ref}.</p>
         <p className="legal-lead">The deposit secures your time and comes off the cost of your appointment. You can pay by card, or with PayPal. You don&apos;t need a PayPal account.</p>
-        {/* v1.10.0: the same terms as Book Now, and the same "I have read" tick before paying */}
-        <h2 className="pay-terms-h">Terms and cancellation policy</h2>
-        <div className="terms-box" role="region" aria-label="Terms and cancellation policy" tabIndex={0}>
-          <TermsView text={terms.fill(tm.text, { phone: s.phone, deposit: core.money(cfg.pricing.deposit) })} className="terms-text" />
-          <p className="terms-version">Terms version {tm.label}</p>
-        </div>
-        <PayDeposit token={String(t)} clientId={paypalClientId()} amount={cfg.pricing.deposit} phone={s.phone} readLabel={tm.readLabel} advanced={paypalAdvanced()} env={paypalEnv()} assetVersion={String(process.env.npm_package_version || '1')} />
+        {/* v1.11.0: Lorna's deposit policy in the same pop-up as Book Now, unless this booking already agreed to it */}
+        <PayDeposit token={String(t)} clientId={paypalClientId()} amount={cfg.pricing.deposit} phone={s.phone} advanced={paypalAdvanced()} env={paypalEnv()} assetVersion={String(process.env.npm_package_version || '1')}
+          policy={{ text: terms.fill(tm.text, { phone: s.phone, deposit: core.money(cfg.pricing.deposit) }), consentLabel: tm.consentLabel, version: tm.label }}
+          agreed={agreedAt ? { at: agreedAt, version: tm.label } : null} />
+        <Analytics />
       </div>
     </section>
   )

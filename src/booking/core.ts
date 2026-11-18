@@ -267,6 +267,10 @@ const SCHEMA = [
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_read_at timestamptz`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS terms_pay_read_at timestamptz`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS deposit_method text NOT NULL DEFAULT ''`,
+  // v1.11.0: where the visit that made the booking came from (utm_source, or the referring site, or direct)
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source_medium text NOT NULL DEFAULT ''`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS source_campaign text NOT NULL DEFAULT ''`,
   // v1.10.0: who gave or took away questionnaire access or practice owner, for whom and when (also made by the
   // v1.10.0 migration)
   `CREATE TABLE IF NOT EXISTS ape_access_log (

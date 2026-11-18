@@ -1,5 +1,5 @@
 /**
- * Site Settings > Booking terms (v1.10.0). Any signed-in user.
+ * Site Settings > Deposit policy (v1.10.0 as Booking terms). Any signed-in user.
  *
  *   GET   the terms in use (saved, or the drafted default), the two tick box labels, the version and approval
  *   POST  { text?, consentLabel?, readLabel?, approved? }  Saving changed wording gives the next version number and
@@ -8,6 +8,7 @@
  */
 import { routeUser, json } from '@/dashboard/lib/routeAuth'
 import * as terms from '@/booking/terms'
+import * as core from '@/booking/core'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,12 @@ const s = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u0008\u
 
 async function state(payload: Awaited<ReturnType<typeof routeUser>>['payload']) {
   const t = await terms.loadTerms(payload)
-  return { ok: true, terms: t, defaults: { text: terms.DEFAULT_TERMS, consentLabel: terms.DEFAULT_CONSENT, readLabel: terms.DEFAULT_READ } }
+  // v1.11.0: what {deposit} and {phone} become, so the preview shows exactly what patients read
+  let cfg: core.Cfg
+  try { cfg = (await core.readState()).cfg } catch { cfg = core.loadConfig() }
+  let phone = cfg.contact.phone
+  try { const st = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { phone?: string }; phone = String(st?.phone || '').trim() || phone } catch { /* the booking settings phone */ }
+  return { ok: true, terms: t, fill: { deposit: core.money(cfg.pricing.deposit), phone }, defaults: { text: terms.DEFAULT_TERMS, consentLabel: terms.DEFAULT_CONSENT, readLabel: terms.DEFAULT_READ } }
 }
 
 export async function GET(req: Request) {

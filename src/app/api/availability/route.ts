@@ -6,7 +6,7 @@
 import * as core from '@/booking/core'
 import * as terms from '@/booking/terms'
 
-/** v1.10.0: the booking terms for the Book Now terms step (filled in, with its version and the two tick labels). */
+/** The deposit policy for the Book Now pop-up (v1.10.0 as booking terms; v1.11.0 Lorna's wording), filled in, with its version and tick label. */
 async function currentTerms(cfg: core.Cfg) {
   try {
     const { getPayload } = await import('payload')

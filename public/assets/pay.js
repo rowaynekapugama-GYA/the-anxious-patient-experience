@@ -63,13 +63,15 @@
   }
 
   /* box: an element to fill. o: { clientId, token, amount, advanced, env, from ('book-now' | 'pay-page'),
-     termsReadAt, onPaid(), onState(state, message) } with state 'ready' | 'cancelled' | 'error' | 'busy' */
+     policyAgreedAt, policyVersion, onStart(source), onPaid(source), onState(state, message) } with state
+     'ready' | 'cancelled' | 'error' | 'busy'. The deposit policy is agreed before this is shown (policy.js). */
   function mount(box, o) {
     var done = false;
     var amount = Number(o.amount) || 100;
     function state(s, msg) { if (o.onState) o.onState(s, msg || ''); }
     function createOrder(source) {
-      return post('/api/paypal/order', { token: o.token, source: source, termsRead: true, termsReadAt: o.termsReadAt || null, from: o.from || 'book-now' })
+      if (o.onStart) { try { o.onStart(source); } catch (e) { /* analytics only */ } }
+      return post('/api/paypal/order', { token: o.token, source: source, policyAgreed: true, policyAgreedAt: o.policyAgreedAt || null, policyVersion: o.policyVersion || '', from: o.from || 'book-now' })
         .then(function (j) { if (!j.httpOk || !j.id) throw new Error(j.error || 'order'); return j.id; });
     }
     function capture(orderId, source) {

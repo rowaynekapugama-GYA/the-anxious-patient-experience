@@ -70,19 +70,24 @@ export function assetVersion(): string {
 
 const placeholder = (label: string) => `<mark class="placeholder" title="Placeholder: waiting on the client">[${label}]</mark>`
 
-/** GA4 and Meta Pixel, only when their IDs are filled in. */
+/**
+ * v1.11.0: the GA4 measurement ID, from Site Settings > Tracking (GYA only), else NEXT_PUBLIC_GA4_ID. Empty (off) until
+ * one is set. Only a real "G-..." ID counts.
+ */
+export function ga4Id(t?: { ga4?: string } | null): string {
+  const id = String(t?.ga4 || '').trim() || String(process.env.NEXT_PUBLIC_GA4_ID || '').trim()
+  return /^G-[A-Z0-9]{4,20}$/.test(id) ? id : ''
+}
+
+/**
+ * Google Analytics 4 for the public pages, only when an ID is set (v1.11.0). The tag itself is /assets/analytics.js,
+ * which strips private links and anything personal before Google sees it. Never on /admin (the dashboard has its own
+ * layout). The Meta Pixel is not added to this website (patient privacy); the field in Site Settings is kept but unused.
+ */
 export function analyticsTags(t: { ga4?: string; metaPixel?: string }): string {
-  const ga = String(t.ga4 || '').trim()
-  const px = String(t.metaPixel || '').trim()
-  let out = ''
-  if (/^G-[A-Z0-9]+$/.test(ga)) {
-    out += `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(ga)}"></script>`
-      + `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${esc(ga)}');</script>`
-  }
-  if (/^\d{6,20}$/.test(px)) {
-    out += `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${esc(px)}');fbq('track','PageView');</script>`
-  }
-  return out
+  const ga = ga4Id(t)
+  if (!ga) return ''
+  return `<script>window.APE_GA4=${JSON.stringify(ga)};</script><script src="/assets/analytics.js?v=${esc(assetVersion())}" defer></script>`
 }
 
 /** The values that {{site:...}} tokens in the content resolve to. */

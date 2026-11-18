@@ -20,6 +20,7 @@ import { paypalConfigured, paypalEnv } from '@/lib/paypal'
 import * as emails from '@/booking/emails'
 import { ageOn, sydneyToday } from '@/booking/patient'
 import { termsView } from '@/booking/terms'
+import { sourceLabel } from '@/booking/source'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,6 +40,8 @@ function bookingRow(r: Record<string, any>, tz: string) {
     dob: emails.dobIso(r.dob), age: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, sydneyToday()) : null,
     ageAtAppointment: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, new Date(`${p.day}T00:00:00Z`)) : null,
     terms: termsView(r),
+    // v1.11.0: where the visit came from
+    source: { label: sourceLabel(r.source), source: String(r.source || ''), medium: String(r.source_medium || ''), campaign: String(r.source_campaign || '') },
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
     deposit: deposit.depositView(r as Partial<deposit.BookingRow>),
     createdAt: new Date(r.created_at).toISOString(),

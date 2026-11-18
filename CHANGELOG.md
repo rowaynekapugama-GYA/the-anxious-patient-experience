@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.11.0 (18 Nov 2026): Lorna's deposit policy pop-up, booking sources and analytics
+
+Update to the existing repo (on top of 1.10.0). From Lorna's email of 18 Nov 2026. Two commits: the Next.js security
+patch on its own, then this release.
+
+- **Next.js 16.4.6** (from 16.4.4), its own commit: fixes advisory GHSA-mfr8-8qww-v76h.
+- **Deposit policy pop-up.** The v1.10.0 terms step and both of its ticks are gone; Book Now is back to four steps
+  (time, details, deposit, confirmed) and the introduction says "four simple steps" again (only if the dashboard copy
+  still said five). Going from the details to the deposit opens a pop-up with Lorna's wording word for word (Your
+  Appointment Deposit, Cancellations and Rescheduling, We're Here to Help) and her tick "I understand and agree to the
+  deposit policy, including how my deposit will be applied to my appointment and the conditions under which it may be
+  forfeited." **I Agree & Continue** is disabled until ticked; pressing it early (mouse, Enter or Space) explains why.
+  X, Escape and Go back return to the details with everything kept. Accessible dialog: `role="dialog"`,
+  `aria-modal`, labelled by its heading, focus kept inside and returned on close, the wording scrolls on small phones
+  and at 200% zoom, no animation with reduced motion. The $100 comes from the deposit setting.
+- **The three policy lines are back** on the deposit step exactly as before v1.10.0 (no tick).
+- **Pay-later page** shows the same pop-up before paying, unless that booking already agreed to the current version
+  (then "You agreed to our deposit policy on [date]. Read it again").
+- **Record.** Each booking saves the policy version and the time of I Agree & Continue (the v1.10.0 fields); the
+  pay-later agreement too. The booking and order APIs refuse a booking without the agreement. Bookings shows "Deposit
+  policy agreed: [date], version [x]"; the team email says the same.
+- **Site Settings > Deposit policy** (was Booking terms) holds Lorna's wording as version 2, recorded as approved by
+  Lorna (email of 18 Nov 2026). Still editable; a change makes a new version. If v1.10.0's draft was saved, the release
+  replaces it with her wording; any other saved wording is left alone. The preview fills in the deposit and phone.
+- **/book-now/terms/** is now "Deposit policy" with her wording.
+- **Patient email**: "Cancellations or changes made within 48 hours of your appointment will result in your deposit
+  being forfeited. You can read the full deposit policy here: [link]".
+- **Booking source.** Book Now remembers the first link of the visit (utm tags, else the referring site, else direct;
+  sessionStorage only) and saves it with the booking. New **Source** column in Bookings (and the CSV), "Came from" on
+  each booking and in the team email, and a Dashboard box **Where bookings came from (last 30 days)**.
+- **Google Analytics 4**, off until an ID is set (Site Settings > Tracking or `NEXT_PUBLIC_GA4_ID`). Never on the
+  dashboard, the questionnaire or vercel.app previews. Nothing identifying is sent: addresses keep only utm tags (the
+  pay link token is removed, questionnaire links become `/questionnaire/[link]`) and personal-looking values are
+  dropped. Events for each Book Now step, the deposit (`deposit_paid` with value 100 AUD), `booking_submitted` (plus
+  `generate_lead`), the questionnaire on Book Now, and phone, email and Instagram taps. The Meta Pixel is no longer
+  output.
+- **Printable questionnaire PDF**: "Full name" and "Date of birth" lines on the first page.
+- **Docs**: `docs/TRACKING-LINKS.md`, `docs/SEARCH-CONSOLE.md`, `docs/HOW-TO-SEE-YOUR-NUMBERS.md` (for Lorna) and
+  `docs/FOR-LORNA-v1.11.0.md` (the analytics privacy paragraph to approve; not published).
+- **Migrations**: additive only (`source`, `source_medium`, `source_campaign` on bookings).
+- **Checks**: tsc, clean `npm ci`, a full build that migrated a copy of a v1.10.0 database, `npm run qa`,
+  test:booking (125), test:questionnaire, test:email, and Playwright on phone and desktop (86 checks: the pop-up cannot
+  be bypassed by button, Enter or a direct request; Escape and Go back keep the details; pay-later pop-up; the record
+  and version; source capture; GA receives no token or personal details; GA off with no ID).
+
 ## 1.10.0 (17 Nov 2026): required details with DOB, terms panel, card and wallet payments, questionnaire access by Lorna
 
 Update to the existing repo. Includes v1.9.3, v1.9.2, v1.9.1, v1.9.0 and v1.8.4 if main does not have them yet. From

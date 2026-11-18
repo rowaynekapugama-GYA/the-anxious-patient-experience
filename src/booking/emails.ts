@@ -18,6 +18,7 @@ import { siteOrigin } from '@/lib/email'
 import { DEFAULTS } from '@/site.config'
 import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
 import { REMINDER } from './terms'
+import { sourceLabel } from './source'
 
 const { TM } = core
 export const RETRY_SECONDS = 60
@@ -29,6 +30,7 @@ export type BookingRow = {
   // v1.10.0 (blank or null on bookings made before v1.10.0)
   first_name?: string; last_name?: string; dob?: string | Date | null
   terms_version?: string; terms_consent_at?: string | Date | null; terms_read_at?: string | Date | null
+  source?: string
 }
 
 /** "YYYY-MM-DD" from a date column (pg gives a Date at local midnight) or a string. */
@@ -85,8 +87,8 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     ['Email', b.email],
     ['Phone', b.phone || 'Not provided'],
     ['Note from patient', b.notes || 'None'],
-    ['Terms and cancellation policy', b.terms_consent_at ? `Consented ${tick(b.terms_consent_at)}${b.terms_version ? `, version ${b.terms_version}` : ''}` : 'Read and accepted'],
-    ['Read before the deposit', b.terms_read_at ? `Ticked ${tick(b.terms_read_at)}` : 'Yes'],
+    ['Deposit policy', b.terms_consent_at ? `Agreed ${tick(b.terms_consent_at)}${b.terms_version ? `, version ${b.terms_version}` : ''}` : 'Read and accepted'],
+    ['Where they came from', sourceLabel(b.source)],
     ['Collection notice', 'Agreed'],
     ['Submitted', f.submitted],
   ]
@@ -114,7 +116,7 @@ export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: 
     o.payLink
       ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
       : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
-    `${REMINDER} You can read the full terms here: ${termsUrl()}`,
+    `${REMINDER} You can read the full deposit policy here: ${termsUrl()}`,
     'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
     `If anything changes or you have a question, simply reply to this email or call us on ${cfg.contact.phone}.`,
     `Warm regards,\n${TM} team`,

@@ -367,6 +367,9 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
 
 /* Online booking (Bookings, Availability, Opening special) */
 .bookings-table td { vertical-align: top; }
+.bookings-table td:first-child { min-width: 150px; }
+.bookings-table .t-source { white-space: nowrap; }
+.bookings-table .phone-only { display: none; }
 .bookings-table .row-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .steps-help { margin: 0 0 12px; padding-left: 20px; }
 .steps-help li { margin: 0 0 6px; }
@@ -401,6 +404,8 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
   .bookings-table tr { border-bottom: 1px solid var(--pd-line); padding: 6px 0; }
   .bookings-table td { border: 0; padding: 4px 12px; }
   .bookings-table td.empty { padding: 16px 12px; }
+  .bookings-table td:first-child { min-width: 0; }
+  .bookings-table .phone-only { display: inline; }
 }
 
 /* v1.7.0: patient questionnaires */
@@ -566,3 +571,8 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
 .q-differs { display: flex; gap: 8px; align-items: flex-start; background: #fcf9e8; border: 1px solid #dba617; border-left-width: 4px; border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; }
 .q-differs > span { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #996800; color: #fff; font-weight: 700; flex: none; }
 @media print { .q-differs { border: 2px solid #000; background: none; } }
+/* v1.11.0: where bookings came from */
+.source-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-width: 420px; }
+.source-list li { display: flex; gap: 12px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--pd-line, #dcdcde); }
+.source-list li > .grow { flex: 1; }
+.source-list b { font-size: 16px; min-width: 2ch; text-align: right; }

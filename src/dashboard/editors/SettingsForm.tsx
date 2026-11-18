@@ -129,8 +129,8 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
           <TextInput label="Google review link" value={s.googleReviewLink} onChange={(v) => set({ googleReviewLink: v })} placeholder="https://g.page/r/.../review" help="From the Google Business Profile: Ask for reviews. Takes effect when you publish." />
         </Panel>
 
-        <Panel id="booking-terms" title="Booking terms" intro="The terms and cancellation policy patients read and tick on Book Now and before paying the deposit. Each change gets a new version number, and every booking records the version the patient saw.">
-          <a className="btn" href="/admin/settings/booking-terms">Open Booking terms</a>
+        <Panel id="booking-terms" title="Deposit policy" intro="Lorna's deposit policy, which patients read and agree to in a pop-up before the deposit (Book Now and the pay-later page). Each change gets a new version number, and every booking records the version the patient agreed to.">
+          <a className="btn" href="/admin/settings/booking-terms">Open Deposit policy</a>
         </Panel>
 
         <Panel id="questionnaire" title="Welcome pack and questionnaire" intro="Lorna's Patient Guide and questionnaire PDFs, the welcome email and when it is sent have their own screen.">
@@ -177,8 +177,8 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
             </Panel>
             <Panel id="tracking" title="Tracking (GYA only)" intro="Leave empty to switch tracking off. Nothing runs on preview deployments.">
               <div className="grid-2">
-                <TextInput label="Google Analytics 4 measurement ID" value={s.tracking.ga4} onChange={(v) => setT({ ga4: v })} placeholder="G-XXXXXXXXXX" />
-                <TextInput label="Meta Pixel ID" value={s.tracking.metaPixel} onChange={(v) => setT({ metaPixel: v })} />
+                <TextInput label="Google Analytics 4 measurement ID" value={s.tracking.ga4} onChange={(v) => setT({ ga4: v })} placeholder="G-XXXXXXXXXX" help="Goes live when you press Publish website. Only once Lorna has approved the analytics paragraph in the privacy policy." />
+                <TextInput label="Meta Pixel ID (not used)" value={s.tracking.metaPixel} onChange={(v) => setT({ metaPixel: v })} help="Not added to this website (patient privacy). If it is ever needed for Instagram ads, it must never go on Book Now, the pay-later page or the questionnaire." />
               </div>
             </Panel>
           </>

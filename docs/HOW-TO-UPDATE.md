@@ -76,10 +76,18 @@ read" before the deposit (and on the pay-later page, if they paid there). Bookin
 "not given" for the date of birth. Patients under 18 at the appointment show an **Under 18** label.
 **Download for Excel (CSV)** saves the list, with all of these columns.
 
-### The terms and cancellation policy
-Site Settings > **Open Booking terms**. The wording patients read and tick on Book Now and the pay-later page. Saving
-a change gives it the next version number (each booking keeps the version the patient saw). Once Lorna has approved
-a version, press **Lorna has approved version ...** to record it. The terms must still mention 48 hours.
+### The deposit policy (v1.11.0)
+Site Settings > **Open Deposit policy**. Lorna's deposit policy (her email of 18 Nov 2026), which patients read in a
+pop-up between their details and the deposit, and on the pay-later page; they tick the box and press **I Agree &
+Continue**. A line starting `## ` is a heading; `{deposit}` becomes the deposit amount and `{phone}` the phone number.
+Saving a change gives it the next version number (each booking keeps the version the patient agreed to, and when).
+Once Lorna has approved a version, press **Lorna has approved version ...** to record it. It must still mention 48
+hours. The three short lines on the deposit step itself are page wording: Pages > Book Now.
+
+### Where bookings came from (v1.11.0)
+Each booking shows where the patient came from (Instagram, a clinic website, Google, an email, the flyer QR code or
+Direct) in the **Source** column, and the Dashboard has a **Where bookings came from (last 30 days)** box. More in
+`docs/HOW-TO-SEE-YOUR-NUMBERS.md`; the links to use are in `docs/TRACKING-LINKS.md`.
 
 ### If a patient cancels
 Press **Cancel booking**. The time opens up on the website again (and an opening special place is freed). The

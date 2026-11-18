@@ -24,6 +24,8 @@ export type Booking = {
   /** v1.10.0: first and last name, date of birth (null before v1.10.0) with today's age, and the terms ticks */
   firstName: string; lastName: string; dob: string | null; age: number | null; ageAtAppointment: number | null
   terms: { version: string; consentAt: string | null; readAt: string | null; payReadAt: string | null }
+  /** v1.11.0: where the visit came from */
+  source?: { label: string; source: string; medium: string; campaign: string }
 }
 
 const dobText = (b: Pick<Booking, 'dob' | 'age'>) => (b.dob ? `${new Date(`${b.dob}T00:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' })} (age ${b.age})` : 'not given')
@@ -175,8 +177,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   }
 
   function csv() {
-    const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Terms version', 'Terms consented', 'Read before deposit', 'Note from patient', 'Requested on']]
-    for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt ? when(b.terms.consentAt) : '', b.terms.readAt ? when(b.terms.readAt) : '', b.notes, when(b.createdAt)])
+    const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Deposit policy version', 'Deposit policy agreed', 'Source', 'Campaign', 'Note from patient', 'Requested on']]
+    for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt || b.terms.payReadAt ? when((b.terms.consentAt || b.terms.payReadAt)!) : '', b.source?.label || '', b.source?.campaign || '', b.notes, when(b.createdAt)])
     const text = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }))
@@ -233,9 +235,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
         </div>
         <div className="table-wrap">
           <table className="table bookings-table">
-            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Emails</th>{showWelcome ? <th>Welcome pack</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Source</th><th>Emails</th>{showWelcome ? <th>Welcome pack</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {!shown.length ? <tr><td colSpan={9} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
+              {!shown.length ? <tr><td colSpan={10} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
               {shown.map((b) => (
                 <React.Fragment key={b.ref}>
                   <tr>
@@ -246,6 +248,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
                     <td>{b.status === 'cancelled' && !b.depositPaid ? <span className="muted">-</span> : depositChip(b)}</td>
+                    <td className="t-source">{b.source ? <span title={[b.source.source, b.source.medium, b.source.campaign].filter(Boolean).join(' / ')}><span className="phone-only muted">Came from: </span>{b.source.label}</span> : <span className="muted">-</span>}</td>
                     <td className="email-ticks">{emailCell(b)}</td>
                     {showWelcome ? <td>{welcomeCell(b)}</td> : null}
                     <td className="row-actions">
@@ -257,7 +260,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     </td>
                   </tr>
                   {b.emails.patient === 'failed' || b.emails.team === 'failed' ? (
-                    <tr className="email-flag-row"><td colSpan={9}>
+                    <tr className="email-flag-row"><td colSpan={10}>
                       <div className="email-flag" role="alert">{Icon.warn()}<span><b>Email not sent:</b> {[b.emails.team === 'failed' ? 'the new booking email to the team' : '', b.emails.patient === 'failed' ? `the booking email to ${b.name}` : ''].filter(Boolean).join(' and ')} could not be sent, even after trying again. The booking itself is saved.</span>
                         {b.emails.patient === 'failed' ? <button className="btn small" disabled={busy === b.ref} onClick={() => resendEmail(b, 'patient')}>Resend to patient</button> : null}
                         {b.emails.team === 'failed' ? <button className="btn small" disabled={busy === b.ref} onClick={() => resendEmail(b, 'team')}>Resend to team</button> : null}
@@ -265,7 +268,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     </td></tr>
                   ) : null}
                   {open === b.ref ? (
-                    <tr><td colSpan={9} style={{ background: '#fafbfc' }}>
+                    <tr><td colSpan={10} style={{ background: '#fafbfc' }}>
                       <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <dl className="booking-facts">
                         <div><dt>First name</dt><dd>{b.firstName || <span className="muted">not given (booked as {b.name})</span>}</dd></div>
@@ -274,9 +277,10 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                         <div><dt>Phone</dt><dd>{b.phone || <span className="muted">not given</span>}</dd></div>
                       </dl>
                       <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}.{' '}
-                        {b.terms.consentAt
-                          ? <>Terms and cancellation policy version {b.terms.version || 'not recorded'}: consented {when(b.terms.consentAt)}{b.terms.readAt ? `, ticked "I have read" before the deposit ${when(b.terms.readAt)}` : ''}{b.terms.payReadAt ? `, and again on the pay-later page ${when(b.terms.payReadAt)}` : ''}.</>
-                          : <>Booked before v1.10.0: the deposit and cancellation policy was accepted (no times recorded).{b.terms.payReadAt ? ` Ticked "I have read" on the pay-later page ${when(b.terms.payReadAt)}.` : ''}</>}</p>
+                        {b.terms.consentAt || b.terms.payReadAt
+                          ? <>Deposit policy agreed: {when((b.terms.consentAt || b.terms.payReadAt)!)}, version {b.terms.version || 'not recorded'}{b.terms.consentAt && b.terms.payReadAt ? ` (and again on the pay-later page, ${when(b.terms.payReadAt)})` : ''}.</>
+                          : <>Booked before 17 November 2026: the deposit and cancellation policy was accepted (no time recorded).</>}
+                        {b.source ? <> Came from: {b.source.label}{b.source.campaign ? ` (${b.source.campaign})` : ''}.</> : null}</p>
                       <p className="help" style={{ margin: '6px 0 0' }}><b>Deposit:</b> {b.deposit.label}{b.deposit.amount ? `, ${money(b.deposit.amount)}` : ''}{b.deposit.paidAt ? `, ${when(b.deposit.paidAt)}` : ''}{b.deposit.method ? `, paid by ${b.deposit.method}` : ''}{b.deposit.captureId ? `, PayPal transaction ${b.deposit.captureId}` : ''}{b.deposit.note ? `. ${b.deposit.note}` : ''}
                         {b.deposit.paypalUrl ? <> <a href={b.deposit.paypalUrl} target="_blank" rel="noopener">View in PayPal</a></> : null}</p>
                       {b.deposit.status === 'manual' && b.status !== 'cancelled' ? <button className="btn small ghost" style={{ marginTop: 8 }} onClick={() => update(b, { depositPaid: false }, 'Deposit marked as not received.')}>Undo manual mark</button> : null}

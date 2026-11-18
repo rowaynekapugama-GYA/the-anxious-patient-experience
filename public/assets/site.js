@@ -15,6 +15,30 @@
   var SCROLL = reduce ? 'auto' : 'smooth';
   var STAGGER = 0.14;     /* seconds between items that appear one by one */
 
+  /* ---------- Where this visit came from (v1.11.0) ----------
+     On the first page of a visit, remember the source for the booking: the utm_ tags of a tracked link, otherwise the
+     website that linked here (its domain only), otherwise "direct". sessionStorage only: no cookies, nothing about the
+     person, and it is gone when the tab is closed. Saved with a booking so the dashboard can show where bookings come
+     from, with or without Google Analytics. */
+  (function captureSource() {
+    try {
+      var KEY = 'ape_src';
+      if (window.sessionStorage.getItem(KEY)) return;
+      var clean = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9._ -]+/g, '').trim().slice(0, 60); };
+      var q = new URLSearchParams(window.location.search);
+      var v = null;
+      if (q.get('utm_source')) v = { source: clean(q.get('utm_source')), medium: clean(q.get('utm_medium')), campaign: clean(q.get('utm_campaign')) };
+      else {
+        var host = '';
+        try { host = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) { host = ''; }
+        host = host.replace(/^www\./, '');
+        if (host && host !== window.location.hostname.replace(/^www\./, '')) v = { source: clean(host), medium: 'referral', campaign: '' };
+        else v = { source: 'direct', medium: '', campaign: '' };
+      }
+      window.sessionStorage.setItem(KEY, JSON.stringify(v));
+    } catch (e) { /* storage blocked: the booking simply says unknown */ }
+  })();
+
   /* ---------- Gentle reveals ----------
      Each piece fades, slides or settles in once as it scrolls into view. Pieces marked .seq that arrive together
      follow one another. Anything that receives keyboard focus is shown at once. */
@@ -319,9 +343,10 @@
      Apple Pay, Google Pay and card fields once PayPal Advanced Checkout is switched on). */
   var bookingEl = document.getElementById('booking');
   if (!bookingEl) return;
+  try { if (window.apeTrack) window.apeTrack('book_now_view', {}); } catch (e) { /* analytics off */ }
   var flowBox = bookingEl.parentNode;
 
-  var COPY = {"steps": ["Choose your appointment", "Enter your details", "Terms and cancellation policy", "Pay your $100 deposit", "Booking confirmed"], "policy": {"items": [{"lead": "48 hours' notice or more:", "text": "your deposit can be transferred to a new appointment or refunded."}, {"lead": "Less than 48 hours' notice or non-attendance:", "text": "your deposit may be retained."}, {"lead": "If anxiety is making it hard to attend:", "text": "please contact us. We would much rather hear from you than have you simply not come."}], "paymentButton": "Pay $100 deposit"}, "confirmation": {"heading": "You're booked in.", "body": "Your appointment details have been sent to your email. Before your visit, we'll be in touch to learn a little more about you and what will help you feel comfortable.", "accent": "You've already taken the hardest step.", "next": "The APE team will be in touch to confirm your appointment and send your new patient information pack."}};
+  var COPY = {"steps": ["Choose your appointment", "Enter your details", "Pay your $100 deposit", "Booking confirmed"], "policy": {"items": [{"lead": "48 hours' notice or more:", "text": "your deposit can be transferred to a new appointment or refunded."}, {"lead": "Less than 48 hours' notice or non-attendance:", "text": "your deposit may be retained."}, {"lead": "If anxiety is making it hard to attend:", "text": "please contact us. We would much rather hear from you than have you simply not come."}], "paymentButton": "Pay $100 deposit"}, "confirmation": {"heading": "You're booked in.", "body": "Your appointment details have been sent to your email. Before your visit, we'll be in touch to learn a little more about you and what will help you feel comfortable.", "accent": "You've already taken the hardest step.", "next": "The APE team will be in touch to confirm your appointment and send your new patient information pack."}};
   /* confirmation.next is NEW COPY (26 Oct 2026) waiting on the client's sign-off */
   var CONFIG = window.APE_CONFIG || {};
   var SESSIONS = CONFIG.booking || { minNoticeHours: 24, timeZone: 'Australia/Sydney' };
@@ -342,14 +367,9 @@
     errDob: { required: 'Please enter your date of birth.', invalid: 'Please check your date of birth: that date does not exist.', future: 'Your date of birth cannot be in the future.', too_old: 'Please check the year of your date of birth.' },
     errSummary: function (n) { return n === 1 ? 'There is 1 thing to fix before you continue:' : 'There are ' + n + ' things to fix before you continue:'; },
     errPrefix: 'Error: ',
-    /* v1.10.0: the terms step and the deposit tick (wording from Site Settings > Booking terms, these are the fallbacks) */
-    termsIntro: 'Please read our terms and cancellation policy. You can also read them any time at',
-    termsConsent: 'I consent to the terms and conditions and cancellation policy above.',
-    termsRead: 'I have read the terms and conditions and cancellation policy.',
-    errTermsConsent: 'Please tick the box to say you consent to the terms and cancellation policy.',
-    errTermsRead: 'Please tick the box to say you have read the terms and cancellation policy.',
-    reminder48: 'A reminder: we ask for at least 48 hours\u2019 notice if you need to cancel or move your appointment.',
-    termsVersion: function (v) { return 'Terms version ' + v; },
+    /* v1.11.0: Lorna's deposit policy in a pop-up between the details and the deposit (wording from Site Settings >
+       Booking terms; this is only used if it could not be loaded) */
+    policyFallbackLabel: 'I understand and agree to the deposit policy, including how my deposit will be applied to my appointment and the conditions under which it may be forfeited.',
     months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     tooSoon: 'That time is now less than 24 hours away, so it can no longer be booked online. Please choose another time, or contact the clinic directly on ' + PHONE + '.',
     /* NEW UI COPY (26 Oct and 3 Nov 2026), waiting on the client's sign-off */
@@ -411,7 +431,7 @@
 
   var state = { step: 1, loading: true, loadError: false, slots: [], special: null, deposit: { mode: 'later', amount: 100 },
     slot: null, details: { firstName: '', lastName: '', email: '', phone: '', dobDay: '', dobMonth: '', dobYear: '', notes: '', website: '' }, consent: false, errors: {},
-    terms: null, termsConsent: false, termsConsentAt: null, ack: false, ackAt: null,
+    terms: null, policyAgreed: false, policyAgreedAt: null, policyVersion: '',
     ref: '', price: null, wasSpecial: false, payment: null, paid: false, payState: 'idle', payMsg: '', sending: false };
 
   /* v1.10.0: the same checks as src/booking/patient.ts on the server */
@@ -450,26 +470,43 @@
     if (!state.consent) e.consent = UI.errConsent;
     return e;
   }
-  /* the terms text from Site Settings: "## " headings, "- " bullets, blank lines between paragraphs */
-  function termsHtml(text) {
-    var out = '', para = [], list = [];
-    function flushP() { if (para.length) { out += '<p>' + t(para.join(' ')) + '</p>'; para = []; } }
-    function flushL() { if (list.length) { out += '<ul>' + list.map(function (x) { return '<li>' + t(x) + '</li>'; }).join('') + '</ul>'; list = []; } }
-    String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach(function (raw) {
-      var line = raw.trim();
-      if (!line) { flushP(); flushL(); return; }
-      if (line.indexOf('## ') === 0) { flushP(); flushL(); out += '<h4>' + t(line.slice(3)) + '</h4>'; return; }
-      if (/^[-*] /.test(line)) { flushP(); list.push(line.slice(2)); return; }
-      flushL(); para.push(line);
-    });
-    flushP(); flushL();
-    return out;
-  }
-  /* until /api/availability/ answers (or if it has no terms), the policy that was on Book Now before v1.10.0 */
+  /* until /api/availability/ answers (or if it has no policy), the three lines that are always on the deposit step */
   function fallbackTerms() {
-    return '## Cancellation policy: 48 hours\' notice\n' + COPY.policy.items.map(function (p) { return '- ' + p.lead + ' ' + p.text; }).join('\n');
+    return COPY.policy.items.map(function (p) { return '- ' + p.lead + ' ' + p.text; }).join('\n');
   }
-  function termsNow() { return state.terms || { text: fallbackTerms(), version: '', consentLabel: UI.termsConsent, readLabel: UI.termsRead }; }
+  function termsNow() { return state.terms || { text: fallbackTerms(), version: '', consentLabel: UI.policyFallbackLabel }; }
+  /* v1.11.0: tell Google Analytics (only when it is switched on; see /assets/analytics.js). Never patient details. */
+  function track(name, params) { try { if (window.apeTrack) window.apeTrack(name, params || {}); } catch (e) { /* never breaks booking */ } }
+  /* v1.11.0: where this visit came from (saved by the top of this file), sent with the booking */
+  function visitSource() { try { return JSON.parse(window.sessionStorage.getItem('ape_src') || 'null'); } catch (e) { return null; } }
+  var policyJs = null;
+  function loadPolicyJs() {
+    if (window.APEPolicy) return Promise.resolve(window.APEPolicy);
+    if (policyJs) return policyJs;
+    policyJs = new Promise(function (resolve, reject) {
+      var sc = document.createElement('script');
+      sc.src = '/assets/policy.js' + (SITE_V ? '?' + SITE_V : '');
+      sc.async = true;
+      sc.onload = function () { if (window.APEPolicy) resolve(window.APEPolicy); else reject(new Error('no policy.js')); };
+      sc.onerror = function () { policyJs = null; reject(new Error('policy.js failed')); };
+      document.head.appendChild(sc);
+    });
+    return policyJs;
+  }
+  /* The deposit policy pop-up. Agreeing goes on to the deposit step; closing it (X, Escape, Go back) stays on the
+     details with everything kept. */
+  function openPolicy(opener) {
+    var tm = termsNow();
+    loadPolicyJs().then(function (P) {
+      P.open({ text: tm.text, consentLabel: tm.consentLabel || UI.policyFallbackLabel, version: tm.version, opener: opener,
+        onAgree: function (at) {
+          state.policyAgreed = true; state.policyAgreedAt = at; state.policyVersion = tm.version || '';
+          track('deposit_policy_agreed');
+          state.errors = {};
+          go(3);
+        } });
+    }).catch(function () { state.errors = { send: UI.sendFail }; render(false); });
+  }
   function fieldErr(id, msg) { return msg ? '<div class="err" id="' + id + '-err"><span class="sr-only">' + esc(UI.errPrefix) + '</span><span class="err-mark" aria-hidden="true">!</span> ' + esc(msg) + '</div>' : ''; }
   function inv(id, msg, extra) { var ids = [msg ? id + '-err' : '', extra || ''].filter(Boolean).join(' '); return (msg ? ' aria-invalid="true"' : '') + (ids ? ' aria-describedby="' + ids + '"' : ''); }
 
@@ -579,42 +616,28 @@
         '</div><div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to1">' + UI.back + '</button><button type="submit" class="btn">' + UI.cont + '</button></div></form>';
     }
     if (s === 3) {
-      /* v1.10.0: the full terms and cancellation policy, then the consent tick */
-      var tm = termsNow();
-      h += '<div class="terms-step"><h3>' + t(COPY.steps[2]) + '</h3>' +
-        '<p class="terms-intro">' + esc(UI.termsIntro) + ' <a href="/book-now/terms/" target="_blank" rel="noopener">/book-now/terms/<span class="sr-only"> (opens in a new tab)</span></a>.</p>' +
-        '<div class="terms-box" role="region" aria-labelledby="bk-terms-h" tabindex="0"><p class="sr-only" id="bk-terms-h">' + esc(COPY.steps[2]) + '</p>' + termsHtml(tm.text) +
-        (tm.version ? '<p class="terms-version">' + esc(UI.termsVersion(tm.version)) + '</p>' : '') + '</div>' +
-        '<label class="check terms-tick"><input type="checkbox" id="bk-terms-consent" name="termsConsent"' + (state.termsConsent ? ' checked' : '') + inv('bk-terms-consent', state.errors.termsConsent) + '><span>' + t(tm.consentLabel || UI.termsConsent) + '</span></label>' +
-        fieldErr('bk-terms-consent', state.errors.termsConsent) +
-        chosenHtml(' style="margin-top:16px"') +
-        '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2">' + UI.back + '</button><button type="button" class="btn" data-act="to4">' + UI.cont + '</button></div></div>';
-    }
-    if (s === 4) {
       var paypal = state.deposit.mode === 'paypal';
-      var tm4 = termsNow();
+      var policyBox = '<div class="policy" role="region" aria-label="Deposit and cancellation policy"><ul>' +
+        COPY.policy.items.map(function (p) { return '<li><strong>' + t(p.lead) + '</strong> ' + t(p.text) + '</li>'; }).join('') + '</ul></div>';
       if (state.ref && state.payment && !state.paid) {
         /* the request is sent; now the deposit, right here */
-        h += '<div class="deposit-step"><h3>' + esc(UI.payHeading) + '</h3><p>' + esc(UI.payIntro) + '</p>' +
+        h += '<div class="deposit-step"><h3>' + esc(UI.payHeading) + '</h3><p>' + esc(UI.payIntro) + '</p>' + policyBox +
           chosenHtml(' style="margin-top:0"') +
           '<div class="pay-area" id="paypal-buttons" aria-live="polite"></div>' +
           (state.payState === 'cancelled' ? '<p class="pay-later" role="status">' + esc(state.payMsg || UI.payCancelled) + '</p>' : '') +
           (state.payState === 'error' ? '<p class="err send-err" role="alert">' + esc(state.payMsg || UI.payFail) + '</p>' : '') +
           '<p class="pay-later">' + esc(UI.payLaterNote) + ' <button type="button" class="btn btn-ghost" data-act="later">' + esc(UI.payLater) + '</button></p></div>';
       } else {
-        h += '<div class="deposit-step"><h3>' + t(COPY.steps[3]) + '</h3>' +
-          '<p class="reminder-48">' + t(UI.reminder48) + ' <a href="/book-now/terms/" target="_blank" rel="noopener">Read the full terms<span class="sr-only"> (opens in a new tab)</span></a></p>' +
-          '<label class="check"><input type="checkbox" id="bk-terms-read" name="termsRead"' + (state.ack ? ' checked' : '') + inv('bk-terms-read', state.errors.termsRead) + '><span>' + t(tm4.readLabel || UI.termsRead) + '</span></label>' +
-          fieldErr('bk-terms-read', state.errors.termsRead) +
-          chosenHtml(' style="margin-top:16px"') +
+        h += '<div><h3>' + t(COPY.steps[2]) + '</h3>' + policyBox +
+          chosenHtml(' style="margin-top:0"') +
           (state.errors.send ? '<p class="err send-err" role="alert">' + esc(state.errors.send) + '</p>' : '') +
-          '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to3"' + (state.sending ? ' disabled' : '') + '>' + UI.back + '</button>' +
+          '<div class="row-actions"><button type="button" class="btn btn-ghost" data-act="to2"' + (state.sending ? ' disabled' : '') + '>' + UI.back + '</button>' +
           '<button type="button" class="btn" data-act="pay"' + (state.sending ? ' disabled aria-busy="true"' : '') + '>' +
           (state.sending ? esc(UI.sending) + '…' : esc(paypal ? UI.sendPaypal : UI.sendLater)) + '</button></div>' +
           '<p class="integration-note">' + esc(paypal ? UI.depositPaypal : UI.depositLater) + '</p></div>';
       }
     }
-    if (s === 5) {
+    if (s === 4) {
       var depositLine = state.paid ? '<p class="confirm-deposit paid">' + esc(UI.paidLine) + '</p>'
         : state.payment ? '<p class="confirm-deposit">' + esc(UI.unpaidLine) + ' <a class="btn" href="' + esc(state.payment.payUrl) + '">' + esc(UI.unpaidLink) + '</a></p>'
           : '<p class="confirm-deposit">' + esc(UI.depositLater) + '</p>';
@@ -649,7 +672,7 @@
     loadSlots(function () { render(false); state.errors = {}; });
   }
   function go(step) {
-    if (step > 1 && step < 5 && !bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
+    if (step > 1 && step < 4 && !bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
     state.step = step;
     render(true);
     if (step === 1) loadSlots(function () { render(false); });
@@ -660,6 +683,7 @@
     if (slotBtn) {
       var start = slotBtn.getAttribute('data-start');
       for (var i = 0; i < state.slots.length; i++) if (state.slots[i].start === start) state.slot = state.slots[i];
+      track('booking_time_selected');
       render(false);
       var again = flowBox.querySelector('.slot[data-start="' + start + '"]');
       if (again) again.focus();
@@ -670,16 +694,12 @@
     var a = act.getAttribute('data-act');
     if (a === 'to1') go(1);
     if (a === 'to2' && state.slot) { state.errors = {}; go(2); }
-    if (a === 'to3' && state.slot) { state.errors = {}; go(3); }
-    if (a === 'to4' && state.slot) {
-      if (!state.termsConsent) { state.errors = { termsConsent: UI.errTermsConsent }; render(false); focusEl('bk-terms-consent'); return; }
-      state.errors = {}; go(4);
-    }
-    if (a === 'later' && state.ref) go(5);
+    if (a === 'later' && state.ref) go(4);
     if (a === 'q-open' && state.questionnaire) openQuestionnaire();
     if (a === 'pay' && !state.sending) {
-      if (!state.ack) { state.errors = { termsRead: UI.errTermsRead }; render(false); focusEl('bk-terms-read'); return; }
       if (!bookable(state.slot)) { backToTimes(UI.tooSoon); return; }
+      /* the deposit step is only reached through the pop-up, but never send without the agreement */
+      if (!state.policyAgreed) { openPolicy(act); return; }
       submitRequest();
     }
   });
@@ -687,6 +707,7 @@
   /* v1.9.3: Lorna's questionnaire inside the confirmation, in a frame of this website's own questionnaire page, which
      reports its height (so the frame grows with it) and when it has been sent. */
   function openQuestionnaire() {
+    track('questionnaire_started');
     var wrap = flowBox.querySelector('.q-frame-wrap');
     if (!wrap) return;
     var start = flowBox.querySelector('.q-offer-start');
@@ -718,7 +739,7 @@
       if (qDone) showThanks(f);
     }
     /* sent: the frame shrinks to the thank-you, so bring the thank-you into view once the frame has its new height */
-    if (ev.data.type === 'done') { qDone = true; qOffset = Math.max(0, Number(ev.data.offset) || 0); setTimeout(function () { if (qDone) showThanks(f); }, 600); }
+    if (ev.data.type === 'done') { track('questionnaire_sent'); qDone = true; qOffset = Math.max(0, Number(ev.data.offset) || 0); setTimeout(function () { if (qDone) showThanks(f); }, 600); }
   });
 
   /* Sends the booking request (api/booking.js). */
@@ -726,10 +747,10 @@
     state.sending = true;
     state.errors = {};
     render(false);
-    var d = state.details, tm = termsNow();
+    var d = state.details;
     var payload = { slotStart: state.slot.start, firstName: d.firstName.trim(), lastName: d.lastName.trim(), email: d.email.trim(), phone: d.phone.trim(),
       dob: { day: d.dobDay, month: d.dobMonth, year: String(d.dobYear).trim() }, notes: d.notes.trim(), website: d.website, consent: state.consent,
-      termsConsent: state.termsConsent, termsConsentAt: state.termsConsentAt, termsRead: state.ack, termsReadAt: state.ackAt, termsVersion: tm.version || '' };
+      policyAgreed: state.policyAgreed, policyAgreedAt: state.policyAgreedAt, policyVersion: state.policyVersion || '', source: visitSource() };
     var request = window.APE_BOOKING_PREVIEW
       ? Promise.resolve({ ok: true, ref: 'APE-PREVIEW', price: state.slot.price, special: state.slot.special })
       : fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -738,6 +759,8 @@
       state.sending = false;
       if (res && res.ok) {
         state.ref = res.ref || '';
+        /* no reference, name or anything else about the patient goes to Google */
+        track('booking_submitted'); track('generate_lead', { currency: 'AUD' });
         state.price = res.price != null ? res.price : state.slot.price;
         state.wasSpecial = !!res.special;
         state.payment = res.payment && res.payment.provider === 'paypal' && res.payment.token && res.payment.clientId ? res.payment : null;
@@ -745,7 +768,7 @@
         /* v1.9.3: the booking's private questionnaire link (a path on this website), when the questionnaire is on */
         state.questionnaire = res.questionnaire && /^\/questionnaire\/[A-Za-z0-9_-]{40,50}$/.test(res.questionnaire.url || '') ? res.questionnaire : null;
         if (state.payment) { state.payState = 'loading'; render(true); mountPaypal(); return; }
-        go(5);
+        go(4);
         return;
       }
       if (res && res.error === 'too_soon') { backToTimes(UI.tooSoon); return; }
@@ -759,8 +782,7 @@
         if (f.dob) errs.dob = UI.errDob[f.dob] || UI.errDob.invalid;
         if (f.consent) errs.consent = UI.errConsent;
         if (Object.keys(errs).length) { state.errors = errs; state.step = 2; render(true); focusEl('bk-errors'); return; }
-        if (f.termsConsent) { state.termsConsent = false; state.errors = { termsConsent: UI.errTermsConsent }; state.step = 3; render(true); return; }
-        if (f.termsRead) { state.ack = false; state.errors = { termsRead: UI.errTermsRead }; render(false); return; }
+        if (f.policy) { state.policyAgreed = false; openPolicy(flowBox.querySelector('[data-act="pay"]')); return; }
       }
       if (res && (res.error === 'taken' || res.error === 'blocked' || res.error === 'invalid_time')) { backToTimes(UI.taken); return; }
       state.errors = { send: UI.sendFail };
@@ -808,7 +830,8 @@
       if (!box || !state.payment || state.paid) return;
       return P.mount(box, {
         clientId: pay.clientId, token: pay.token, amount: (state.deposit && state.deposit.amount) || 100, advanced: !!pay.advanced, env: pay.env || 'sandbox', from: 'book-now',
-        onPaid: function () { state.paid = true; state.payState = 'idle'; go(5); },
+        onStart: function (source) { track('deposit_started', { method: source }); },
+        onPaid: function (source) { state.paid = true; state.payState = 'idle'; track('deposit_paid', { value: Number((state.deposit && state.deposit.amount) || 100), currency: 'AUD', method: source }); go(4); },
         onState: function (st, msg) { state.payState = st; state.payMsg = msg; payNote(st, msg); }
       });
     }).catch(function () { state.payState = 'error'; state.payMsg = ''; payNote('error'); });
@@ -828,8 +851,6 @@
     if (el.name && state.details.hasOwnProperty(el.name)) state.details[el.name] = el.value;
     if (el.name === 'consent') { state.consent = el.checked; return; }
     /* v1.10.0: when each tick was made is saved with the booking */
-    if (el.name === 'termsConsent') { state.termsConsent = el.checked; state.termsConsentAt = el.checked ? new Date().toISOString() : null; return; }
-    if (el.name === 'termsRead') { state.ack = el.checked; state.ackAt = el.checked ? new Date().toISOString() : null; }
   });
   flowBox.addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -837,7 +858,11 @@
     state.errors = errs;
     if (Object.keys(errs).length) { render(false); focusEl('bk-errors'); return; }
     state.details.phone = normalisePhone(state.details.phone) || state.details.phone;
-    go(3);
+    track('booking_details_completed');
+    /* v1.11.0: Lorna's deposit policy pop-up, unless they have already agreed to this version */
+    var tmNow = termsNow();
+    if (state.policyAgreed && state.policyVersion === (tmNow.version || '')) { go(3); return; }
+    openPolicy(ev.submitter || flowBox.querySelector('form[data-act="details"] button[type="submit"]'));
   });
 
   /* "Choose a time" on the appointment card */

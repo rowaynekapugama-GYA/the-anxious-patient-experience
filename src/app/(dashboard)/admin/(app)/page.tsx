@@ -8,6 +8,7 @@ import { BRAND } from '@/dashboard/brand'
 import { db } from '@/booking/core'
 import { countUnreviewed } from '@/lib/questionnaire'
 import { failedCount, gyaToldSince } from '@/lib/mailer'
+import { sourceLabel } from '@/booking/source'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard' }
@@ -26,6 +27,10 @@ export default async function Home() {
   const bookings = d ? await d.query(`SELECT ref, name, slot_start, status, special FROM ape_bookings WHERE status <> 'cancelled' AND slot_start >= now() ORDER BY (status = 'requested') DESC, slot_start LIMIT 5`).catch(() => []) : []
   const toConfirm = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status = 'requested' AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
   const unpaid = d ? Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE status <> 'cancelled' AND NOT deposit_paid AND slot_start >= now()`).catch(() => [{ n: 0 }]))[0]?.n) || 0 : 0
+  // v1.11.0: where bookings came from in the last 30 days (cancelled ones too: they still found the website)
+  const srcRows = d ? await d.query<{ source: string; n: number }>(`SELECT source, count(*)::int AS n FROM ape_bookings WHERE created_at >= now() - interval '30 days' GROUP BY source`).catch(() => []) : []
+  const sources = Object.entries(srcRows.reduce((acc: Record<string, number>, r) => { const k = sourceLabel(r.source); acc[k] = (acc[k] || 0) + Number(r.n); return acc }, {}))
+    .sort((a, b) => (a[0] === 'Not recorded' ? 1 : 0) - (b[0] === 'Not recorded' ? 1 : 0) || b[1] - a[1]) // most first, older bookings last
   const pages = await payload.find({ collection: 'pages', where: { isChrome: { not_equals: true } }, limit: 5, sort: '-updatedAt', depth: 0, overrideAccess: true, select: { title: true, updatedAt: true } })
   const posts = await payload.find({ collection: 'posts', limit: 5, sort: '-updatedAt', depth: 0, overrideAccess: true, select: { title: true, updatedAt: true, _status: true } })
   const counts = {
@@ -85,6 +90,16 @@ export default async function Home() {
         <div className="stat"><b>{toConfirm}</b><span>Bookings to confirm</span></div>
         <div className="stat"><b>{unpaid}</b><span>Deposits not paid</span></div>
         {toReview !== null ? <div className="stat"><b>{toReview}</b><span>Questionnaires to review</span></div> : null}
+      </div>
+
+      <div className="panel" id="sources">
+        <div className="panel-head"><h2>Where bookings came from (last 30 days)</h2><Link className="btn small" href="/admin/bookings">See bookings</Link></div>
+        {!sources.length ? <p className="empty">No bookings in the last 30 days yet. Each new booking shows where the patient came from: Instagram, the Caringbah or Cronulla website, Google, an email or typing the address in (Direct).</p> : (
+          <ul className="source-list">
+            {sources.map(([label, n]) => <li key={label}><span className="grow">{label}</span><b>{n}</b></li>)}
+          </ul>
+        )}
+        <p className="help" style={{ margin: '8px 0 0' }}>From the link the patient first arrived by. Bookings made before 18 November 2026 say Not recorded.</p>
       </div>
 
       <div className="panel">

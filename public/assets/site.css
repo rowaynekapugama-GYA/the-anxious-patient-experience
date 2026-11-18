@@ -477,3 +477,30 @@ fieldset.dob legend{display:block;font-size:15px;font-weight:600;color:var(--nav
 .terms-page li{margin:0 0 8px;color:var(--ink-soft)}
 .pay-page .terms-box h3{font-size:20px;margin:16px 0 8px}
 @media (max-width:560px){.dob-parts{grid-template-columns:70px 1fr 90px;gap:8px}.card-row{grid-template-columns:1fr}}
+/* v1.11.0: Lorna's deposit policy pop-up (Book Now and the pay-later page) */
+.policy-overlay{position:fixed;inset:0;z-index:200;background:rgba(40,72,88,.45);display:flex;align-items:center;justify-content:center;padding:16px;animation:policy-fade .25s ease}
+.policy-overlay.no-motion{animation:none}
+@keyframes policy-fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.policy-overlay{animation:none}}
+.policy-dialog{background:var(--offwhite);color:var(--navy);border-radius:24px;box-shadow:0 30px 70px -30px rgba(20,40,52,.55);width:100%;max-width:640px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden}
+.policy-dialog:focus{outline:none}
+.policy-head{display:flex;align-items:flex-start;gap:12px;padding:22px 24px 10px;border-bottom:1px solid var(--line)}
+.policy-head h2{flex:1;font-size:clamp(22px,2.4vw,28px);margin:0;line-height:1.25}
+.policy-x{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--navy);font-size:24px;line-height:1;cursor:pointer}
+.policy-x:focus-visible,.policy-body:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.policy-body{flex:1 1 auto;min-height:80px;overflow-y:auto;padding:16px 24px;font-size:16px;line-height:1.65}
+.policy-body h3{font-family:var(--serif);font-weight:400;font-size:20px;margin:18px 0 6px}
+.policy-body h3:first-child{margin-top:0}
+.policy-body p{margin:0 0 10px;color:var(--navy)}
+.policy-body ul{margin:0 0 10px;padding-left:20px}
+.policy-foot{flex:none;padding:14px 24px 20px;border-top:1px solid var(--line);background:var(--offwhite)}
+.policy-tick{margin:0 0 6px}
+.policy-err{display:flex;gap:8px;align-items:flex-start;color:#8A3B2E;font-size:14.5px;font-weight:600;margin:4px 0 6px}
+.policy-err[hidden]{display:none}
+.policy-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end;margin-top:12px}
+.policy-actions .btn[aria-disabled=true]{opacity:.55}
+.policy-agreed{background:var(--blush);border-radius:14px;padding:12px 16px;color:var(--navy)}
+.policy-agreed a{text-decoration:underline;text-underline-offset:3px}
+@media (max-width:560px){.policy-overlay{padding:8px;align-items:flex-end}.policy-dialog{border-radius:20px;max-height:calc(100dvh - 16px)}.policy-head{padding:18px 18px 8px}.policy-body{padding:12px 18px;font-size:15.5px}.policy-foot{padding:12px 18px 16px}.policy-actions{justify-content:stretch}.policy-actions .btn{flex:1 1 auto}}
+@media (max-width:360px){.policy-head h2{font-size:21px}.policy-tick{font-size:15px;line-height:1.45}.policy-actions{flex-wrap:nowrap;gap:8px}.policy-actions .btn{padding:12px 12px;font-size:14.5px;min-height:44px}}
+@media (max-height:520px){.policy-head{padding:10px 18px 6px}.policy-head h2{font-size:20px}.policy-foot{padding:8px 18px 10px}.policy-actions{margin-top:6px}}

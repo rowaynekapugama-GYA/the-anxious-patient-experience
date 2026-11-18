@@ -1,22 +1,39 @@
 /**
- * The booking terms and cancellation policy (v1.10.0), shown in full on Book Now (its own step), on the pay-later
- * page and at /book-now/terms/. Edited in the dashboard: Site Settings > Booking terms. Saved in Site Settings
- * (group bookingTerms); until something is saved there, the drafted default below is used.
+ * The deposit policy (v1.10.0 as "booking terms", v1.11.0 Lorna's wording), shown in a pop-up when the patient moves
+ * from their details to the deposit, on the pay-later page and at /book-now/terms/. Edited in the dashboard: Site
+ * Settings > Booking terms. Saved in Site Settings (group bookingTerms); until something is saved there, Lorna's
+ * wording below is used.
  *
  * Every saved change to the wording gets the next version number, and each booking records the version the patient
- * saw and when they ticked each box (ape_bookings.terms_version, terms_consent_at, terms_read_at).
+ * agreed to and when (ape_bookings.terms_version, terms_consent_at; terms_pay_read_at when agreed on the pay-later
+ * page). terms_read_at was v1.10.0's second tick and is no longer filled in.
  *
  * Format: plain text. A line starting "## " is a heading, a line starting "- " is a bullet, a blank line starts a new
  * paragraph. {phone} and {deposit} are filled in from Site Settings and the booking settings.
  */
 import type { Payload } from 'payload'
 
-export const DEFAULT_VERSION = 1
-export const DEFAULT_DATE = '2026-11-17'
+export const DEFAULT_VERSION = 2
+export const DEFAULT_DATE = '2026-11-18'
 
-// The three cancellation lines are the policy already on Book Now since v1.6, word for word. The rest is drafted
-// for Lorna to approve. The late-cancellation line is hers to confirm (kept, credited to a new time, or refunded).
-export const DEFAULT_TERMS = `## Your booking
+// v1.11.0: Lorna's deposit policy, word for word from her email of 18 Nov 2026 (her decision on the terms; it replaced
+// the v1.10.0 draft). {deposit} is filled in from the deposit setting, so the amount can never disagree with what is
+// charged. Shown in the pop-up before the deposit step, on the pay-later page and at /book-now/terms/.
+export const DEFAULT_TERMS = `## Your Appointment Deposit
+To secure your appointment, a {deposit} deposit is required at the time of booking. This deposit will be deducted from the cost of your appointment on the day.
+
+## Cancellations and Rescheduling
+We understand that sometimes plans change. If you need to cancel or rearrange your appointment, please contact us more than 48 hours in advance. Your deposit can be transferred to a future appointment or refunded where applicable.
+
+Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.
+
+If you do not attend your appointment without notifying us, your deposit will be non-refundable and non-transferable.
+
+## We're Here to Help
+We understand that dental anxiety can make attending an appointment feel difficult. If you're feeling overwhelmed or something unexpected has happened, please contact us as early as possible. We'd much rather hear from you and talk things through.`
+
+/** The v1.10.0 draft (version 1), kept so a database still holding it can be recognised and moved on to Lorna's. */
+export const V1_DRAFT_TERMS = `## Your booking
 - Your booking is a request until the APE team confirms it with you.
 - A {deposit} deposit secures your appointment.
 - The appointment fee is shown when you book. Health fund rebates are available.
@@ -30,9 +47,15 @@ If you need to cancel or move your appointment, please give us at least 48 hours
 ## How to cancel or change your appointment
 Reply to your booking email, or call us on {phone}.`
 
-export const DEFAULT_CONSENT = 'I consent to the terms and conditions and cancellation policy above.'
+/** Lorna's tick box, word for word. */
+export const DEFAULT_CONSENT = 'I understand and agree to the deposit policy, including how my deposit will be applied to my appointment and the conditions under which it may be forfeited.'
+export const V1_CONSENT = 'I consent to the terms and conditions and cancellation policy above.'
+/** v1.10.0's second tick, no longer shown (kept for the record of older bookings). */
 export const DEFAULT_READ = 'I have read the terms and conditions and cancellation policy.'
-export const REMINDER = 'Please remember our 48-hour cancellation policy: if you need to cancel or move your appointment, let us know at least 48 hours before.'
+export const AGREE_BUTTON = 'I Agree & Continue'
+export const APPROVED_BY_LORNA = 'Lorna Gladwin (email of 18 Nov 2026)'
+/** The patient's booking email: Lorna's own sentence. */
+export const REMINDER = 'Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.'
 
 export type Terms = {
   text: string
@@ -61,8 +84,9 @@ export function fromSettings(g: Record<string, any> | null | undefined): Terms {
     consentLabel: String(g?.consentLabel || '').trim() || DEFAULT_CONSENT,
     readLabel: String(g?.readLabel || '').trim() || DEFAULT_READ,
     saved: !!text,
-    approvedBy: String(g?.approvedBy || ''),
-    approvedAt: g?.approvedAt ? String(g.approvedAt) : null,
+    // the default is Lorna's own wording, so it counts as approved by her
+    approvedBy: text ? String(g?.approvedBy || '') : APPROVED_BY_LORNA,
+    approvedAt: text ? (g?.approvedAt ? String(g.approvedAt) : null) : '2026-11-18T00:00:00.000Z',
   }
 }
 
