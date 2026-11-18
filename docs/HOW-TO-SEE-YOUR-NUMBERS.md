@@ -1,47 +1,44 @@
 # How to see your numbers
 
-A one-page guide for Lorna and the APE team (v1.11.0).
+A short guide for Lorna and the APE team.
+
+## Where each number comes from
+
+| Question | Where to look | Where the numbers come from |
+|---|---|---|
+| How many bookings, and where those patients came from | The dashboard (section 1) | Your own booking records on the APE website. Not Google. |
+| How many people visit, where from, and how many reach Book Now and finish booking | Google Analytics (section 2) | Google Analytics on the APE website, once it is switched on |
+| What people search on Google before finding the site | Google Search Console (section 3) | Google search results only. It knows nothing about visits or bookings |
 
 ## 1. Bookings and where they came from: the dashboard
 
 Sign in at **theanxiouspatientexperience.com.au/admin**.
 
-- **Dashboard** (the first screen) has a box called **Where bookings came from (last 30 days)**: how many bookings
-  came from Instagram, the Caringbah website, the Cronulla website, Google, an email, the flyer QR code or Direct
-  (typed in or a bookmark). Bookings made before 18 November 2026 say Not recorded.
-- **Bookings** has a **Source** column, and each booking says "Came from: ..." when you open it. The **Download for
-  Excel (CSV)** button includes it, for counting by month.
+- **Dashboard** (the first screen) has a box called **Where bookings came from (last 30 days)**: how many bookings came from Instagram, the Caringbah website, the Cronulla website, Google, an email, the flyer QR code or Direct (typed in or a bookmark).
+- **Bookings** has a **Source** column, and each booking says "Came from: ..." when you open it. **Download for Excel (CSV)** includes it, for counting by month.
 
-This works whether or not Google Analytics is on, and it never leaves the website.
+**How it knows:** when someone arrives on the APE website, the site notes the link they came in on. The banners and Book Now cards on the Caringbah and Cronulla websites, the Instagram bio link and the email signature link each carry a small label, so they show by name. Otherwise it uses the website they came from (for example google.com shows as Google), or Direct if there isn't one. That note is saved with their booking. It stays in that browser tab only and uses no cookies. Bookings made before 18 November 2026 say Not recorded. It works with or without Google Analytics.
 
-## 2. Visits to the website: Google Analytics
+## 2. Visits and the path to booking: Google Analytics
 
-Once GYA has switched it on (after you approve the privacy wording), go to **analytics.google.com** with the Google
-login GYA adds you to, and choose the property **The Anxious Patient Experience**.
+Once GYA has switched it on (after you approve the short privacy paragraph), go to **analytics.google.com** with the Google login GYA adds you to.
 
 | What you want to know | Where to look |
 |---|---|
-| How many people visited this week | **Reports > Snapshot**: Users, with the date range at the top right |
-| Where visitors came from (Instagram, the clinic sites, Google) | **Reports > Acquisition > Traffic acquisition**; change the first column to **Session source / medium** |
-| How the launch links are doing | Same report, add a filter **Session campaign = ape-launch** |
-| How many booked, and how many paid the deposit | **Reports > Engagement > Events**: `booking_submitted` (requests sent) and `deposit_paid` (deposits paid). These two are the key events |
-| How many started but stopped | Same Events report: `book_now_view` (opened Book Now), `booking_time_selected`, `booking_details_completed`, `deposit_policy_agreed` |
-| Calls and emails from the website | Events `click_to_call` and `click_email` (the number of taps, not who) |
-| Taps through to Instagram | Event `outbound_instagram` |
+| How many people visited | **Reports > Snapshot**: Users, with the date range at the top right |
+| Where visitors came from (Instagram, the clinic sites, Google) | **Reports > Acquisition > Traffic acquisition**, first column set to **Session source / medium** |
+| How the launch links are doing | Same report, filter **Session campaign = ape-launch** |
+| How many reached Book Now, and how many finished | **Reports > Engagement > Events**: `book_now_view` (opened Book Now), then `booking_time_selected`, `booking_details_completed`, `deposit_policy_agreed`, and `booking_submitted` (booking sent) and `deposit_paid` (deposit paid) |
+| Calls, emails and Instagram taps from the website | Events `click_to_call`, `click_email`, `outbound_instagram` |
 
-Google Analytics never receives a name, email, phone number, date of birth or booking reference, and it is not on the
-questionnaire or the dashboard. Its numbers are rounded and some visitors block it, so the **dashboard count is the
-true number of bookings**; use Google Analytics for the trend and where people came from.
+Google Analytics never receives a name, email, phone number, date of birth or booking reference, and it is not on the questionnaire or the dashboard. Some visitors block it, so the **dashboard count is the true number of bookings**; use Google Analytics for visits, the trend and where people came from.
 
 ## 3. Google searches: Search Console
 
-At **search.google.com/search-console** (GYA adds you): **Performance** shows the searches the site appeared for,
-how often, and how many clicked. Data starts a few days after it is set up.
+At **search.google.com/search-console** (GYA adds you): **Performance** shows the Google searches the website appeared in, how often, and how many people clicked through. Data starts a few days after it is set up.
 
-## 4. A simple weekly check (5 minutes)
+## 4. A monthly report from GYA
 
-1. Dashboard: the **Where bookings came from** box. Note the numbers.
-2. Google Analytics: Snapshot (visitors this week) and Events (`booking_submitted`, `deposit_paid`).
-3. If one source is quiet (for example the Cronulla banner), mention it to GYA.
+If you would rather not log in to each of these, GYA can send a simple one-page report each month: visitors, where they came from, how many reached Book Now, bookings and deposits by source. Just ask.
 
-Questions: GYA on 1300 889 840.
+Questions: Rowayne at GYA, 1300 889 840.
