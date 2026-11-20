@@ -364,7 +364,14 @@
     errFirst: 'Please enter your first name.', errLast: 'Please enter your last name.', errEmail: 'Please enter a valid email address.',
     errPhone: 'Please enter an Australian mobile or landline number, including the area code.',
     errPhoneEmpty: 'Please enter your phone number.',
-    errDob: { required: 'Please enter your date of birth.', invalid: 'Please check your date of birth: that date does not exist.', future: 'Your date of birth cannot be in the future.', too_old: 'Please check the year of your date of birth.' },
+    errDob: { required: 'Please enter your date of birth.', invalid: 'Please check your date of birth: that date does not exist.', future: 'Your date of birth cannot be in the future.', too_old: 'Please check the year of your date of birth.', under_min: 'The Anxious Patient Experience is for patients aged 15 and over.' },
+    /* v1.13.0: the age rule (15 and over; under 18 needs a parent or guardian's name). NEW COPY for Lorna's sign-off. */
+    ageNote: 'The Anxious Patient Experience is for patients aged 15 and over.',
+    ageStop: 'The Anxious Patient Experience is for patients aged 15 and over. For younger patients, please contact us and we\u2019ll help you find the right care.',
+    ageStopContact: function (phone, email) { return 'Call us on ' + phone + (email ? ' or email ' + email : '') + '.'; },
+    guardian: 'Parent or guardian\u2019s full name',
+    guardianHelp: 'Patients under 18 need a parent or guardian\u2019s name to book. We ask for it so we know who is responsible for the booking.',
+    errGuardian: 'Please enter your parent or guardian\u2019s full name.',
     errSummary: function (n) { return n === 1 ? 'There is 1 thing to fix before you continue:' : 'There are ' + n + ' things to fix before you continue:'; },
     errPrefix: 'Error: ',
     /* v1.11.0: Lorna's deposit policy in a pop-up between the details and the deposit (wording from Site Settings >
@@ -402,7 +409,7 @@
     qHeading: 'Your pre-appointment questionnaire',
     qIntro: 'This short form helps me get to know you and tailor your appointment so you can feel calm, supported, and in control.',
     qOpen: 'Fill in the questionnaire now',
-    qNote: 'It\u2019s optional. You can also save your answers and finish them later from the link in your welcome email.',
+    qNote: 'It\u2019s optional, but we kindly request you fill out as much as possible to get the most out of your experience. You can also save your answers and finish them later from the link in your welcome email.',
     qFrameTitle: 'Pre-appointment questionnaire',
     specialCard: function (when) { return 'for our first six patients, for appointments on ' + when + '. Health fund rebates are still available.'; }
   };
@@ -430,7 +437,7 @@
   function bookable(slot) { return !!slot && new Date(slot.start).getTime() >= Date.now() + (SESSIONS.minNoticeHours || 24) * 3600000; }
 
   var state = { step: 1, loading: true, loadError: false, slots: [], special: null, deposit: { mode: 'later', amount: 100 },
-    slot: null, details: { firstName: '', lastName: '', email: '', phone: '', dobDay: '', dobMonth: '', dobYear: '', notes: '', website: '' }, consent: false, errors: {},
+    slot: null, details: { firstName: '', lastName: '', email: '', phone: '', dobDay: '', dobMonth: '', dobYear: '', guardianName: '', notes: '', website: '' }, consent: false, errors: {},
     terms: null, policyAgreed: false, policyAgreedAt: null, policyVersion: '',
     ref: '', price: null, wasSpecial: false, payment: null, paid: false, payState: 'idle', payMsg: '', sending: false };
 
@@ -459,6 +466,46 @@
     if (dt.getTime() < Date.UTC(today.getUTCFullYear() - 120, today.getUTCMonth(), today.getUTCDate())) return 'too_old';
     return '';
   }
+  /* v1.13.0: the age rule, from /assets/age.js (the server checks it again). Null until it is loaded or the date of
+     birth is complete. */
+  var AGE_RULE = { minAge: 15, guardianRequiredUnder: 18 };
+  function dobIso(d) {
+    if (checkDob(d.dobDay, d.dobMonth, d.dobYear)) return '';
+    var p = function (n, w) { n = String(Number(n)); while (n.length < w) n = '0' + n; return n; };
+    return p(d.dobYear, 4) + '-' + p(d.dobMonth, 2) + '-' + p(d.dobDay, 2);
+  }
+  function ageNow() {
+    if (!window.APEAge || !state.slot) return null;
+    var iso = dobIso(state.details);
+    if (!iso) return null;
+    var r = window.APEAge.rule(iso, state.slot.start, { minAge: AGE_RULE.minAge, guardianRequiredUnder: AGE_RULE.guardianRequiredUnder, timeZone: SESSIONS.timeZone });
+    return r.status === 'unknown' ? null : r;
+  }
+  /* Show or hide the guardian field and the under-15 message as the date of birth changes, without redrawing the form */
+  function updateAge() {
+    if (state.step !== 2) return;
+    var r = ageNow();
+    var wrap = document.getElementById('bk-guardian-wrap'), stop = document.getElementById('bk-age-stop');
+    var btn = flowBox.querySelector('form[data-act="details"] button[type="submit"]');
+    var needGuardian = !!r && r.status === 'guardian', under = !!r && r.status === 'under_min';
+    if (wrap) wrap.hidden = !needGuardian;
+    if (!needGuardian && state.details.guardianName) {
+      state.details.guardianName = '';
+      var gi = document.getElementById('bk-guardian'); if (gi) gi.value = '';
+    }
+    if (stop) stop.hidden = !under;
+    if (btn) { btn.disabled = under; if (under) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled'); }
+  }
+  var ageJs = null;
+  function loadAgeJs() {
+    if (window.APEAge || ageJs) return;
+    ageJs = document.createElement('script');
+    ageJs.src = '/assets/age.js' + (SITE_V ? '?' + SITE_V : '');
+    ageJs.async = true;
+    ageJs.onload = function () { updateAge(); };
+    ageJs.onerror = function () { ageJs = null; };
+    document.head.appendChild(ageJs);
+  }
   function detailErrors() {
     var d = state.details, e = {};
     if (!d.firstName.trim()) e.firstName = UI.errFirst;
@@ -467,6 +514,9 @@
     if (!d.phone.trim()) e.phone = UI.errPhoneEmpty; else if (!normalisePhone(d.phone)) e.phone = UI.errPhone;
     var dob = checkDob(d.dobDay, d.dobMonth, d.dobYear);
     if (dob) e.dob = UI.errDob[dob];
+    var ar = dob ? null : ageNow();
+    if (ar && ar.status === 'under_min') e.dob = UI.errDob.under_min;
+    if (ar && ar.status === 'guardian' && !window.APEAge.guardianOk(d.guardianName)) e.guardian = UI.errGuardian;
     if (!state.consent) e.consent = UI.errConsent;
     return e;
   }
@@ -520,6 +570,7 @@
         state.special = res.special || null;
         state.deposit = res.deposit || state.deposit;
         if (res.terms && res.terms.text) state.terms = res.terms;
+        if (res.ages && res.ages.minAge) AGE_RULE = { minAge: Number(res.ages.minAge) || 15, guardianRequiredUnder: Number(res.ages.guardianRequiredUnder) || 18 };
         if (state.slot) {
           var still = null;
           state.slots.forEach(function (s) { if (s.start === state.slot.start) still = s; });
@@ -586,12 +637,13 @@
         }).join('') + '</div>';
       }
       h += chosenHtml();
+      h += '<p class="age-note">' + esc(UI.ageNote) + '</p>';
       h += '<div class="row-actions"><button type="button" class="btn" data-act="to2"' + (state.slot ? '' : ' disabled') + '>' + UI.cont + '</button></div></div>';
     }
     if (s === 2) {
       var d = state.details, e = state.errors;
-      var errKeys = ['firstName', 'lastName', 'email', 'phone', 'dob', 'consent'].filter(function (k) { return e[k]; });
-      var target = { firstName: 'bk-first', lastName: 'bk-last', email: 'bk-email', phone: 'bk-phone', dob: 'bk-dob-day', consent: 'bk-consent' };
+      var errKeys = ['firstName', 'lastName', 'email', 'phone', 'dob', 'guardian', 'consent'].filter(function (k) { return e[k]; });
+      var target = { firstName: 'bk-first', lastName: 'bk-last', email: 'bk-email', phone: 'bk-phone', dob: 'bk-dob-day', guardian: 'bk-guardian', consent: 'bk-consent' };
       var req = ' <span class="req">(' + esc(UI.required.toLowerCase()) + ')</span>';
       var days = '<option value="">' + esc(UI.dobDay) + '</option>';
       for (var dd = 1; dd <= 31; dd++) days += '<option value="' + dd + '"' + (String(d.dobDay) === String(dd) ? ' selected' : '') + '>' + dd + '</option>';
@@ -609,6 +661,8 @@
           '<div><label for="bk-dob-month">' + esc(UI.dobMonth) + '</label><select id="bk-dob-month" name="dobMonth" autocomplete="bday-month" required' + (e.dob ? ' aria-invalid="true"' : '') + '>' + months + '</select></div>' +
           '<div><label for="bk-dob-year">' + esc(UI.dobYear) + '</label><input id="bk-dob-year" name="dobYear" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="bday-year" required value="' + esc(d.dobYear) + '"' + (e.dob ? ' aria-invalid="true" aria-describedby="bk-dob-err"' : '') + '></div>' +
         '</div>' + fieldErr('bk-dob', e.dob) + '</fieldset>' +
+        '<div class="age-stop full" id="bk-age-stop" role="alert" hidden><p><strong>' + esc(UI.ageStop) + '</strong></p><p>' + esc(UI.ageStopContact(PHONE, (CONFIG.contact && CONFIG.contact.apeEmail) || '')) + '</p></div>' +
+        '<div class="field full guardian" id="bk-guardian-wrap" hidden><label for="bk-guardian">' + esc(UI.guardian) + req + '</label><input id="bk-guardian" name="guardianName" autocomplete="off" maxlength="120" value="' + esc(d.guardianName) + '"' + inv('bk-guardian', e.guardian, 'bk-guardian-help') + '><div class="field-help" id="bk-guardian-help">' + esc(UI.guardianHelp) + '</div>' + fieldErr('bk-guardian', e.guardian) + '</div>' +
         '<div class="field full"><label for="bk-notes">' + UI.notes + '</label><textarea id="bk-notes" name="notes">' + esc(d.notes) + '</textarea></div>' +
         '<div class="hp" aria-hidden="true"><label for="bk-website">Leave this empty</label><input id="bk-website" name="website" tabindex="-1" autocomplete="off" value="' + esc(d.website) + '"></div>' +
         '<div class="field full"><label class="check consent"><input type="checkbox" id="bk-consent" name="consent" required' + (state.consent ? ' checked' : '') + inv('bk-consent', e.consent) + '><span>' + UI.consent + '</span></label>' +
@@ -659,6 +713,7 @@
   function render(focus) {
     flowBox.innerHTML = stepsHtml() + '<div class="booking" id="booking" tabindex="-1" aria-live="polite">' + panelHtml() + '</div>';
     var panel = document.getElementById('booking');
+    updateAge();
     if (focus) {
       panel.focus({ preventScroll: true });
       panel.scrollIntoView({ behavior: SCROLL, block: 'start' });
@@ -748,7 +803,8 @@
     render(false);
     var d = state.details;
     var payload = { slotStart: state.slot.start, firstName: d.firstName.trim(), lastName: d.lastName.trim(), email: d.email.trim(), phone: d.phone.trim(),
-      dob: { day: d.dobDay, month: d.dobMonth, year: String(d.dobYear).trim() }, notes: d.notes.trim(), website: d.website, consent: state.consent,
+      dob: { day: d.dobDay, month: d.dobMonth, year: String(d.dobYear).trim() }, notes: d.notes.trim(),
+      guardianName: (function () { var a = ageNow(); return a && a.status === 'guardian' ? d.guardianName.trim() : ''; })(), website: d.website, consent: state.consent,
       policyAgreed: state.policyAgreed, policyAgreedAt: state.policyAgreedAt, policyVersion: state.policyVersion || '', source: visitSource() };
     var request = window.APE_BOOKING_PREVIEW
       ? Promise.resolve({ ok: true, ref: 'APE-PREVIEW', price: state.slot.price, special: state.slot.special })
@@ -779,6 +835,7 @@
         if (f.email) errs.email = UI.errEmail;
         if (f.phone) errs.phone = f.phone === 'required' ? UI.errPhoneEmpty : UI.errPhone;
         if (f.dob) errs.dob = UI.errDob[f.dob] || UI.errDob.invalid;
+        if (f.guardian) errs.guardian = UI.errGuardian;
         if (f.consent) errs.consent = UI.errConsent;
         if (Object.keys(errs).length) { state.errors = errs; state.step = 2; render(true); focusEl('bk-errors'); return; }
         if (f.policy) { state.policyAgreed = false; openPolicy(flowBox.querySelector('[data-act="pay"]')); return; }
@@ -852,10 +909,12 @@
   flowBox.addEventListener('input', function (ev) {
     var el = ev.target;
     if (el.name && state.details.hasOwnProperty(el.name)) state.details[el.name] = el.value;
+    if (/^dob/.test(el.name || '')) updateAge();
   });
   flowBox.addEventListener('change', function (ev) {
     var el = ev.target;
     if (el.name && state.details.hasOwnProperty(el.name)) state.details[el.name] = el.value;
+    if (/^dob/.test(el.name || '')) updateAge();
     if (el.name === 'consent') { state.consent = el.checked; return; }
     /* v1.10.0: when each tick was made is saved with the booking */
   });
@@ -884,4 +943,5 @@
 
   render(false);
   loadSlots(function () { render(false); });
+  loadAgeJs();
 })();

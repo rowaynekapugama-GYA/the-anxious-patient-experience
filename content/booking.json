@@ -7,5 +7,6 @@
   "weeksAhead": 6,
   "initialBlockedDates": ["2026-12-23", "2026-12-30"],
   "pricing": { "appointment": 350, "deposit": 100 },
+  "under18GuardianLine": true,
   "openingSpecial": { "enabled": true, "price": 250, "from": "2026-12-02", "to": "2026-12-15", "maxBookings": 6, "popup": true }
 }

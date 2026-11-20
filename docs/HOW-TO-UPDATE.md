@@ -75,6 +75,16 @@ before and the team follows up the deposit.
    private pay link that works for 14 days. If someone pays another way, press **Mark deposit received manually**
    and add a note.
 
+### Patients under 18 (v1.13.0)
+The Anxious Patient Experience is for patients aged 15 and over. The website works out the patient's age on the day
+of the appointment from their date of birth:
+
+- **Under 15**: they cannot book online. Book Now explains why and gives the clinic's phone number and the APE email.
+- **15 to 17**: they must enter a parent or guardian's full name. On **Bookings** the booking shows "Age 16 at
+  appointment", an **Under 18** tag and "Parent or guardian: [name]"; the booking email to you has both too. The
+  patient's emails ask them to bring their parent or guardian to their first visit.
+- Bookings made before dates of birth were asked for show "DOB not given".
+
 ### Refunds
 Refunds are done in PayPal (Activity > the payment > Refund). The booking then shows **Refunded** here by itself.
 
@@ -122,9 +132,11 @@ Wednesdays at 9:00 am, 10:20 am and 11:40 am.
 
 ## Welcome pack and questionnaires
 
-The welcome email is on (v1.12.0): it is the patient's confirmation, sent when you press **Mark confirmed**. The
-online questionnaire stays off until you have approved the collection notice and the privacy wording and GYA has
-set the encryption key; until then patients get the questionnaire as a PDF in that email. Where to find completed
+The welcome email is on (v1.12.0): it is the patient's confirmation, sent when you press **Mark confirmed**. You
+approved the online questionnaire on 19 Nov 2026 (v1.13.0). It goes live as soon as GYA adds the encryption key;
+until then patients get the questionnaire as a PDF in that email. Every question is optional, but the questionnaire
+now kindly asks patients to fill out as much as possible. Patients under 18 are told they are welcome to fill it out
+with their parent or guardian. Where to find completed
 questionnaires: Questionnaires in the menu (GYA's PDF "Where to find the questionnaire").
 
 ### What patients get

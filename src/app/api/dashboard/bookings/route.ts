@@ -40,6 +40,8 @@ function bookingRow(r: Record<string, any>, tz: string) {
     dob: emails.dobIso(r.dob), age: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, sydneyToday()) : null,
     ageAtAppointment: emails.dobIso(r.dob) ? ageOn(emails.dobIso(r.dob)!, new Date(`${p.day}T00:00:00Z`)) : null,
     terms: termsView(r),
+    // v1.13.0: a parent or guardian's name (patients under 18 at the appointment)
+    guardianName: String(r.guardian_name || ''),
     // v1.11.0: where the visit came from
     source: { label: sourceLabel(r.source), source: String(r.source || ''), medium: String(r.source_medium || ''), campaign: String(r.source_campaign || '') },
     price: Number(r.price), special: !!r.special, status: r.status as string, depositPaid: !!r.deposit_paid,
@@ -176,7 +178,7 @@ export async function POST(req: Request) {
       if (!sets.length) return core.send(400, { ok: false, error: 'invalid' })
       let row: Record<string, any> | undefined
       try {
-        const r = await d.query(`UPDATE ape_bookings SET ${sets.join(', ')}, updated_at = now() WHERE ref = $1 RETURNING ref, name, email, slot_start, status`, params)
+        const r = await d.query(`UPDATE ape_bookings SET ${sets.join(', ')}, updated_at = now() WHERE ref = $1 RETURNING ref, name, email, slot_start, status, dob`, params)
         if (!r.length) return core.send(404, { ok: false, error: 'not_found' })
         row = r[0]
       } catch (err) {
@@ -186,7 +188,7 @@ export async function POST(req: Request) {
       // v1.9.0: Mark confirmed sends the welcome pack once, when the welcome email is switched on (and not sent at request time)
       let welcome: { sent: boolean; reason?: string } | undefined
       if (body.status === 'confirmed' && row) {
-        welcome = await onBookingConfirmed(payload, { ref: row.ref, name: row.name, email: row.email, slot_start: row.slot_start })
+        welcome = await onBookingConfirmed(payload, { ref: row.ref, name: row.name, email: row.email, slot_start: row.slot_start, dob: row.dob })
       }
       return core.send(200, { ok: true, welcome })
     }

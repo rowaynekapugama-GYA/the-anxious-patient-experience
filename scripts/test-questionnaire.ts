@@ -1,5 +1,5 @@
 /**
- * Welcome pack and questionnaire tests (v1.9.0), with SMTP2GO replaced by a local stand-in. Needs a TEST database
+ * Welcome pack and questionnaire tests (v1.9.0 to v1.13.0), with SMTP2GO replaced by a local stand-in. Needs a TEST database
  * (DATABASE_URL) that has been migrated: it adds bookings APE-UNIT1x and test rows and removes them again. Never run
  * it against the live database.
  *
@@ -207,6 +207,56 @@ async function main() {
   await d.query(`UPDATE questionnaires SET created_at = now() - interval '25 hours' WHERE id = $1`, [tRow.id])
   await q.lookupToken(payload, 'x'.repeat(43))
   check('test rows are deleted after 24 hours', !(await q.listQuestionnaires(payload, { tests: true })).some((r) => r.id === tRow.id))
+
+  // ---------------------------------------------------------------- 7. v1.13.0: Lorna's approval, the optional line, under 18
+  check("notice: Lorna's optional line (19 Nov 2026)", q.DEFAULT_NOTICE.includes('Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience.') && !q.DEFAULT_NOTICE.includes(q.OLD_OPTIONAL_SENTENCE))
+  const fsq = await import('node:fs')
+  check('online form: the optional line on screen', fsq.readFileSync('src/app/(site)/questionnaire/[token]/QuestionnaireForm.tsx', 'utf8').includes('Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience.'))
+  check("online form: the under-18 line", fsq.readFileSync('src/app/(site)/questionnaire/[token]/page.tsx', 'utf8').includes('If you&apos;re under 18, you&apos;re welcome to fill this out with your parent or guardian.'))
+  const { UPDATES } = await import('../src/sitekit/releases')
+  const optRel = UPDATES.find((u) => u.id === 'v1.13.0-questionnaire-optional-line')!
+  const apprRel = UPDATES.find((u) => u.id === 'v1.13.0-questionnaire-approved')!
+  const keepQ = await payload.findGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
+  const oldNotice = q.DEFAULT_NOTICE.replace(q.NEW_OPTIONAL_SENTENCE, q.OLD_OPTIONAL_SENTENCE)
+  await payload.updateGlobal({ slug: 'questionnaire', data: { collectionNotice: oldNotice } as never, overrideAccess: true, context: { noPublishNeeded: true } })
+  const rOpt = await optRel.apply(payload)
+  const afterOpt = String((await payload.findGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true }) as Record<string, any>).collectionNotice)
+  check('release: a saved notice gets the optional line, nothing else changes', /applied/.test(rOpt) && afterOpt === q.DEFAULT_NOTICE, rOpt)
+  check('release: running it again changes nothing', /already has the line/.test(await optRel.apply(payload)))
+  await payload.updateGlobal({ slug: 'questionnaire', data: { collectionNotice: keepQ?.collectionNotice ?? '' } as never, overrideAccess: true, context: { noPublishNeeded: true } })
+  // approval recorded once, and the questionnaire still waits for the key
+  delete process.env.QUESTIONNAIRE_ENCRYPTION_KEY
+  await d.query(`CREATE TABLE IF NOT EXISTS ape_meta (key text PRIMARY KEY, value text NOT NULL DEFAULT '')`)
+  await d.query(`DELETE FROM ape_meta WHERE key = 'release:v1.13.0-questionnaire-approved'`)
+  await payload.updateGlobal({ slug: 'site-settings', data: { questionnaire: { ...cleanSwitches, welcomeEmailOn: true } }, overrideAccess: true, context: { noPublishNeeded: true } })
+  const rAppr = await apprRel.apply(payload)
+  const qs = (await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>).questionnaire
+  check("release: Lorna's approval recorded (by, date) and the online questionnaire switched on", qs.noticeApproved === true && qs.noticeApprovedBy === 'Dr Lorna Gladwin, email 19 Nov 2026' && new Date(qs.noticeApprovedAt).toISOString() === '2026-11-19T03:35:00.000Z' && qs.onlineOn === true && qs.welcomeEmailOn === true, rAppr)
+  sw = await q.packSwitches(payload)
+  check('approved but no key: still off, and the only thing missing is the key', /QUESTIONNAIRE_ENCRYPTION_KEY/.test(rAppr) && !sw.online && sw.blockers.length === 1 && /ENCRYPTION_KEY/.test(sw.blockers[0]), sw.blockers.join(' | '))
+  process.env.QUESTIONNAIRE_ENCRYPTION_KEY = KEY
+  check('approved and the key set: live', (await q.packSwitches(payload)).online)
+  await payload.updateGlobal({ slug: 'site-settings', data: { questionnaire: { ...qs, onlineOn: false } }, overrideAccess: true, context: { noPublishNeeded: true } })
+  check('release: runs once only (switching it off later stays off)', /already applied once/.test(await apprRel.apply(payload)) && !(await q.packSwitches(payload)).online)
+  await d.query(`DELETE FROM ape_meta WHERE key = 'release:v1.13.0-questionnaire-approved'`)
+  await payload.updateGlobal({ slug: 'site-settings', data: { questionnaire: { ...qs, onlineOn: true } }, overrideAccess: true, context: { noPublishNeeded: true } })
+  // the under-18 line in the welcome email
+  const words = { subject: q.DEFAULT_SUBJECT, body: q.DEFAULT_BODY }
+  const placeW = await q.place(payload)
+  const w18 = q.welcomeEmail({ words, name: 'Zelda Quartermaine', slotStart: new Date('2026-12-03T00:00:00Z'), link: null, where: placeW, under18: true })
+  const wAdult = q.welcomeEmail({ words, name: 'Zelda Quartermaine', slotStart: new Date('2026-12-03T00:00:00Z'), link: null, where: placeW })
+  check("welcome email: the under-18 line after the first paragraph", w18.text.split('\n\n')[2] === "As you're under 18, please bring your parent or guardian to your first visit." && !/under 18/.test(wAdult.text))
+  await d.query(`DELETE FROM ape_bookings WHERE ref = 'APE-UNIT13'`)
+  await d.query(`INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, status, dob) VALUES ('APE-UNIT13', now() + interval '403 days', 'Young Patient', 'young.patient@example.com', '0499 111 222', '', 250, false, 'confirmed', (now() + interval '403 days' - interval '16 years')::date)`)
+  const b13 = (await d.query(`SELECT ref, name, email, slot_start, dob FROM ape_bookings WHERE ref = 'APE-UNIT13'`))[0] as any
+  before = sent.length
+  await q.onBookingConfirmed(payload, b13)
+  const w13 = sent[sent.length - 1]
+  check('Mark confirmed for a 16-year-old: the welcome email has the under-18 line, and the link', sent.length === before + 1 && w13.text.includes("As you're under 18, please bring your parent or guardian to your first visit.") && /\/questionnaire\//.test(w13.text))
+  check('still no answer in any email', sent.every((x) => !`${x.subject} ${x.text} ${x.html}`.includes(SECRET_ANSWER)))
+  await payload.delete({ collection: 'questionnaires', where: { bookingRef: { equals: 'APE-UNIT13' } }, overrideAccess: true })
+  await d.query(`DELETE FROM ape_email_log WHERE ref = 'APE-UNIT13'`)
+  await d.query(`DELETE FROM ape_bookings WHERE ref = 'APE-UNIT13'`)
 
   // ---------------------------------------------------------------- tidy up
   await payload.delete({ collection: 'questionnaires', where: { bookingRef: { in: ['APE-UNIT11', 'APE-UNIT12', 'APE-TEST01'] } }, overrideAccess: true })

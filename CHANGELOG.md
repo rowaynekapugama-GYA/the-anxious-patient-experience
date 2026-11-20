@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.13.0 (19 Nov 2026): questionnaire live, 15 and over, guardian name, homepage photo, PDF name and DOB
+
+Update to the existing repo (on top of 1.12.0). From Lorna's email of 19 Nov 2026 ("Quick Update APE").
+
+- **Online questionnaire approved.** Recorded once in Site Settings > Welcome pack: "Approved by Dr Lorna Gladwin,
+  email 19 Nov 2026" (the questionnaire wording, the collection notice and privacy section 14), and the online
+  questionnaire switched on. It only runs once `QUESTIONNAIRE_ENCRYPTION_KEY` is set in Vercel (the readiness
+  checklist then shows nothing missing). Answers stay encrypted and are never emailed; analytics still never loads on
+  questionnaire pages. There is no key rotation: never change the key once answers exist.
+- **Lorna's optional line**, everywhere the questionnaire says questions are optional: "Every question is optional,
+  but we kindly request you fill out as much as possible to get the most out of your experience." (collection notice,
+  the online form, Book Now's questionnaire note, the printable PDF). A saved notice gets the line too; wording the
+  practice wrote itself is left alone.
+- **15 and over, guardian name under 18.** Age is worked out on the appointment date in Sydney (a birthday between
+  booking and the appointment counts). Under 15: Book Now explains APE is for patients aged 15 and over, gives the
+  phone number and email, and Continue is disabled. 15 to 17: a required "Parent or guardian's full name" field with
+  a short reason. The booking API refuses under 15 and a missing guardian name before any time is held, and the PayPal
+  order and capture refuse under 15 too. One rule (`GUARDIAN_REQUIRED_UNDER = 18`, `MIN_AGE = 15`) in
+  `src/booking/age.ts`, mirrored in `public/assets/age.js` for Book Now; the tests check the two agree.
+- **Dashboard**: "Age X at appointment", an **Under 18** tag and "Parent or guardian" on each booking (and in the CSV).
+  Older bookings show "DOB not given".
+- **Emails**: the team email shows "Age at appointment" and "Parent or guardian". Patients under 18 get one line, "As
+  you're under 18, please bring your parent or guardian to your first visit.", in the booking email and the welcome
+  email (`content/booking.json` `under18GuardianLine`, on by default). The questionnaire shows "If you're under 18,
+  you're welcome to fill this out with your parent or guardian." for patients under 18.
+- **Deposit policy version 3** (waiting for Lorna's approval in Site Settings > Deposit policy): her version 2 plus
+  "The Anxious Patient Experience is for patients aged 15 and over. Patients under 18 need a parent or guardian's name
+  to book." Book Now step 1 says "for patients aged 15 and over". The privacy policy's booking paragraph adds that a
+  parent or guardian's name is collected for patients under 18.
+- **Homepage photo.** The "Our approach" hands photo (`ape-hands-comfort`, one of Lorna's images from 26 Oct 2026)
+  shows a hand with six fingers. Replaced with her napkin photo (`ape-textured-napkin`, already on Book Now), with its
+  own alt text. No new or downloaded images. The hands files stay in the repo, unused. `docs/stock-shot-list.md` is a
+  brief for a licensed photo if Lorna wants a hands photo back.
+- **Printable questionnaire PDF**: Full name, Date of birth and Date completed at the very top of page 1, plus the
+  optional line and the under-18 line in the introduction. Still 5 pages.
+- **Migrations**: additive (`guardian_name` on bookings). Releases are one-time and leave the practice's own edits
+  alone.
+- **Checks**: tsc, `npm run qa`, test:booking (182), test:questionnaire, test:email, migration of a v1.12.0 database
+  copy (twice, nothing changes the second time), Playwright on phone and desktop: ages 14, 15, 17 and 25, the
+  dashboard, the questionnaire, the homepage photo (37), plus the v1.11.0 (74), pay to book (21) and analytics (15)
+  checks.
+
 ## 1.12.0 (18 Nov 2026): pay to book, the confirmation email, where to find the questionnaire
 
 Update to the existing repo (on top of 1.11.0). From Lorna's call with Rowayne on 18 Nov 2026.

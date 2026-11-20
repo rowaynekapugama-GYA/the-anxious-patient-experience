@@ -6,6 +6,7 @@ import { lookupToken, loadWords, readDraft, tooMany, bookingIdentity } from '@/l
 import { FORM, ID } from '@/lib/ape-questionnaire'
 import { getSettings } from '@/lib/site'
 import { QuestionnaireForm } from './QuestionnaireForm'
+import { ageRule, GUARDIAN_REQUIRED_UNDER } from '@/booking/age'
 import { EmbedBridge } from './EmbedBridge'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,8 @@ export default async function QuestionnairePage({ params, searchParams }: { para
   const booking = found.test ? { name: String(row.patientName || ''), dob: null } : await bookingIdentity(String(row.bookingRef))
   if (booking && !initial[ID.name] && booking.name) initial[ID.name] = booking.name
   if (booking && !initial[ID.dob] && booking.dob) initial[ID.dob] = booking.dob
+  // v1.13.0: a gentle line for patients under 18 at the appointment (from the booking's date of birth). NEW COPY for Lorna.
+  const minor = !!(booking?.dob && row.appointmentAt) && (ageRule(String(booking!.dob), String(row.appointmentAt)).age ?? 99) < GUARDIAN_REQUIRED_UNDER
   const when = row.appointmentAt ? new Date(row.appointmentAt).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
   return (
     <section className="qn-page">
@@ -64,6 +67,7 @@ export default async function QuestionnairePage({ params, searchParams }: { para
           <h2 id="qn-intro-h">{FORM.introHeading}</h2>
           {FORM.intro.map((p) => <p key={p}>{p}</p>)}
           <p className="qn-confidential">{FORM.confidential}</p>
+          {minor ? <p className="qn-minor">If you&apos;re under 18, you&apos;re welcome to fill this out with your parent or guardian.</p> : null}
         </section>
         <QuestionnaireForm token={token} initial={initial} savedAt={row.draftSavedAt || null} notice={words.notice} consentLabel={words.consent} phone={s.phone} />
       </div>

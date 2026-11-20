@@ -109,7 +109,7 @@
           "id": "f15",
           "label": "Paragraph",
           "type": "richtext",
-          "value": "<strong>When you book online or contact us</strong>, we collect your name, email address, phone number, the appointment time you choose, any note you add, and your agreement to our deposit and cancellation policy and to this policy."
+          "value": "<strong>When you book online or contact us</strong>, we collect your name, email address, phone number, the appointment time you choose, any note you add, and your agreement to our deposit and cancellation policy and to this policy. If the patient is under 18 at the appointment, we also collect a parent or guardian's name, so we know who is responsible for the booking."
         },
         {
           "id": "f16",

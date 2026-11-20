@@ -23,7 +23,7 @@ it to Lorna.
 | Email | `SMTP2GO_API_KEY`, `BOOKING_FROM`, `BOOKING_NOTIFY_EMAIL` in Vercel (Preview and Production) | same |
 | PayPal | Preview: `PAYPAL_ENV=sandbox`, sandbox `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` (sandbox webhook pointing at the preview address) | Production: `PAYPAL_ENV=live` and the live values, webhook on the real domain |
 | Sandbox buyer | the sandbox personal account email and password from developer.paypal.com > Testing Tools > Sandbox Accounts | a real card or PayPal account, refunded afterwards |
-| Questionnaire | `QUESTIONNAIRE_ENCRYPTION_KEY` (Preview), then Site Settings > Welcome pack: welcome email on, notice approved, online questionnaire on | only if Lorna has approved it; otherwise skip steps 6 and 7 |
+| Questionnaire | `QUESTIONNAIRE_ENCRYPTION_KEY` (Preview and Production). v1.13.0 records Lorna's approval and switches the online questionnaire on, so the key is the only step | same |
 | Logins | a dashboard login (and, for step 7, one with **Can view patient questionnaires**) | same |
 | Test patient address | an inbox you can read, used as the patient | same |
 
@@ -59,6 +59,12 @@ Use a clearly fake name such as `Test Patient GYA`.
    address; open Book Now from one of the links in `docs/TRACKING-LINKS.md` to see Instagram or a clinic website). Open the **Pay your deposit**
    link from the patient email in a fresh private window, pay, and check the dashboard flips to Received and the
    "Deposit received" emails arrive. Open the same link again: it says the deposit has already been received.
+5a. **Ages** (v1.13.0, no payment needed). On Book Now, pick a time and enter a date of birth that makes the patient
+   14 on the appointment day: the message "The Anxious Patient Experience is for patients aged 15 and over..." shows
+   with the phone and email, Continue is greyed out, and nothing appears under Bookings. Change the year so they are
+   16: a "Parent or guardian's full name" field appears; Continue without it shows "Please enter your parent or
+   guardian's full name."; with it, the deposit policy pop-up opens (version 3 mentions 15 and over). Stop there
+   (close the pop-up) unless you are testing a payment; a booking only exists once it is paid.
 6. **Mark confirmed** on one booking: "Your APE appointment is confirmed" arrives with both PDFs attached (and the private link if the online questionnaire is on). Pressing Mark confirmed again does not send it twice.
 7. **Fill in the questionnaire** from the link: the name and date of birth at the top are filled in from the booking
    (change one to see the "differs from the booking" flag in the dashboard); press Save and finish later, open the link again (the answers are still there), then Send my answers. Check the "Questionnaire received" email (reference and date only) and open it in Questionnaires with a login that has questionnaire access (At a glance, every answer, Print).

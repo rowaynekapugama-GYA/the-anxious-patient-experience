@@ -26,7 +26,8 @@ import { emailConfigured, siteOrigin } from './email'
 import { deliver, type Result } from './mailer'
 import { liveRecipients, questionnaireRecipients } from './recipients'
 import { DEFAULTS } from '@/site.config'
-import { escHtml, fmtDateTime, db } from '@/booking/core'
+import { escHtml, fmtDateTime, db, loadConfig } from '@/booking/core'
+import { under18, UNDER_18_LINE } from '@/booking/emails'
 import { FORM_ID, cleanAnswers, problems as answerProblems, identityProblems, identityDiffers, ID, type Answers } from './ape-questionnaire'
 import { retainUntil, fullName } from '@/booking/patient'
 
@@ -58,6 +59,9 @@ export type Switches = {
 
 export const emergencyOff = () => str(process.env.QUESTIONNAIRE_ENABLED).toLowerCase() === 'false'
 
+/** v1.13.0: is QUESTIONNAIRE_ENCRYPTION_KEY set (never its value) */
+export const encryptionKeySet = () => encryptionReady()
+
 export async function packSwitches(payload: Payload): Promise<Switches> {
   const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
   const q = s?.questionnaire || {}
@@ -84,7 +88,11 @@ export async function packSwitches(payload: Payload): Promise<Switches> {
 
 // ---------------------------------------------------------------- the words around the questionnaire
 
-export const DEFAULT_NOTICE = 'The Anxious Patient Experience team at The Cronulla Dentists asks these questions so we can get to know you and plan an appointment that feels calm and in your control. Some answers are health information. They are encrypted, stored in Australia and read only by the team members who look after your care, and they are never sent by email. Every question is optional: you can leave anything blank and talk it through with us instead. We keep your answers with your dental records for at least 7 years. You can ask to see or correct them at any time. Our Privacy Policy (section 14) explains more.'
+export const DEFAULT_NOTICE = 'The Anxious Patient Experience team at The Cronulla Dentists asks these questions so we can get to know you and plan an appointment that feels calm and in your control. Some answers are health information. They are encrypted, stored in Australia and read only by the team members who look after your care, and they are never sent by email. Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience. You can leave anything blank and talk it through with us instead. We keep your answers with your dental records for at least 7 years. You can ask to see or correct them at any time. Our Privacy Policy (section 14) explains more.'
+/** v1.13.0: Lorna's line (email of 19 Nov 2026) joined to "Every question is optional"; the old sentence, to update saved notices. */
+export const OLD_OPTIONAL_SENTENCE = 'Every question is optional: you can leave anything blank and talk it through with us instead.'
+export const NEW_OPTIONAL_SENTENCE = "Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience. You can leave anything blank and talk it through with us instead."
+export const APPROVED_BY_LORNA_QN = 'Dr Lorna Gladwin, email 19 Nov 2026'
 export const DEFAULT_CONSENT = 'I have read this notice and I am happy for the APE team to use my answers to plan my care.'
 
 // v1.12.0: the welcome email is the patient's confirmation (sent on Mark confirmed), so its subject says so
@@ -245,7 +253,7 @@ export function toHtml(text: string): string {
 /** Builds the welcome email (no sending). The link is only there while the online questionnaire is on. */
 export function welcomeEmail(o: {
   words: Pick<Words, 'subject' | 'body'>; name: string; slotStart: Date; link: string | null; received?: boolean; where: Place
-  missing?: PackFile[]; test?: boolean
+  missing?: PackFile[]; test?: boolean; under18?: boolean
 }): { subject: string; text: string; html: string } {
   const first = str(o.name).split(/\s+/)[0] || 'there'
   const when = `${fmtDateTime(o.slotStart, TZ, true)} (Sydney time)`
@@ -254,6 +262,8 @@ export function welcomeEmail(o: {
   let text = o.words.body
     .split('{first}').join(first).split('{when}').join(when).split('{phone}').join(o.where.phone)
     .split('{questionnaire}').join(qLine).split('{where}').join(where)
+  // v1.13.0: one line for patients under 18 at the appointment, after the first paragraph
+  if (o.under18) { const parts = text.split('\n\n'); parts.splice(Math.min(2, parts.length), 0, UNDER_18_LINE); text = parts.join('\n\n') }
   if (o.missing?.length) text += `\n\nIf an attachment is missing, you can also download it here:\n${o.missing.map((m) => `- ${ORIGINALS[m.key].label}: ${/^https?:/.test(m.url) ? m.url : siteOrigin(DEFAULTS.siteUrl) + m.url}`).join('\n')}`
   if (o.test) text = `TEST EMAIL with sample details. Nothing was booked.${o.link ? ' The questionnaire link opens a TEST questionnaire that is deleted after 24 hours.' : ''}\n\n${text}`
   return { subject: `${o.test ? '[TEST] ' : ''}${o.words.subject}`, text, html: toHtml(text) }
@@ -298,7 +308,7 @@ export async function sendWelcome(payload: Payload, b: BookingRow, opts: { by?: 
   if (opts.link) link = opts.link // v1.9.3: the link the booking page already shows (sent at request time)
   else if (opts.test ? opts.test.withLink : sw.online) ({ link, received } = await issueLink(payload, b, opts.test ? { email: opts.test.email } : undefined))
   const { attachments, missing } = await packAttachments(payload)
-  const m = welcomeEmail({ words, name: b.name, slotStart: new Date(b.slot_start), link, received, where, missing, test: !!opts.test })
+  const m = welcomeEmail({ words, name: b.name, slotStart: new Date(b.slot_start), link, received, where, missing, test: !!opts.test, under18: !opts.test && under18(loadConfig(), b) })
   const r = await deliver('welcome', { to: [opts.test ? opts.test.email : b.email], reply_to: where.apeEmail, subject: m.subject, text: m.text, html: m.html, ...(attachments.length ? { attachments } : {}) }, { ref: b.ref, test: !!opts.test })
   if (!opts.test) await bookingWelcome(b.ref, r.ok ? 'sent' : 'failed', opts.by || 'automatic')
   if (!r.ok && !opts.test) {

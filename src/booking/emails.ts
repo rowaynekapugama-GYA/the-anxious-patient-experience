@@ -19,6 +19,7 @@ import { DEFAULTS } from '@/site.config'
 import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
 import { REMINDER } from './terms'
 import { sourceLabel } from './source'
+import { ageRule, GUARDIAN_REQUIRED_UNDER } from './age'
 
 const { TM } = core
 export const RETRY_SECONDS = 60
@@ -30,6 +31,7 @@ export type BookingRow = {
   deposit_amount?: string | number | null; deposit_paid_at?: string | Date | null; deposit_method?: string; paypal_capture_id?: string | null
   // v1.10.0 (blank or null on bookings made before v1.10.0)
   first_name?: string; last_name?: string; dob?: string | Date | null
+  guardian_name?: string | null
   terms_version?: string; terms_consent_at?: string | Date | null; terms_read_at?: string | Date | null
   source?: string
 }
@@ -89,6 +91,8 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     ['Location', f.clinicLine],
     ...(b.first_name ? [['First name', b.first_name], ['Last name', b.last_name || '']] as [string, string][] : [['Name', b.name]] as [string, string][]),
     ['Date of birth', dob ? `${fmtDob(dob)} (age ${ageOn(dob, sydneyToday())})` : 'Not given'],
+    ['Age at appointment', dob ? String(ageRule(dob, new Date(b.slot_start)).age) : 'Not given'],
+    ...(b.guardian_name ? [['Parent or guardian', b.guardian_name]] as [string, string][] : []),
     ['Email', b.email],
     ['Phone', b.phone || 'Not provided'],
     ['Note from patient', b.notes || 'None'],
@@ -109,6 +113,15 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
   }
 }
 
+/** v1.13.0: one line for patients under 18 at the appointment (content/booking.json under18GuardianLine, default on). NEW COPY for Lorna. */
+export const UNDER_18_LINE = 'As you\'re under 18, please bring your parent or guardian to your first visit.'
+export function under18(cfg: core.Cfg, b: Pick<BookingRow, 'dob' | 'slot_start'>): boolean {
+  if (cfg.booking.under18GuardianLine === false) return false
+  const dob = dobIso(b.dob)
+  const r = dob ? ageRule(dob, new Date(b.slot_start)) : null
+  return !!r && r.age !== null && r.age < GUARDIAN_REQUIRED_UNDER
+}
+
 export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: { payLink?: string; test?: boolean } = {}): core.Email {
   const f = facts(cfg, b)
   const depositAmt = cfg.pricing.deposit
@@ -124,6 +137,7 @@ export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: 
       ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
       : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
     `${REMINDER} You can read the full deposit policy here: ${termsUrl()}`,
+    ...(under18(cfg, b) ? [UNDER_18_LINE] : []),
     'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
     `If anything changes or you have a question, simply reply to this email or call us on ${cfg.contact.phone}.`,
     `Warm regards,\n${TM} team`,

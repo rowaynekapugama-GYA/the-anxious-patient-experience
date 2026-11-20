@@ -20,16 +20,22 @@
     </div>
   </div>
   <div class="inner">
-    <h2 class="plain" style="font-size:18pt; font-weight:400; justify-content:center; margin:16mm 0 8mm">Getting to Know You</h2>
+    <!-- v1.11.0 / v1.13.0: the patient's name and date of birth at the very top (Lorna, 18 and 19 Nov 2026), as on the
+         online questionnaire, plus the date it was filled in -->
+    <div class="who">
+      <div class="who-row"><span class="who-label">Full name</span><i></i></div>
+      <div class="who-pair">
+        <div class="who-row"><span class="who-label">Date of birth</span><i><em>DD / MM / YYYY</em></i></div>
+        <div class="who-row"><span class="who-label">Date completed</span><i><em>DD / MM / YYYY</em></i></div>
+      </div>
+    </div>
+    <h2 class="plain" style="font-size:18pt; font-weight:400; justify-content:center; margin:10mm 0 8mm">Getting to Know You</h2>
     <div class="intro">
       <p>If you’re feeling nervous about your appointment, <b>you’re not alone.</b> Many patients experience anxiety around dental visits, and it can show up in different ways - worry, tension, overwhelm, or even feeling emotional when you arrive.</p>
       <p>Some people also feel embarrassed about their teeth or about avoiding the dentist, but this is something you never need to feel here. Everything you’re experiencing is valid, and you will always be met with understanding and <b>without judgement.</b></p>
       <p style="margin-bottom:0">This short form helps me get to know you and tailor your appointment so you can feel calm, supported, and in control.</p>
-    </div>
-    <!-- v1.11.0: the patient's name and date of birth (Lorna, 18 Nov 2026), as on the online questionnaire -->
-    <div class="who">
-      <div class="who-row"><span class="who-label">Full name</span><i></i></div>
-      <div class="who-row"><span class="who-label">Date of birth</span><i></i></div>
+      <!-- v1.13.0: Lorna's optional line (19 Nov 2026) and the under-18 line, as on the online questionnaire -->
+      <p class="optional">Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience. If you’re under 18, you’re welcome to fill this out with your parent or guardian.</p>
     </div>
     <p class="confidential">Your answers are confidential and help us create a calmer experience for you.</p>
   </div>

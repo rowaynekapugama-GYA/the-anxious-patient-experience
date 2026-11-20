@@ -29,6 +29,7 @@ import { sendRequestEmails } from '@/booking/paid'
 import { checkDetails, fullName } from '@/booking/patient'
 import * as terms from '@/booking/terms'
 import { cleanSource } from '@/booking/source'
+import { ageRule, cleanGuardian, guardianOk } from '@/booking/age'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -37,8 +38,8 @@ export const maxDuration = 90
 
 
 const INSERT = `
-  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, first_name, last_name, dob, terms_version, terms_consent_at, source, source_medium, source_campaign)
-  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok, $13, $14, $15::date, $16, $17::timestamptz, $18, $19, $20
+  INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, first_name, last_name, dob, terms_version, terms_consent_at, source, source_medium, source_campaign, guardian_name)
+  SELECT $1, $2::timestamptz, $3, $4, $5, $6, CASE WHEN s.ok THEN $8::int ELSE $9::int END, s.ok, $13, $14, $15::date, $16, $17::timestamptz, $18, $19, $20, NULLIF($21, '')
   FROM (SELECT ($7::boolean AND (SELECT count(*) FROM ape_bookings WHERE special AND status <> 'cancelled') < $10::int) AS ok) s
   WHERE NOT EXISTS (SELECT 1 FROM ape_blocks b WHERE b.day = $11::date AND (b.time IS NULL OR b.time = $12))
   ON CONFLICT DO NOTHING
@@ -85,6 +86,13 @@ export async function POST(req: Request) {
   const slot = core.checkSlot(cfg, core.clean(body.slotStart, 40), now)
   if (slot.error) return core.send(slot.error === 'too_soon' ? 409 : 400, { ok: false, error: slot.error })
 
+  // v1.13.0: for patients aged 15 and over; under 18 needs a parent or guardian's name (age on the appointment date).
+  // Checked here, before anything is saved, held or paid.
+  const ages = ageRule(dob, slot.start!)
+  if (ages.status === 'under_min') return core.send(400, { ok: false, error: 'invalid', fields: { dob: 'under_min' } })
+  const guardianName = ages.status === 'guardian' ? cleanGuardian(body.guardianName) : ''
+  if (ages.status === 'guardian' && !guardianOk(guardianName)) return core.send(400, { ok: false, error: 'invalid', fields: { guardian: 'required' } })
+
   if (!d || !core.emailConfigured()) {
     console.error('booking: DATABASE_URL, an email key (SMTP2GO_API_KEY or RESEND_API_KEY) and BOOKING_FROM must all be set in Vercel. Request not taken:', ref)
     return core.send(503, { ok: false, error: 'not_configured' })
@@ -97,7 +105,7 @@ export async function POST(req: Request) {
     const results = await d.tx([
       ['SELECT pg_advisory_xact_lock(4242001)', []],
       [INSERT, [ref, slot.start!.toISOString(), name, email, phone, notes, core.inSpecialWindow(cfg, slot.day!), o.price, cfg.pricing.appointment, o.maxBookings, slot.day, slot.time,
-        firstName, lastName, dob, termsVersion, consentAt.toISOString(), src.source, src.medium, src.campaign]],
+        firstName, lastName, dob, termsVersion, consentAt.toISOString(), src.source, src.medium, src.campaign, guardianName]],
     ])
     saved = results[1][0]
   } catch (err) {

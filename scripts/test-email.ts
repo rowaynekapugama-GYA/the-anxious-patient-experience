@@ -73,6 +73,20 @@ async function main() {
   check('team email: Reply-To is the patient', team.reply_to === b.email)
   const pat = emails.patientEmail(cfg, b, 'ape@example.com')
   check('patient email: Reply-To is the APE inbox', pat.reply_to === 'ape@example.com' && pat.to[0] === b.email)
+  // v1.13.0: age at the appointment and the parent or guardian; the under-18 line for the patient (can be switched off)
+  const at = new Date('2026-12-02T23:00:00.000Z') // 10am, 3 Dec 2026 in Sydney
+  const teen = { ...b, slot_start: at, first_name: 'Zelda', last_name: 'Quartermaine', dob: '2010-06-01', guardian_name: 'Mary Quartermaine' }
+  const teamTeen = emails.teamEmail(cfg, teen, { team: { list: ['team@example.com'], source: 'Site Settings' }, bcc: [] })
+  check('team email (16): age at appointment and the parent or guardian', /Age at appointment: 16/.test(teamTeen.text) && /Parent or guardian: Mary Quartermaine/.test(teamTeen.text))
+  const adult = { ...teen, dob: '1990-06-01', guardian_name: null }
+  const teamAdult = emails.teamEmail(cfg, adult, { team: { list: ['team@example.com'], source: 'Site Settings' }, bcc: [] })
+  check('team email (36): age shown, no guardian row', /Age at appointment: 36/.test(teamAdult.text) && !/Parent or guardian/.test(teamAdult.text))
+  check('team email (no DOB, older booking): "Not given"', /Age at appointment: Not given/.test(team.text))
+  const U18 = "As you're under 18, please bring your parent or guardian to your first visit."
+  check('patient email (16): the under-18 line', emails.patientEmail(cfg, teen, 'ape@example.com').text.includes(U18))
+  check('patient email (16), line switched off: not there', !emails.patientEmail({ ...cfg, booking: { ...cfg.booking, under18GuardianLine: false } }, teen, 'ape@example.com').text.includes(U18))
+  check('patient email (36 or no DOB): no under-18 line', !emails.patientEmail(cfg, adult, 'ape@example.com').text.includes(U18) && !pat.text.includes(U18))
+  check('patient email: never the guardian name or the DOB', !/Mary Quartermaine|2010|1 June/.test(emails.patientEmail(cfg, teen, 'ape@example.com').text))
 
   // 3. a failed send: logged, retried after a minute, then flagged
   const d = core.db()!

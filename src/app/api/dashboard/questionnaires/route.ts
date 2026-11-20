@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       const d = db()
       if (!d) return json(503, { ok: false, error: 'no_database' })
       const ref = String(body.ref || '').toUpperCase()
-      const rows = await d.query(`SELECT ref, name, email, slot_start, status FROM ape_bookings WHERE ref = $1`, [ref])
+      const rows = await d.query(`SELECT ref, name, email, slot_start, status, dob FROM ape_bookings WHERE ref = $1`, [ref])
       if (!rows[0]) return json(404, { ok: false, error: 'not_found' })
       if (rows[0].status !== 'confirmed') return json(400, { ok: false, error: 'not_confirmed' })
       const r = await q.sendWelcome(payload, rows[0] as q.BookingRow, { manual: true, by: u.email })

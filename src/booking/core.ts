@@ -276,6 +276,8 @@ const SCHEMA = [
   // payment). Null: no hold (paid, or no online payment).
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS hold_until timestamptz`,
   `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS cancel_reason text NOT NULL DEFAULT ''`,
+  // v1.13.0: a parent or guardian's name, required to book for patients under 18 at the appointment (null otherwise)
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS guardian_name text`,
   // v1.10.0: who gave or took away questionnaire access or practice owner, for whom and when (also made by the
   // v1.10.0 migration)
   `CREATE TABLE IF NOT EXISTS ape_access_log (

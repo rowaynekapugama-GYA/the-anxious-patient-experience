@@ -504,3 +504,8 @@ fieldset.dob legend{display:block;font-size:15px;font-weight:600;color:var(--nav
 @media (max-width:560px){.policy-overlay{padding:8px;align-items:flex-end}.policy-dialog{border-radius:20px;max-height:calc(100dvh - 16px)}.policy-head{padding:18px 18px 8px}.policy-body{padding:12px 18px;font-size:15.5px}.policy-foot{padding:12px 18px 16px}.policy-actions{justify-content:stretch}.policy-actions .btn{flex:1 1 auto}}
 @media (max-width:360px){.policy-head h2{font-size:21px}.policy-tick{font-size:15px;line-height:1.45}.policy-actions{flex-wrap:nowrap;gap:8px}.policy-actions .btn{padding:12px 12px;font-size:14.5px;min-height:44px}}
 @media (max-height:520px){.policy-head{padding:10px 18px 6px}.policy-head h2{font-size:20px}.policy-foot{padding:8px 18px 10px}.policy-actions{margin-top:6px}}
+/* v1.13.0: the age rule on Book Now (15 and over; a parent or guardian's name under 18) */
+.booking [hidden]{display:none!important}
+.age-note{margin:18px 0 0;font-size:15px;color:var(--ink-soft)}
+.age-stop{grid-column:1/-1;background:var(--blush);border-radius:16px;padding:16px 20px;color:var(--navy)}
+.age-stop p{margin:0 0 6px}.age-stop p:last-child{margin:0}

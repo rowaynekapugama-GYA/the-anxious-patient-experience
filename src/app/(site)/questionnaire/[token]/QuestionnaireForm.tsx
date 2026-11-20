@@ -186,7 +186,7 @@ export function QuestionnaireForm({ token, initial, savedAt, notice, consentLabe
         </div>
         <p className="qn-status" role="status" aria-live="polite">{status}</p>
         {error ? <p className="qn-err" role="alert">{error}</p> : null}
-        <p className="qn-small">Your name and date of birth are needed to send. Every question is optional. Your answers are only sent when you press Send my answers.</p>
+        <p className="qn-small">Your name and date of birth are needed to send. Every question is optional, but we kindly request you fill out as much as possible to get the most out of your experience. Your answers are only sent when you press Send my answers.</p>
       </section>
     </form>
   )

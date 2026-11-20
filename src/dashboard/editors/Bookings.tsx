@@ -23,7 +23,7 @@ export type Booking = {
   /** v1.9.0: the welcome pack email */
   welcome: { status: string; sentAt: string | null; count: number; by: string }
   /** v1.10.0: first and last name, date of birth (null before v1.10.0) with today's age, and the terms ticks */
-  firstName: string; lastName: string; dob: string | null; age: number | null; ageAtAppointment: number | null
+  firstName: string; lastName: string; dob: string | null; age: number | null; ageAtAppointment: number | null; guardianName?: string
   terms: { version: string; consentAt: string | null; readAt: string | null; payReadAt: string | null }
   /** v1.11.0: where the visit came from */
   source?: { label: string; source: string; medium: string; campaign: string }
@@ -178,8 +178,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   }
 
   function csv() {
-    const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Deposit policy version', 'Deposit policy agreed', 'Source', 'Campaign', 'Note from patient', 'Requested on']]
-    for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt || b.terms.payReadAt ? when((b.terms.consentAt || b.terms.payReadAt)!) : '', b.source?.label || '', b.source?.campaign || '', b.notes, when(b.createdAt)])
+    const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Age at appointment', 'Parent or guardian', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Deposit policy version', 'Deposit policy agreed', 'Source', 'Campaign', 'Note from patient', 'Requested on']]
+    for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.ageAtAppointment === null ? '' : String(b.ageAtAppointment), b.guardianName || '', b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt || b.terms.payReadAt ? when((b.terms.consentAt || b.terms.payReadAt)!) : '', b.source?.label || '', b.source?.campaign || '', b.notes, when(b.createdAt)])
     const text = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }))
@@ -250,7 +250,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                   <tr>
                     <td><b>{b.when}</b><br /><span className="muted">{b.ref}</span></td>
                     <td><button className="btn ghost small t-title" aria-expanded={open === b.ref} onClick={() => setOpen(open === b.ref ? null : b.ref)}>{b.name}</button>
-                      <br /><span className="muted">DOB {dobText(b)}</span>{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? <> <span className="chip warn" title="Under 18 at the appointment">Under 18</span></> : null}</td>
+                      <br /><span className="muted">DOB {dobText(b)}</span>{b.ageAtAppointment !== null ? <><br /><span className="muted">Age {b.ageAtAppointment} at appointment</span></> : null}{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? <> <span className="chip warn" title="Under 18 at the appointment">Under 18</span></> : null}{b.guardianName ? <><br /><span className="muted">Parent or guardian: {b.guardianName}</span></> : null}</td>
                     <td>{b.phone ? <><a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`}>{b.phone}</a><br /></> : null}<a href={`mailto:${b.email}`}>{b.email}</a></td>
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
@@ -280,7 +280,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                       <dl className="booking-facts">
                         <div><dt>First name</dt><dd>{b.firstName || <span className="muted">not given (booked as {b.name})</span>}</dd></div>
                         <div><dt>Last name</dt><dd>{b.lastName || <span className="muted">not given</span>}</dd></div>
-                        <div><dt>Date of birth</dt><dd>{dobText(b)}{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? ' (under 18 at the appointment)' : ''}</dd></div>
+                        <div><dt>Date of birth</dt><dd>{dobText(b)}{b.ageAtAppointment !== null ? `, age ${b.ageAtAppointment} at the appointment` : ''}</dd></div>
+                        {b.guardianName ? <div><dt>Parent or guardian</dt><dd>{b.guardianName}</dd></div> : null}
                         <div><dt>Phone</dt><dd>{b.phone || <span className="muted">not given</span>}</dd></div>
                       </dl>
                       <p className="help" style={{ margin: 0 }}>Requested {when(b.createdAt)}.{' '}

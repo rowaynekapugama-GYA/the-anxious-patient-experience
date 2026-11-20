@@ -1,6 +1,6 @@
 /**
- * Booking details, deposit policy, payments, pay to book, booking sources and questionnaire access tests (v1.10.0 to
- * v1.12.0), with
+ * Booking details, deposit policy, payments, pay to book, booking sources, the age rule and questionnaire access tests
+ * (v1.10.0 to v1.13.0), with
  * SMTP2GO replaced by a local
  * stand-in. Needs a TEST database (DATABASE_URL) that has been migrated: it adds logins and bookings marked UNIT and
  * removes them again. Never run it against the live database.
@@ -112,7 +112,8 @@ async function main() {
 
   // ------------------------------------------------------------ terms
   const t0 = T.fromSettings(null)
-  check("policy: Lorna's wording is the default, version 2 (2026-11-18), approved by her", !t0.saved && t0.label === '2 (2026-11-18)' && /Lorna Gladwin/.test(t0.approvedBy))
+  check("policy: the default is version 3 (2026-11-19), Lorna's version 2 plus the age sentence, waiting for her approval", !t0.saved && t0.label === '3 (2026-11-19)' && t0.approvedBy === '')
+  check('policy v3: the age sentence, after the deposit paragraph', T.DEFAULT_TERMS.includes("The Anxious Patient Experience is for patients aged 15 and over. Patients under 18 need a parent or guardian's name to book.") && T.DEFAULT_TERMS.replace(/\n\nThe Anxious Patient Experience is for patients aged 15 and over\. Patients under 18 need a parent or guardian's name to book\./, '') === T.LORNA_V2_TERMS)
   const lorna = [
     '## Your Appointment Deposit',
     'To secure your appointment, a {deposit} deposit is required at the time of booking. This deposit will be deducted from the cost of your appointment on the day.',
@@ -238,10 +239,17 @@ async function main() {
   await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { text: T.V1_DRAFT_TERMS, consentLabel: T.V1_CONSENT, version: 1, changedAt: '2026-11-17T00:00:00.000Z' } } as never })
   const r1 = await upd.apply(payload)
   const after1 = T.fromSettings((await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>).bookingTerms)
-  check('release: the v1.10.0 draft becomes Lorna\'s wording, version 2, approved', /applied/.test(r1) && after1.text === T.DEFAULT_TERMS && after1.version === 2 && after1.consentLabel === T.DEFAULT_CONSENT && /Lorna/.test(after1.approvedBy), r1)
+  check('release: the v1.10.0 draft becomes Lorna\'s wording, version 2, approved', /applied/.test(r1) && after1.text === T.LORNA_V2_TERMS && after1.version === 2 && after1.consentLabel === T.DEFAULT_CONSENT && /Lorna/.test(after1.approvedBy), r1)
   check('release: running it again changes nothing', /left alone/.test(await upd.apply(payload)))
+  // v1.13.0: Lorna's version 2 becomes version 3 with the age sentence, waiting for her approval
+  const upd13 = UPDATES.find((u) => u.id === 'v1.13.0-deposit-policy-age')!
+  const r13 = await upd13.apply(payload)
+  const after13 = T.fromSettings((await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>).bookingTerms)
+  check('v1.13.0 release: version 2 becomes version 3 with the age sentence, approval cleared', /applied/.test(r13) && after13.text === T.DEFAULT_TERMS && after13.version === 3 && after13.approvedBy === '' && after13.label === '3 (2026-11-19)', r13)
+  check('v1.13.0 release: running it again changes nothing', /left alone/.test(await upd13.apply(payload)))
   await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { text: '## Our own\nWords about 48 hours.', version: 5 } } as never })
   check('release: wording the practice changed itself is left alone', /left alone/.test(await upd.apply(payload)))
+  check('v1.13.0 release: wording the practice changed itself is left alone', /left alone/.test(await upd13.apply(payload)))
   await payload.updateGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { bookingTerms: { ...(keepTerms || {}), text: keepTerms?.text || '' } } as never })
 
   // ------------------------------------------------------------ v1.12.0: pay to book
@@ -296,6 +304,96 @@ async function main() {
     // the welcome email is the confirmation
     const QN = await import('../src/lib/questionnaire')
     check('welcome email subject: "Your APE appointment is confirmed"', QN.DEFAULT_SUBJECT === 'Your APE appointment is confirmed')
+  }
+
+  // ------------------------------------------------------------ v1.13.0: 15 and over, a parent or guardian's name under 18
+  {
+    const A = await import('../src/booking/age')
+    const { createRequire } = await import('node:module')
+    const AJS = createRequire(import.meta.url)('../public/assets/age.js') as { rule: (d: string | null, s: string, o?: unknown) => { age: number | null; status: string }; appointmentDay: (s: string) => string; guardianOk: (v: unknown) => boolean; cleanGuardian: (v: unknown) => string }
+    check('age rule: one constant, guardian required under 18, minimum 15', A.GUARDIAN_REQUIRED_UNDER === 18 && A.MIN_AGE === 15)
+    // appointment 10am on Thursday 3 Dec 2026 in Sydney (23:00 UTC on the 2nd)
+    const slot = '2026-12-02T23:00:00.000Z'
+    const cases: [string, string | null, string, number | null, string][] = [
+      ['14 years and 364 days on the day: cannot book', '2011-12-04', slot, 14, 'under_min'],
+      ['exactly 15 on the day: can book, needs a guardian', '2011-12-03', slot, 15, 'guardian'],
+      ['17: needs a guardian', '2009-06-01', slot, 17, 'guardian'],
+      ['the day before the 18th birthday: needs a guardian', '2008-12-04', slot, 17, 'guardian'],
+      ['exactly 18 on the day: no guardian needed', '2008-12-03', slot, 18, 'ok'],
+      ['25: no guardian needed', '2001-03-10', slot, 25, 'ok'],
+      ['Sydney date, not UTC: 1am on 3 Dec in Sydney is the 18th birthday', '2008-12-03', '2026-12-02T14:00:00.000Z', 18, 'ok'],
+      ['birthday between booking (19 Nov, aged 14) and the appointment: 15 on the day, can book', '2011-11-25', slot, 15, 'guardian'],
+      ['29 February birthday: 17 on 28 Feb', '2008-02-29', '2026-02-27T23:00:00.000Z', 17, 'guardian'],
+      ['29 February birthday: 18 on 1 March', '2008-02-29', '2026-02-28T23:00:00.000Z', 18, 'ok'],
+      ['date of birth missing (older booking): unknown, not blocked', null, slot, null, 'unknown'],
+    ]
+    for (const [name, dobv, at, age, status] of cases) {
+      const s1 = A.ageRule(dobv, at)
+      const s2 = AJS.rule(dobv, at)
+      check(`age: ${name}`, s1.age === age && s1.status === status, JSON.stringify(s1))
+      check(`age (Book Now script agrees): ${name}`, s2.age === s1.age && s2.status === s1.status, JSON.stringify(s2))
+    }
+    check('age: the appointment day is the Sydney date', A.appointmentDay(slot) === '2026-12-03' && AJS.appointmentDay(slot) === '2026-12-03')
+    check('guardian name: tidied, 2 characters minimum, both sides agree', A.cleanGuardian('  Ada\n  Lovelace ') === 'Ada Lovelace' && AJS.cleanGuardian('  Ada\n  Lovelace ') === 'Ada Lovelace' && !A.guardianOk(' x ') && !AJS.guardianOk(' x ') && A.guardianOk('Jo') && AJS.guardianOk('Jo') && A.cleanGuardian('x'.repeat(200)).length === 120)
+
+    // through /api/booking: the server enforces the rule before any hold or order
+    await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.13.0'`)
+    const st = await core.readState()
+    const free = core.availability(st.cfg, st.state, Date.now()).slots as { start: string }[]
+    const at = free[free.length - 4].start
+    const day = A.appointmentDay(at)
+    const [y, mo, dd] = day.split('-').map(Number)
+    const dobFor = (yearsBefore: number, shiftDays = 0) => { const t = new Date(Date.UTC(y - yearsBefore, mo - 1, dd + shiftDays)); return { day: String(t.getUTCDate()), month: String(t.getUTCMonth() + 1), year: String(t.getUTCFullYear()) } }
+    const b13 = { ...base, slotStart: at, notes: 'UNIT v1.13.0' }
+    const count13 = async () => Number((await d.query(`SELECT count(*)::int AS n FROM ape_bookings WHERE notes = 'UNIT v1.13.0'`))[0].n)
+    const u15 = await post({ ...b13, dob: dobFor(15, 1) })
+    const u15j = await u15.json() as { fields?: Record<string, string> }
+    check('API: 14 (a day short of 15) is refused, nothing saved or held', u15.status === 400 && u15j.fields?.dob === 'under_min' && (await count13()) === 0, JSON.stringify(u15j))
+    const noG = await post({ ...b13, dob: dobFor(16) })
+    const noGj = await noG.json() as { fields?: Record<string, string> }
+    check('API: 16 without a parent or guardian name is refused, nothing saved', noG.status === 400 && noGj.fields?.guardian === 'required' && (await count13()) === 0, JSON.stringify(noGj))
+    check('API: a one-letter guardian name is refused', (await post({ ...b13, dob: dobFor(16), guardianName: 'J' })).status === 400)
+    sent.length = 0
+    const yes = await post({ ...b13, dob: dobFor(16), guardianName: '  Mary   Quartermaine ' })
+    const yesj = await yes.json() as { ok: boolean; ref: string }
+    const r16 = (await d.query(`SELECT guardian_name FROM ape_bookings WHERE ref = $1`, [yesj.ref]))[0]
+    check('API: 16 with a guardian name is accepted and the name saved tidied', yes.status === 200 && yesj.ok && r16?.guardian_name === 'Mary Quartermaine')
+    const tm16 = sent.find((m) => /New booking request/.test(m.subject))
+    const pm16 = sent.find((m) => /We have received/.test(m.subject))
+    check('team email: age at appointment and the parent or guardian', !!tm16 && /Age at appointment: 16/.test(tm16.text) && /Parent or guardian: Mary Quartermaine/.test(tm16.text), tm16?.text.split('\n').filter((l) => /Age|guardian/i.test(l)).join(' | '))
+    check("patient email: the under-18 line", !!pm16 && pm16.text.includes("As you're under 18, please bring your parent or guardian to your first visit."))
+    const just15 = await post({ ...b13, slotStart: free[free.length - 5].start, dob: (() => { const dd5 = A.appointmentDay(free[free.length - 5].start).split('-').map(Number); return { day: String(dd5[2]), month: String(dd5[1]), year: String(dd5[0] - 15) } })(), guardianName: 'Mary Quartermaine' })
+    check('API: 15 on the appointment day (with a guardian) is accepted', just15.status === 200)
+    sent.length = 0
+    const adult18 = await post({ ...b13, slotStart: free[free.length - 6].start, dob: (() => { const dd6 = A.appointmentDay(free[free.length - 6].start).split('-').map(Number); return { day: String(dd6[2]), month: String(dd6[1]), year: String(dd6[0] - 18) } })(), guardianName: 'Should Not Be Saved' })
+    const a18 = await adult18.json() as { ref: string }
+    const r18 = (await d.query(`SELECT guardian_name FROM ape_bookings WHERE ref = $1`, [a18.ref]))[0]
+    check('API: exactly 18 needs no guardian, and a sent name is not saved', adult18.status === 200 && r18?.guardian_name === null)
+    const tm18 = sent.find((m) => /New booking request/.test(m.subject))
+    const pm18 = sent.find((m) => /We have received/.test(m.subject))
+    check('adult emails: age shown, no guardian row, no under-18 line', !!tm18 && /Age at appointment: 18/.test(tm18.text) && !/Parent or guardian/.test(tm18.text) && !!pm18 && !/under 18/.test(pm18.text))
+    // the under-18 line can be switched off (content/booking.json under18GuardianLine)
+    const cfg = core.loadConfig()
+    const row16 = (await d.query(`SELECT * FROM ape_bookings WHERE ref = $1`, [yesj.ref]))[0] as Parameters<typeof emails.patientEmail>[1]
+    const live = { team, bcc: [] }
+    check('under-18 line: on by default', /under 18/.test(emails.patientEmail(cfg, row16, 'ape@example.com').text))
+    check('under-18 line: switched off, gone', !/under 18/.test(emails.patientEmail({ ...cfg, booking: { ...cfg.booking, under18GuardianLine: false } }, row16, 'ape@example.com').text))
+    check('older booking: "Age at appointment: Not given"', /Age at appointment: Not given/.test(emails.teamEmail(cfg, { ref: 'APE-OLD002', slot_start: new Date(), name: 'Old Booking', email: 'o@example.com', phone: '', notes: '', price: 350, special: false, status: 'requested', created_at: new Date() }, live).text))
+
+    // PayPal order and capture refuse a booking that is under 15 on the day (if one ever got in)
+    process.env.PAYPAL_CLIENT_ID = 'unit-client'; process.env.PAYPAL_CLIENT_SECRET = 'unit-secret'
+    const held = await post({ ...b13, slotStart: free[free.length - 7].start, dob: dobFor(30) })
+    const heldj = await held.json() as { ref: string; payment?: { token?: string } }
+    await d.query(`UPDATE ape_bookings SET dob = $2 WHERE ref = $1`, [heldj.ref, `${y - 14}-${String(mo).padStart(2, '0')}-${String(dd).padStart(2, '0')}`])
+    const { POST: ORDER } = await import('../src/app/api/paypal/order/route')
+    const { POST: CAPTURE } = await import('../src/app/api/paypal/capture/route')
+    const call = (fn: (r: Request) => Promise<Response>, path: string, b: unknown) => fn(new Request(`http://localhost${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.13.0.1' }, body: JSON.stringify(b) }))
+    const o = await call(ORDER, '/api/paypal/order', { token: heldj.payment?.token, source: 'paypal', policyAgreed: true })
+    check('PayPal order: refused for a patient under 15 on the day (no order made)', o.status === 400 && (await o.json() as { error: string }).error === 'age')
+    const c = await call(CAPTURE, '/api/paypal/capture', { token: heldj.payment?.token, orderId: 'UNITORDER', source: 'paypal' })
+    check('PayPal capture: refused for a patient under 15 on the day', c.status === 400 && (await c.json() as { error: string }).error === 'age')
+    delete process.env.PAYPAL_CLIENT_ID; delete process.env.PAYPAL_CLIENT_SECRET
+    await d.query(`DELETE FROM ape_bookings WHERE notes = 'UNIT v1.13.0'`)
   }
 
   // ------------------------------------------------------------ questionnaire access: owner yes, editor no, admin yes

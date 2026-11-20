@@ -27,6 +27,7 @@ For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md
 `docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`. v1.10.0: `docs/PAYPAL-ADVANCED-SETUP.md` (for Andy and Ram)
 and `docs/FOR-LORNA-v1.10.0.md` (wording and questions for Lorna). v1.11.0: `docs/FOR-LORNA-v1.11.0.md` (the
 analytics privacy paragraph), `docs/TRACKING-LINKS.md`, `docs/SEARCH-CONSOLE.md` and `docs/HOW-TO-SEE-YOUR-NUMBERS.md`.
+v1.13.0: `docs/stock-shot-list.md` (a brief for a licensed hands photo).
 
 ## Vercel environment variables (v1.6.0)
 
@@ -50,7 +51,7 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `DEPOSIT_PAYMENT_URL`, `STRIPE_WEBHOOK_SECRET` | | Stripe, replaced by PayPal in v1.8.0 | **delete** if present |
 | `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
 | `QUESTIONNAIRE_ENABLED` | Production, Preview | Leave unset. Since v1.9.0 the switches are in the dashboard (Site Settings > Welcome pack); `false` here is only an emergency off switch for the online questionnaire. | optional |
-| `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist; keep a copy in the GYA password manager. | add when Lorna approves |
+| `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist (no key rotation); keep a copy in the GYA password manager. | add now: Lorna approved on 19 Nov 2026 (README, v1.13.0) |
 | `PAYPAL_ADVANCED` | Preview first, then Production | `on` switches on PayPal Advanced Checkout (card fields, Apple Pay, Google Pay). Not Sensitive. Leave unset until PayPal approves it (`docs/PAYPAL-ADVANCED-SETUP.md`). | v1.10.0, later |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Production | Optional: the contents of PayPal's Apple Pay domain file, if it is not put in `config/apple-pay/`. Public, not Sensitive. | v1.10.0, optional |
 | `NEXT_PUBLIC_GA4_ID` | Production | Optional Google Analytics 4 ID (`G-...`). Normally set in the dashboard instead (Site Settings > Tracking, which wins). Not Sensitive. Leave unset until Lorna approves the analytics paragraph (`docs/FOR-LORNA-v1.11.0.md`). Needs a redeploy. | v1.11.0, optional |
@@ -198,6 +199,40 @@ of places stay in `content/booking.json` (GYA).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
 
+## Questionnaire live, 15 and over, guardian name (v1.13.0)
+
+- **Online questionnaire**: Lorna approved it on 19 Nov 2026. The release `v1.13.0-questionnaire-approved` (once, in
+  `ape_meta`) records "Dr Lorna Gladwin, email 19 Nov 2026" as the approval and switches the online questionnaire on.
+  It runs only when `QUESTIONNAIRE_ENCRYPTION_KEY` is also set; until then Site Settings > Welcome pack lists the key
+  as the one thing missing and the welcome email says "bring it with you" instead of giving a link.
+- **Adding the key** (GYA, once):
+  1. On your own computer: `openssl rand -base64 32`. Do not paste it into chat, email, a ticket or the repo.
+  2. Vercel > the project > Settings > Environment Variables > Add: name `QUESTIONNAIRE_ENCRYPTION_KEY`, the value,
+     Environments **Production** and **Preview**, **Sensitive** on. Save.
+  3. Save the same value in the GYA password manager, entry "APE questionnaire encryption key".
+  4. Redeploy production (Deployments > latest production > Redeploy) so the key is picked up.
+  5. Check: `vercel env ls` shows the name (never the value); Site Settings > Welcome pack shows the online
+     questionnaire as live; a test from Email check > "Welcome pack (patient)" has a working TEST questionnaire link.
+- **No key rotation in this build.** Answers (and saved drafts) are sealed with that one key. Never change or delete
+  it once answers exist: they could not be read back. Rotation would need a re-encryption step that does not exist yet.
+- **Age rule** (`src/booking/age.ts`, mirrored in `public/assets/age.js` for Book Now; the test checks they agree):
+  `MIN_AGE = 15`, `GUARDIAN_REQUIRED_UNDER = 18`. Age is worked out from the date of birth on the appointment date in
+  Sydney. Under 15: refused by Book Now (message plus phone and email, Continue disabled) and by `/api/booking`
+  (`fields.dob = 'under_min'`) before any hold; the PayPal order and capture routes also refuse (`age`). 15 to 17:
+  `guardianName` required (2 to 120 characters, tidied), saved in `ape_bookings.guardian_name` (additive column);
+  refused with `fields.guardian = 'required'` without it. 18 and over: no guardian, and a sent name is not saved.
+  Bookings with no DOB (before v1.10.0) are not blocked and show "DOB not given". To change "under 18" to "18 and
+  under", set `GUARDIAN_REQUIRED_UNDER = 19` in both files.
+- **Under-18 line** in the patient booking email and the welcome email: `content/booking.json` `under18GuardianLine`
+  (default true). Team email: "Age at appointment" and "Parent or guardian".
+- **Deposit policy version 3**: `DEFAULT_TERMS` is version 2 plus the age sentence (`LORNA_V2_TERMS` keeps version 2).
+  The release moves a saved version 2 to version 3 and clears the approval; any other saved wording is left alone.
+  Lorna approves it in Site Settings > Deposit policy.
+- **Homepage photo**: `v1.13.0-hands-photo` swaps the "Our approach" photo to `ape-textured-napkin` in the saved page,
+  unless a Media Library photo is already in that spot.
+- **Practice sites pack**: brand, copy blocks, logos, images and screenshots for the Cronulla and Caringbah APE
+  sections are in the delivery zip (`handoff/practice-sites/`), not in the repo.
+
 ## Pay to book and the confirmation email (v1.12.0)
 
 - **Pay to book** (only when PayPal is set up; without it, requests are taken as before): Book Now's step 3 button is
@@ -333,7 +368,8 @@ docs/                    HOW-TO-UPDATE.md (for the practice), screenshots/, buil
 Tests (each needs a migrated TEST database in `DATABASE_URL`, never the live one): `npm run test:booking`
 (required fields, dates of birth, phone numbers, retention, the deposit policy record and wording, booking sources,
 3D Secure decisions, questionnaire access, notification fallback, the mismatch flag; v1.11.0 adds the pop-up
-agreement being required, the version and time saved, $ following the deposit setting and the release update),
+agreement being required, the version and time saved, $ following the deposit setting and the release update; v1.13.0
+adds the age rule on both sides, the guardian name, order and capture refusals and the under-18 emails),
 `npm run test:questionnaire`, `npm run test:email`.
 
 `npm run qa` runs them all: `typecheck`, `qa:parity` (content renders back to v1.4.0 byte for byte), `qa:editor`
@@ -375,7 +411,8 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | PayPal credentials | `PAYPAL_*` in Vercel once Andy's app and webhook exist (`docs/PAYPAL-SETUP.md`) |
 | Privacy policy: legal entity and Privacy Officer name | Pages > Privacy Policy (written for APE on 9 Nov 2026; Lorna to confirm) |
 | Domain: theanxiouspatientexperience.com.au at VentraIP | `docs/GO-LIVE-DOMAIN.md` (waiting on VentraIP access) |
-| Lorna's approval of the welcome email wording, collection notice and privacy wording; who reads questionnaires; the encryption key | Site Settings > Welcome pack; both switches off until then |
+| v1.13.0: the encryption key (Lorna approved the questionnaire on 19 Nov 2026); Lorna ticks who can read questionnaires | Vercel `QUESTIONNAIRE_ENCRYPTION_KEY`; Users screen |
+| v1.13.0: Lorna to approve the new wording: deposit policy version 3 (age sentence), "for patients aged 15 and over" on Book Now, the under-15 message, the guardian field and its help text, the under-18 lines (emails and questionnaire), the privacy sentence; and whether 18-year-olds need a guardian | Site Settings > Deposit policy; CHANGELOG 1.13.0 |
 | v1.10.0: terms draft, the two tick boxes, the late-cancellation deposit rule, under-18s, privacy and collection notice drafts | `docs/FOR-LORNA-v1.10.0.md`; Site Settings > Booking terms (Draft until approved) |
 | v1.10.0: PayPal Advanced Checkout approval, Apple Pay domain file, fees | `docs/PAYPAL-ADVANCED-SETUP.md` (Andy and Ram) |
 | v1.11.0: GA4 property, Lorna's approval of the analytics paragraph, then the ID in Site Settings > Tracking | `docs/FOR-LORNA-v1.11.0.md`, `docs/HOW-TO-SEE-YOUR-NUMBERS.md` |
@@ -400,6 +437,8 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 - [ ] Book Now hero "pay your deposit online in four simple steps" true once the PayPal variables are in
 - [ ] PayPal business account: **PayPal account optional** on (guest card checkout)
 - [x] Lorna's deposit policy in place (Site Settings > Deposit policy, version 2, her email of 18 Nov 2026)
+- [ ] `QUESTIONNAIRE_ENCRYPTION_KEY` in Vercel (Production and Preview, Sensitive), saved in the password manager, redeployed
+- [ ] Lorna approved deposit policy version 3 and the v1.13.0 age wording
 - [ ] Lorna approved the v1.10.0 privacy drafts and the v1.11.0 analytics paragraph; then GA4 ID added
 - [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
 - [ ] New copy signed off (CHANGELOG 1.5.0, 1.4.0, 1.3.0)

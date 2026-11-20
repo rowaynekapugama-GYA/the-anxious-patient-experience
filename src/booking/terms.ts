@@ -13,13 +13,31 @@
  */
 import type { Payload } from 'payload'
 
-export const DEFAULT_VERSION = 2
-export const DEFAULT_DATE = '2026-11-18'
+export const DEFAULT_VERSION = 3
+export const DEFAULT_DATE = '2026-11-19'
 
 // v1.11.0: Lorna's deposit policy, word for word from her email of 18 Nov 2026 (her decision on the terms; it replaced
 // the v1.10.0 draft). {deposit} is filled in from the deposit setting, so the amount can never disagree with what is
 // charged. Shown in the pop-up before the deposit step, on the pay-later page and at /book-now/terms/.
+// v1.13.0: version 3 adds the age rule (Lorna's email of 19 Nov 2026) as one short paragraph; the sentence is NEW
+// COPY for her approval, everything else is her wording from 18 Nov, word for word.
 export const DEFAULT_TERMS = `## Your Appointment Deposit
+To secure your appointment, a {deposit} deposit is required at the time of booking. This deposit will be deducted from the cost of your appointment on the day.
+
+The Anxious Patient Experience is for patients aged 15 and over. Patients under 18 need a parent or guardian's name to book.
+
+## Cancellations and Rescheduling
+We understand that sometimes plans change. If you need to cancel or rearrange your appointment, please contact us more than 48 hours in advance. Your deposit can be transferred to a future appointment or refunded where applicable.
+
+Cancellations or changes made within 48 hours of your appointment will result in your deposit being forfeited.
+
+If you do not attend your appointment without notifying us, your deposit will be non-refundable and non-transferable.
+
+## We're Here to Help
+We understand that dental anxiety can make attending an appointment feel difficult. If you're feeling overwhelmed or something unexpected has happened, please contact us as early as possible. We'd much rather hear from you and talk things through.`
+
+/** Lorna's version 2 (18 Nov 2026), exactly, so a database holding it can be moved on to version 3. */
+export const LORNA_V2_TERMS = `## Your Appointment Deposit
 To secure your appointment, a {deposit} deposit is required at the time of booking. This deposit will be deducted from the cost of your appointment on the day.
 
 ## Cancellations and Rescheduling
@@ -84,9 +102,9 @@ export function fromSettings(g: Record<string, any> | null | undefined): Terms {
     consentLabel: String(g?.consentLabel || '').trim() || DEFAULT_CONSENT,
     readLabel: String(g?.readLabel || '').trim() || DEFAULT_READ,
     saved: !!text,
-    // the default is Lorna's own wording, so it counts as approved by her
-    approvedBy: text ? String(g?.approvedBy || '') : APPROVED_BY_LORNA,
-    approvedAt: text ? (g?.approvedAt ? String(g.approvedAt) : null) : '2026-11-18T00:00:00.000Z',
+    // v1.13.0: the default (version 3) adds the age sentence, which waits for Lorna's approval
+    approvedBy: text ? String(g?.approvedBy || '') : '',
+    approvedAt: text ? (g?.approvedAt ? String(g.approvedAt) : null) : null,
   }
 }
 

@@ -5,6 +5,7 @@
  */
 import * as core from '@/booking/core'
 import * as terms from '@/booking/terms'
+import { AGE_RULE } from '@/booking/age'
 
 /** The deposit policy for the Book Now pop-up (v1.10.0 as booking terms; v1.11.0 Lorna's wording), filled in, with its version and tick label. */
 async function currentTerms(cfg: core.Cfg) {
@@ -36,5 +37,5 @@ export async function GET(req: Request) {
   }
   const out = core.availability(r.cfg, r.state, Date.now())
   const summary = new URL(req.url).searchParams.get('summary') === '1'
-  return core.send(200, { ok: true, bookable: r.state.db, ...(summary ? { special: out.special } : { ...out, terms: await currentTerms(r.cfg) }) })
+  return core.send(200, { ok: true, bookable: r.state.db, ...(summary ? { special: out.special } : { ...out, terms: await currentTerms(r.cfg), ages: AGE_RULE }) })
 }

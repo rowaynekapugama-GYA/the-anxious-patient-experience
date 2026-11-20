@@ -11,6 +11,8 @@
  */
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
+import { ageRule } from '@/booking/age'
+import { dobIso } from '@/booking/emails'
 import { paypalConfigured, paypalAdvanced, createDepositOrder, siteOriginFallback, asSource } from '@/lib/paypal'
 import { tickTime } from '@/booking/terms'
 import { siteOrigin } from '@/lib/email'
@@ -32,6 +34,8 @@ export async function POST(req: Request) {
     await core.ensureSchema(d, cfg)
     const found = await deposit.bookingForToken(d, String(body.token || ''))
     if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: deposit.releasedUnpaid(found.row) ? 'released' : found.state })
+    // v1.13.0: never take a deposit for a patient under 15 on the appointment date (bookings are checked on the way in)
+    if (ageRule(dobIso((found.row as { dob?: string | Date | null }).dob ?? null), found.row.slot_start).status === 'under_min') return core.send(400, { ok: false, error: 'age' })
     const source = asSource(body.source)
     if (source !== 'paypal' && !paypalAdvanced()) return core.send(400, { ok: false, error: 'source_off' })
     const row = found.row as deposit.BookingRow & { terms_consent_at?: string | null; terms_pay_read_at?: string | null }

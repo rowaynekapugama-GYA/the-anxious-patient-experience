@@ -213,7 +213,7 @@ export const UPDATES: Update[] = [
         data: {
           bookingTerms: {
             ...cur,
-            text: terms.DEFAULT_TERMS,
+            text: terms.LORNA_V2_TERMS,
             consentLabel: !label || label === terms.V1_CONSENT ? terms.DEFAULT_CONSENT : label,
             version: Math.max(1, Number(cur.version) || 1) + 1,
             changedAt: '2026-11-18T00:00:00.000Z',
@@ -258,6 +258,107 @@ export const UPDATES: Update[] = [
       if (!Object.keys(data).length) return subject || body ? 'nothing to change (new wording already, or the practice has its own)' : 'nothing saved, the new wording is the default'
       await payload.updateGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: data as never })
       return `applied (${Object.keys(data).join(', ')})`
+    },
+  },
+  {
+    id: 'v1.13.0-deposit-policy-age',
+    describe: "The deposit policy becomes version 3: Lorna's version 2 plus the age rule (15 and over; under 18 needs a parent or guardian's name), waiting for her approval",
+    async apply(payload) {
+      const terms = await import('@/booking/terms')
+      const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { bookingTerms?: Record<string, any> }
+      const cur = s.bookingTerms || {}
+      const text = String(cur.text || '').trim()
+      if (!text) return 'nothing saved, version 3 is the default'
+      if (text !== terms.LORNA_V2_TERMS.trim()) return 'the practice has its own wording, left alone (add the age sentence by hand if wanted)'
+      await payload.updateGlobal({
+        slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true },
+        data: { bookingTerms: { ...cur, text: terms.DEFAULT_TERMS, version: Math.max(1, Number(cur.version) || 1) + 1, changedAt: '2026-11-19T00:00:00.000Z', changedBy: 'v1.13.0 release', approvedBy: '', approvedAt: null } } as never,
+      })
+      return 'applied (version 3, waiting for Lorna\'s approval of the age sentence)'
+    },
+  },
+  {
+    id: 'v1.13.0-questionnaire-optional-line',
+    describe: 'The questionnaire collection notice gets Lorna\'s line: "Every question is optional, but we kindly request you fill out as much as possible..."',
+    async apply(payload) {
+      const qn = await import('@/lib/questionnaire')
+      const g = await payload.findGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
+      const notice = String(g?.collectionNotice || '')
+      if (!notice.trim()) return 'nothing saved, the new wording is the default'
+      if (!notice.includes(qn.OLD_OPTIONAL_SENTENCE)) return notice.includes('we kindly request') ? 'already has the line' : 'the practice has its own wording, left alone'
+      await payload.updateGlobal({ slug: 'questionnaire', depth: 0, overrideAccess: true, context: { noPublishNeeded: true }, data: { collectionNotice: notice.split(qn.OLD_OPTIONAL_SENTENCE).join(qn.NEW_OPTIONAL_SENTENCE) } as never })
+      return 'applied'
+    },
+  },
+  {
+    id: 'v1.13.0-questionnaire-approved',
+    describe: 'Lorna approved the questionnaire wording, the collection notice and privacy section 14 (email of 19 Nov 2026): recorded, and the online questionnaire switched on (it only runs once QUESTIONNAIRE_ENCRYPTION_KEY is set)',
+    async apply(payload) {
+      const core = await import('@/booking/core')
+      const qn = await import('@/lib/questionnaire')
+      const d = core.db()
+      if (!d) return 'no database'
+      // once only: switching it off later in Site Settings > Welcome pack stays off
+      await d.query(`CREATE TABLE IF NOT EXISTS ape_meta (key text PRIMARY KEY, value text NOT NULL DEFAULT '')`)
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.13.0-questionnaire-approved', now()::text) ON CONFLICT DO NOTHING RETURNING key`)
+      if (!first.length) return 'already applied once, the dashboard settings are kept'
+      const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as { questionnaire?: Record<string, any> }
+      const q = s.questionnaire || {}
+      await payload.updateGlobal({
+        slug: 'site-settings', depth: 0, overrideAccess: true, context: { noPublishNeeded: true },
+        data: { questionnaire: { ...q, noticeApproved: true, noticeApprovedBy: qn.APPROVED_BY_LORNA_QN, noticeApprovedAt: '2026-11-19T03:35:00.000Z', onlineOn: true } } as never,
+      })
+      return qn.encryptionKeySet() ? 'approved and switched on (the encryption key is set)' : 'approved and switched on; it stays off until QUESTIONNAIRE_ENCRYPTION_KEY is set in Vercel'
+    },
+  },
+  {
+    id: 'v1.13.0-privacy-guardian',
+    describe: "The privacy policy says a parent or guardian's name is collected for patients under 18 (for Lorna to approve)",
+    async apply(payload) {
+      const doc = await pageDoc(payload, 'privacy-policy')
+      const SENTENCE = " If the patient is under 18 at the appointment, we also collect a parent or guardian's name, so we know who is responsible for the booking."
+      const rows = doc?.sections ?? []
+      let found = false
+      let changed = false
+      const sections = rows.map((r) => ({
+        ...r,
+        content: plainRows((r.content ?? []).map((c) => {
+          const t = String((c as { text?: unknown }).text ?? '')
+          if (!/When you book online or contact us/.test(t)) return c
+          found = true
+          if (/guardian/i.test(t)) return c
+          changed = true
+          return { ...c, text: t.replace(/\s*$/, '') + SENTENCE }
+        })),
+      }))
+      if (!doc || !found) return 'no booking paragraph in the privacy policy, left alone (add it by hand)'
+      if (!changed) return 'already mentions a parent or guardian, left alone'
+      await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
+      return 'applied'
+    },
+  },
+  {
+    id: 'v1.13.0-hands-photo',
+    describe: 'The homepage hands photo (it shows six fingers) is replaced by Lorna\'s napkin photo, with its own description',
+    async apply(payload) {
+      const doc = await pageDoc(payload, 'home')
+      const rows = doc?.sections ?? []
+      const i = rows.findIndex((r) => (r.content ?? []).some((c) => c.builtIn === '/images/ape-hands-comfort.jpg' || String(c.text ?? '').includes('ape-hands-comfort')))
+      if (!doc || i < 0) return 'the hands photo is not on the homepage any more, left alone'
+      const row = rows[i]
+      const photo = (row.content ?? []).find((c) => c.builtIn === '/images/ape-hands-comfort.jpg')
+      if (photo && relId(photo.image)) return 'a photo from the Media Library is in that spot, left alone'
+      const repo = repoPage('home').sections.find((r) => r.key === row.key)
+      if (!repo) return 'section not found in the release, left alone'
+      const fresh = new Map(partToSectionDoc(repo).content.map((c) => [c.fieldId, c]))
+      // only the photo, its description and its sizes change; every word the practice edited is kept
+      const content = (row.content ?? []).map((c) => {
+        const isPhoto = c.builtIn === '/images/ape-hands-comfort.jpg' || String(c.text ?? '').includes('ape-hands-comfort') || /One hand resting gently on another/.test(String(c.text ?? ''))
+        return isPhoto ? (fresh.get(c.fieldId) ?? c) : c
+      })
+      const sections = rows.map((r, n) => (n === i ? { ...r, content: plainRows(content) } : { ...r, content: plainRows(r.content ?? []) }))
+      await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
+      return 'applied'
     },
   },
 ]

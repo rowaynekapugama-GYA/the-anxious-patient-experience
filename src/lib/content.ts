@@ -61,6 +61,8 @@ export type BookingConfig = {
   minNoticeHours: number
   weeksAhead: number
   initialBlockedDates: string[]
+  /** v1.13.0: under-18 booking emails say "please bring your parent or guardian" (Lorna to confirm; false turns it off) */
+  under18GuardianLine?: boolean
   pricing: { appointment: number; deposit: number }
   openingSpecial: { enabled: boolean; price: number; from: string; to: string; maxBookings: number; popup: boolean; showAfter?: number; heading?: string; body?: string }
 }

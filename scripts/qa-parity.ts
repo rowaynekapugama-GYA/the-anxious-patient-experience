@@ -25,6 +25,9 @@ const APPROVED: [string, RegExp, string][] = [
   ['index.html',
     /<!-- LAUREN'S PHOTO:.*?--><img src="\/images\/team-lauren-bright\.jpg" width="1200" height="1500" (alt="[^"]*") loading="lazy" decoding="async" style="object-position:50% 25%"\/>/,
     '<picture><source type="image/webp" srcset="/images/team-lauren-bright-2026-11-09-800.webp 800w, /images/team-lauren-bright-2026-11-09.webp 1086w" sizes="(max-width: 900px) 92vw, 30vw"/><img src="/images/team-lauren-bright-2026-11-09.jpg" width="1086" height="1448" $1 loading="lazy" decoding="async" style="object-position:45% 22%"/></picture>'],
+  // v1.13.0: the hands photo (Lorna: it shows six fingers) is replaced by her napkin photo from Book Now
+  ['index.html', /ape-hands-comfort/g, 'ape-textured-napkin'],
+  ['index.html', /One hand resting gently on another over a soft white blanket/g, 'A textured cream napkin with a small tooth outline, resting on soft draped fabric'],
 ]
 const SKIP = new Set(['privacy-policy/index.html'])
 let bad = 0

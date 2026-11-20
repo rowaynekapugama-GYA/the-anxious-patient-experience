@@ -9,6 +9,8 @@
  */
 import * as core from '@/booking/core'
 import * as deposit from '@/booking/deposit'
+import { ageRule } from '@/booking/age'
+import { dobIso } from '@/booking/emails'
 import { afterPaid } from '@/booking/paid'
 import { paypalConfigured, captureOrder, getOrder, threeDs, methodOf, asSource, DEPOSIT_CURRENCY, money2 } from '@/lib/paypal'
 import { tooMany } from '@/lib/questionnaire'
@@ -33,6 +35,8 @@ export async function POST(req: Request) {
     if (found.state === 'paid' && found.row) return core.send(200, { ok: true, status: 'paid', already: true })
     if (found.state !== 'ok' || !found.row) return core.send(found.state === 'invalid' ? 404 : 409, { ok: false, error: deposit.releasedUnpaid(found.row) ? 'released' : found.state })
     const row = found.row
+    // v1.13.0: never take a deposit for a patient under 15 on the appointment date
+    if (ageRule(dobIso((row as { dob?: string | Date | null }).dob ?? null), row.slot_start).status === 'under_min') return core.send(400, { ok: false, error: 'age' })
     if (row.paypal_order_id && row.paypal_order_id !== orderId) return core.send(409, { ok: false, error: 'order_mismatch' })
 
     if (asSource(body.source) === 'card') {

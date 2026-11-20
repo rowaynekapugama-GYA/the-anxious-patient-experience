@@ -478,20 +478,20 @@
           "id": "f4",
           "label": "Photo",
           "type": "image",
-          "value": "/images/ape-hands-comfort.jpg",
-          "original": "/images/ape-hands-comfort.jpg"
+          "value": "/images/ape-textured-napkin.jpg",
+          "original": "/images/ape-textured-napkin.jpg"
         },
         {
           "id": "f5",
           "label": "Photo description",
           "type": "alt",
-          "value": "One hand resting gently on another over a soft white blanket"
+          "value": "A textured cream napkin with a small tooth outline, resting on soft draped fabric"
         },
         {
           "id": "f6",
           "label": "Photo sizes",
           "type": "srcset",
-          "value": "/images/ape-hands-comfort-800.webp 800w, /images/ape-hands-comfort-1400.webp 1400w, /images/ape-hands-comfort-2400.webp 2400w",
+          "value": "/images/ape-textured-napkin-800.webp 800w, /images/ape-textured-napkin-1400.webp 1400w, /images/ape-textured-napkin-2400.webp 2400w",
           "of": "f4"
         }
       ]
