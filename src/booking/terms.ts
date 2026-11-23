@@ -108,6 +108,18 @@ export function fromSettings(g: Record<string, any> | null | undefined): Terms {
   }
 }
 
+/**
+ * v1.14.0: the deposit policy line in the patient's booking email, taken from the policy in use, so the email never
+ * drifts from the approved wording. Lorna's 48-hour sentence when the policy has it, otherwise the policy's own first
+ * sentence about 48 hours, otherwise Lorna's sentence.
+ */
+export function policyReminder(policyText: string | null | undefined, fillWith: { phone: string; deposit: string } = { phone: '', deposit: '' }): string {
+  const text = String(policyText || '').trim() || DEFAULT_TERMS
+  if (text.includes(REMINDER)) return REMINDER
+  const sentence = text.replace(/^#+ .*$/gm, '').split(/(?<=[.!?])\s+/).map((x) => x.trim()).find((x) => /48 hours/i.test(x))
+  return sentence ? fill(sentence, fillWith).replace(/\s+/g, ' ') : REMINDER
+}
+
 export async function loadTerms(payload: Payload): Promise<Terms> {
   try {
     const s = await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true }) as Record<string, any>

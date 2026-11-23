@@ -130,6 +130,12 @@ Under **Booking times**, tick the days and add or remove start times, then press
 the new times on Book Now straight away. Bookings already made keep their time. **Use the standard times** puts back
 Wednesdays at 9:00 am, 10:20 am and 11:40 am.
 
+## Patient emails (v1.14.0)
+The emails patients receive (booking request received, appointment confirmed, deposit received) are branded, and you
+can change their wording under **Patient emails** in the menu. There is a preview, a **Send me a test** button (to
+your own email only) and a version history. The appointment details, the deposit policy line and the questionnaire
+link stay as they are. Full guide: `docs/PATIENT-EMAILS.md`.
+
 ## Welcome pack and questionnaires
 
 The welcome email is on (v1.12.0): it is the patient's confirmation, sent when you press **Mark confirmed**. You

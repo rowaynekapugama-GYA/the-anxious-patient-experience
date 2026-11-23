@@ -576,3 +576,42 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
 .source-list li { display: flex; gap: 12px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--pd-line, #dcdcde); }
 .source-list li > .grow { flex: 1; }
 .source-list b { font-size: 16px; min-width: 2ch; text-align: right; }
+
+/* v1.14.0: Patient emails */
+.pe-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.pe-card { text-align: left; display: flex; flex-direction: column; gap: 4px; background: var(--pd-panel); border: 1px solid var(--pd-line); border-radius: var(--pd-radius); padding: 14px 16px; cursor: pointer; font: inherit; color: var(--pd-text); }
+.pe-card:hover { border-color: #b8bfc8; }
+.pe-card.on { border-color: var(--pd-blue-dark); box-shadow: inset 0 0 0 1px var(--pd-blue-dark); }
+.pe-card-name { font-weight: 600; font-size: 15px; }
+.pe-card-when { font-size: 13px; color: var(--pd-muted, #646970); line-height: 1.4; }
+.pe-card-meta { font-size: 12px; color: var(--pd-muted, #646970); margin-top: 4px; }
+.pe-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 700px); }
+.pe-count { float: right; font-weight: 400; font-size: 12px; color: var(--pd-muted, #646970); }
+.pe-count.over { color: var(--pd-bad); font-weight: 600; }
+.pe-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.pe-area { min-height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; line-height: 1.55; }
+.pe-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pe-banners { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.pe-banner { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--pd-line); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 12px; line-height: 1.3; }
+.pe-banner.on { border-color: var(--pd-blue-dark); box-shadow: inset 0 0 0 1px var(--pd-blue-dark); }
+.pe-banner input { position: absolute; opacity: 0; pointer-events: none; }
+.pe-banner:focus-within { outline: 2px solid var(--pd-blue-dark); outline-offset: 2px; }
+.pe-banner img, .pe-nophoto { width: 100%; aspect-ratio: 12 / 5; object-fit: cover; border-radius: 5px; background: #eef1f4; display: flex; align-items: center; justify-content: center; color: var(--pd-muted, #646970); }
+.pe-locked { background: #f7f8fa; border: 1px dashed #c9d0d8; border-radius: 8px; padding: 10px 14px; margin: 0 0 16px; font-size: 13.5px; }
+.pe-locked ul { margin: 4px 0 6px; padding-left: 20px; }
+.pe-policy { margin: 6px 0 0; }
+.pe-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pe-chip { border: 1px solid #c9d0d8; background: #f2f5f8; border-radius: 999px; padding: 4px 10px; font: 600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; color: var(--pd-text); }
+.pe-chip:hover { background: #e6ecf2; }
+.pe-chip.block { background: #fbf6ee; border-color: #e3cfae; }
+.pe-fieldhelp { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 10px; font-size: 13px; }
+.pe-fieldhelp div { display: contents; }
+.pe-fieldhelp dd { margin: 0; color: var(--pd-muted, #646970); }
+.pe-preview .seg { display: flex; gap: 4px; }
+.pe-subject { font-size: 13.5px; margin: 0 0 8px; }
+.pe-frame-wrap { background: #eef1f4; border-radius: 8px; padding: 10px; overflow: auto; margin-bottom: 12px; display: flex; justify-content: center; }
+.pe-frame { height: 70vh; min-height: 520px; border: 0; background: #fff; border-radius: 6px; max-width: 100%; }
+.pe-text { white-space: pre-wrap; font-size: 13px; line-height: 1.5; background: #fff; padding: 14px; border-radius: 6px; margin: 0; max-height: 70vh; overflow: auto; width: 100%; }
+.pe-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+@media (max-width: 1280px) { .pe-cols { grid-template-columns: 1fr; } .pe-cols .sticky { position: static; } }
+@media (max-width: 760px) { .pe-cards { grid-template-columns: 1fr; } .pe-row { grid-template-columns: 1fr; } .pe-banners { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

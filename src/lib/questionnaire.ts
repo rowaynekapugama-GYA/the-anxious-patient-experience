@@ -26,7 +26,9 @@ import { emailConfigured, siteOrigin } from './email'
 import { deliver, type Result } from './mailer'
 import { liveRecipients, questionnaireRecipients } from './recipients'
 import { DEFAULTS } from '@/site.config'
-import { escHtml, fmtDateTime, db, loadConfig } from '@/booking/core'
+import { escHtml, fmtDateTime, fmtDay, fmtTime, money, db, loadConfig } from '@/booking/core'
+import * as tpl from '@/email/patient'
+import { box, note, paragraphs, shell, TEAM_FOOTER } from '@/email/layout'
 import { under18, UNDER_18_LINE } from '@/booking/emails'
 import { FORM_ID, cleanAnswers, problems as answerProblems, identityProblems, identityDiffers, ID, type Answers } from './ape-questionnaire'
 import { retainUntil, fullName } from '@/booking/patient'
@@ -254,19 +256,50 @@ export function toHtml(text: string): string {
 export function welcomeEmail(o: {
   words: Pick<Words, 'subject' | 'body'>; name: string; slotStart: Date; link: string | null; received?: boolean; where: Place
   missing?: PackFile[]; test?: boolean; under18?: boolean
+  /** v1.14.0: the wording from Patient emails (otherwise the Welcome pack wording, converted) */
+  template?: tpl.Template; ref?: string
 }): { subject: string; text: string; html: string } {
-  const first = str(o.name).split(/\s+/)[0] || 'there'
-  const when = `${fmtDateTime(o.slotStart, TZ, true)} (Sydney time)`
-  const qLine = o.received ? QUESTIONNAIRE_LINES.received : o.link ? QUESTIONNAIRE_LINES.online.split('{link}').join(o.link) : QUESTIONNAIRE_LINES.pdf
-  const where = [o.where.clinic, o.where.address, o.where.mapsUrl ? `Map: ${o.where.mapsUrl}` : '', '', DIRECTIONS.train, '', DIRECTIONS.car].join('\n').replace(/\n{3,}/g, '\n\n')
-  let text = o.words.body
-    .split('{first}').join(first).split('{when}').join(when).split('{phone}').join(o.where.phone)
-    .split('{questionnaire}').join(qLine).split('{where}').join(where)
-  // v1.13.0: one line for patients under 18 at the appointment, after the first paragraph
-  if (o.under18) { const parts = text.split('\n\n'); parts.splice(Math.min(2, parts.length), 0, UNDER_18_LINE); text = parts.join('\n\n') }
-  if (o.missing?.length) text += `\n\nIf an attachment is missing, you can also download it here:\n${o.missing.map((m) => `- ${ORIGINALS[m.key].label}: ${/^https?:/.test(m.url) ? m.url : siteOrigin(DEFAULTS.siteUrl) + m.url}`).join('\n')}`
-  if (o.test) text = `TEST EMAIL with sample details. Nothing was booked.${o.link ? ' The questionnaire link opens a TEST questionnaire that is deleted after 24 hours.' : ''}\n\n${text}`
-  return { subject: `${o.test ? '[TEST] ' : ''}${o.words.subject}`, text, html: toHtml(text) }
+  const t = o.template ?? tpl.fromLegacyWelcome(o.words.subject, o.words.body)
+  const origin = siteOrigin(DEFAULTS.siteUrl)
+  const cfg = loadConfig()
+  const location = [o.where.clinic, o.where.address].filter(Boolean).join(', ')
+  const whereText = [o.where.clinic, o.where.address, o.where.mapsUrl ? `Map: ${o.where.mapsUrl}` : '', '', DIRECTIONS.train, '', DIRECTIONS.car].join('\n').replace(/\n{3,}/g, '\n\n')
+  // the questionnaire paragraph: the private link (with the button between its two sentences), the PDF, or thanks
+  const [onlineA, onlineB] = QUESTIONNAIRE_LINES.online.split('\n{link}\n\n')
+  const questionnaire = o.received ? [paragraphs(QUESTIONNAIRE_LINES.received)]
+    : o.link ? [paragraphs(onlineA), '{{button}}' as const, paragraphs(onlineB)]
+    : [paragraphs(QUESTIONNAIRE_LINES.pdf)]
+  const missing = o.missing?.length
+    ? [paragraphs(`If an attachment is missing, you can also download it here:\n${o.missing.map((m) => `- ${ORIGINALS[m.key].label}: ${/^https?:/.test(m.url) ? m.url : origin + m.url}`).join('\n')}`)]
+    : []
+  const m = tpl.render('welcome', t, {
+    origin,
+    test: o.test,
+    testNote: `TEST EMAIL with sample details. Nothing was booked.${o.link ? ' The questionnaire link opens a TEST questionnaire that is deleted after 24 hours.' : ''}`,
+    merge: {
+      first_name: str(o.name).split(/\s+/)[0] || 'there',
+      reference: o.ref || '',
+      appointment_date: fmtDay(o.slotStart, TZ, true),
+      appointment_time: fmtTime(o.slotStart, TZ),
+      appointment_length: '70 minutes',
+      location,
+      deposit_amount: money(cfg.pricing.deposit),
+      questionnaire_link: o.received ? '' : o.link || '',
+      contact_phone: o.where.phone,
+      contact_email: o.where.apeEmail,
+    },
+    panel: [['Appointment', `${fmtDateTime(o.slotStart, TZ, true)} (Sydney time)`], ['Length', '70 minutes'], ['Location', location], ...(o.ref ? [['Reference', o.ref]] as [string, string][] : [])],
+    system: [...(o.under18 ? [note(UNDER_18_LINE)] : []), ...questionnaire],
+    markers: { where_to_go: box('Where to go', whereText) },
+    tail: missing,
+    footer: { clinicLine: location, email: o.where.apeEmail, phone: o.where.phone },
+  })
+  return { subject: m.subject, text: m.text, html: m.html }
+}
+
+/** v1.14.0: wording saved in Welcome pack before Patient emails existed carries over to the welcome template. */
+export function legacyWelcome(words: Pick<Words, 'subject' | 'body' | 'subjectSaved' | 'bodySaved'>): tpl.Legacy {
+  return { welcomeSubject: words.subjectSaved ? words.subject : '', welcomeBody: words.bodySaved ? words.body : '' }
 }
 
 async function bookingWelcome(ref: string, status: 'sent' | 'failed', by: string): Promise<void> {
@@ -308,7 +341,8 @@ export async function sendWelcome(payload: Payload, b: BookingRow, opts: { by?: 
   if (opts.link) link = opts.link // v1.9.3: the link the booking page already shows (sent at request time)
   else if (opts.test ? opts.test.withLink : sw.online) ({ link, received } = await issueLink(payload, b, opts.test ? { email: opts.test.email } : undefined))
   const { attachments, missing } = await packAttachments(payload)
-  const m = welcomeEmail({ words, name: b.name, slotStart: new Date(b.slot_start), link, received, where, missing, test: !!opts.test, under18: !opts.test && under18(loadConfig(), b) })
+  const template = await tpl.loadTemplate('welcome', legacyWelcome(words))
+  const m = welcomeEmail({ words, template, ref: b.ref, name: b.name, slotStart: new Date(b.slot_start), link, received, where, missing, test: !!opts.test, under18: !opts.test && under18(loadConfig(), b) })
   const r = await deliver('welcome', { to: [opts.test ? opts.test.email : b.email], reply_to: where.apeEmail, subject: m.subject, text: m.text, html: m.html, ...(attachments.length ? { attachments } : {}) }, { ref: b.ref, test: !!opts.test })
   if (!opts.test) await bookingWelcome(b.ref, r.ok ? 'sent' : 'failed', opts.by || 'automatic')
   if (!r.ok && !opts.test) {
@@ -424,9 +458,13 @@ export async function submitAnswers(payload: Payload, token: string, raw: unknow
 /** "A questionnaire has arrived": the reference and appointment date only. A test goes only to the test address. */
 export function noticeEmail(row: { id: string | number; bookingRef: string; appointmentAt: string }, test = false): { subject: string; text: string; html: string } {
   const when = fmtDateTime(new Date(row.appointmentAt), TZ, true)
-  const link = `${siteOrigin(DEFAULTS.siteUrl)}/admin/questionnaires/${row.id}`
+  const origin = siteOrigin(DEFAULTS.siteUrl)
+  // v1.14.0: the Email check sample has no real row, so its link opens the Tests list instead of a missing page
+  const link = row.id === 'test' ? `${origin}/admin/questionnaires?show=tests` : `${origin}/admin/questionnaires/${row.id}`
   const text = `${test ? 'TEST EMAIL. This is a test questionnaire, deleted after 24 hours.\n\n' : ''}A patient questionnaire has been completed for booking ${row.bookingRef} (appointment ${when}).\n\nRead it in the dashboard (sign in needed; only people with questionnaire access can open it):\n${link}\n\nThe answers are never included in email.`
-  return { subject: `${test ? '[TEST] ' : ''}Questionnaire received ${row.bookingRef}, ${fmtDateTime(new Date(row.appointmentAt), TZ, false)}`, text, html: toHtml(text) }
+  const subject = `${test ? '[TEST] ' : ''}Questionnaire received ${row.bookingRef}, ${fmtDateTime(new Date(row.appointmentAt), TZ, false)}`
+  const html = shell({ origin, variant: 'team', subject, heading: `${test ? '[TEST] ' : ''}Questionnaire received ${row.bookingRef}`, footer: TEAM_FOOTER, sections: [paragraphs(text)] }).html
+  return { subject, text, html }
 }
 
 async function notifyTeam(row: Record<string, any>): Promise<void> {

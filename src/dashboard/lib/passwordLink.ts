@@ -10,9 +10,8 @@ import { emailConfigured, siteOrigin } from '@/lib/email'
 import { deliver, type Result } from '@/lib/mailer'
 import { getSettings, originOf } from '@/lib/site'
 import * as core from '@/booking/core'
+import { shell, paragraphs, button, LOGIN_FOOTER } from '@/email/layout'
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
-const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${l}</p>`
 export const RESET_MINUTES = 60
 export const origin = () => siteOrigin(originOf(getSettings()))
 
@@ -40,13 +39,16 @@ export function passwordEmail(email: string, kind: 'invite' | 'reset', link: str
     kind === 'reset' ? 'If you did not ask for this, you can ignore this email and your password stays as it is.' : 'If you were not expecting this email, please let GYA know on 1300 889 840.',
     'The Anxious Patient Experience website, supported by GYA',
   ]
+  // v1.14.0: the branded layout; the wording stays fixed (security emails are not editable)
   return {
     to: [email],
     subject,
     text: [...lines, `Choose your password: ${link}`, ...after].join('\n\n'),
-    html: lines.map((l) => para(esc(l))).join('')
-      + `<p style="margin:22px 0"><a href="${esc(link)}" style="display:inline-block;background:#284858;color:#ffffff;font:600 16px Arial,sans-serif;padding:12px 22px;border-radius:999px;text-decoration:none">Choose your password</a></p>`
-      + after.map((l) => para(esc(l).replace(esc(signIn), `<a href="${esc(signIn)}" style="color:#284858">${esc(signIn)}</a>`))).join(''),
+    html: shell({
+      origin: origin(), variant: 'login', subject, footer: LOGIN_FOOTER,
+      heading: kind === 'invite' ? 'Your dashboard login' : 'Reset your password',
+      sections: [paragraphs(lines.join('\n\n')), button('Choose your password', link), paragraphs(after.join('\n\n'))],
+    }).html,
   }
 }
 
@@ -82,7 +84,7 @@ export function passwordChangedEmail(email: string, o: { test?: boolean } = {}) 
     to: [email],
     subject: `${o.test ? '[TEST] ' : ''}Your password was changed | The Anxious Patient Experience dashboard`,
     text: lines.join('\n\n'),
-    html: lines.map((l) => para(esc(l))).join(''),
+    html: shell({ origin: origin(), variant: 'login', subject: `${o.test ? '[TEST] ' : ''}Your password was changed`, heading: 'Your password was changed', footer: LOGIN_FOOTER, sections: [paragraphs(lines.join('\n\n'))] }).html,
   }
 }
 

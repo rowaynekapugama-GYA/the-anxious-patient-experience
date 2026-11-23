@@ -27,7 +27,7 @@ For Lorna and the APE team: `docs/HOW-TO-UPDATE.md`. What changed: `CHANGELOG.md
 `docs/TEST-BOOKING.md`, `docs/GOOGLE-BUSINESS-PROFILE.md`. v1.10.0: `docs/PAYPAL-ADVANCED-SETUP.md` (for Andy and Ram)
 and `docs/FOR-LORNA-v1.10.0.md` (wording and questions for Lorna). v1.11.0: `docs/FOR-LORNA-v1.11.0.md` (the
 analytics privacy paragraph), `docs/TRACKING-LINKS.md`, `docs/SEARCH-CONSOLE.md` and `docs/HOW-TO-SEE-YOUR-NUMBERS.md`.
-v1.13.0: `docs/stock-shot-list.md` (a brief for a licensed hands photo).
+v1.13.0: `docs/stock-shot-list.md` (a brief for a licensed hands photo). v1.14.0: `docs/PATIENT-EMAILS.md` (for Lorna).
 
 ## Vercel environment variables (v1.6.0)
 
@@ -198,6 +198,39 @@ of places stay in `content/booking.json` (GYA).
   access. **Questionnaire notifications go to** in Site Settings (empty: the booking list).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
+
+## Branded emails and Patient emails (v1.14.0)
+
+- **Layout:** `src/email/layout.ts`, used by every email.
+  - `shell()` builds the page: logo, optional photo, eyebrow, heading, sections, sign-off and footer.
+  - `panel()` is the details box and `box()` the "Where to go" box.
+  - `button()` is the bulletproof button (VML for Outlook).
+  - Images: `public/email/` (`ape-logo-320.png`, `banner-*.jpg` at 1200 x 500).
+  - Fonts: the site's own woff2 files in `public/assets/fonts/`, inside `@media screen`. Outlook on Windows is told
+    to use Arial and Georgia.
+  - All links and images use `NEXT_PUBLIC_SERVER_URL` (it must be the live domain in Production).
+- **Patient emails:** `src/email/patient.ts`.
+  - Kinds `booking-patient`, `welcome` and `deposit-patient`.
+  - `defaultTemplate()` is the pre-v1.14 wording word for word. The welcome default comes from `fromLegacyWelcome()`,
+    so wording saved in Welcome pack carries over.
+  - `check()` holds the rules: required fields, unknown merge fields, the welcome email's questionnaire link, https or
+    mailto links, AHPRA warnings.
+  - `render()` builds one email.
+  - `load()`, `save()`, `reset()` and `versions()` read and write `ape_email_templates` and
+    `ape_email_template_versions` (additive, in `core.SCHEMA`; the last 10 versions are kept per email).
+- **Where the wording is read:**
+  - `emails.patientEmail()` (with the policy line from `terms.policyReminder()` and the saved deposit policy);
+  - `deposit.depositEmails()`;
+  - `questionnaire.welcomeEmail()`.
+
+  The send paths load the saved template at send time.
+- **Dashboard:**
+  - `/admin/emails` (`src/dashboard/editors/PatientEmails.tsx`), for any signed-in user.
+  - API: `/api/dashboard/patient-emails` (GET; POST preview, save, reset, restore, test).
+  - Test sends go only to the signed-in person's own address, 6 an hour (`ape_rate`).
+- Team and login emails keep their wording (their text versions are unchanged); only the HTML moved into the layout.
+  The GYA delivery check is unchanged.
+- No new environment variables.
 
 ## Questionnaire live, 15 and over, guardian name (v1.13.0)
 

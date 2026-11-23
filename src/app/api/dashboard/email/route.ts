@@ -17,6 +17,8 @@ import { liveRecipients, questionnaireRecipients, type Live } from '@/lib/recipi
 import { noticeEmail, sendWelcome } from '@/lib/questionnaire'
 import { encryptionReady } from '@/lib/crypto'
 import { depositEmails } from '@/booking/deposit'
+import * as tpl from '@/email/patient'
+import { loadTerms } from '@/booking/terms'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -111,14 +113,19 @@ export async function POST(req: Request) {
         break
       }
       case 'password-changed': r = await send(passwordChangedEmail(to, { test: true })); break
-      case 'booking-patient': r = await send(emails.patientEmail(cfg, b, live.apeInbox, { test: true })); break
+      // v1.14.0: the branded email with the wording saved in Patient emails
+      case 'booking-patient': {
+        const terms = await loadTerms(a.payload)
+        r = await send(emails.patientEmail(cfg, b, live.apeInbox, { test: true, template: await tpl.loadTemplate('booking-patient'), policyText: terms.saved ? terms.text : null }))
+        break
+      }
       case 'booking-team': r = await send(emails.teamEmail(cfg, b, { team: { list: [to], source: 'Site Settings' }, bcc: [] }, { test: true })); break
       case 'gya-notice': r = await send(emails.gyaNoticeEmail(cfg, b, [
         { label: 'New booking email to the team', ok: true, id: 'sample-id', error: '' },
         { label: 'Booking request received, to the patient', ok: true, id: 'sample-id', error: '' },
       ], to, { test: true })); break
       case 'deposit-patient': case 'deposit-team': {
-        const m = depositEmails(cfg, { ref: b.ref, slot_start: b.slot_start, name: b.name, email: to }, 100, 'TEST-CAPTURE', live.apeInbox, [to], { test: true })
+        const m = depositEmails(cfg, { ref: b.ref, slot_start: b.slot_start, name: b.name, email: to }, 100, 'TEST-CAPTURE', live.apeInbox, [to], { test: true, template: await tpl.loadTemplate('deposit-patient') })
         r = await send(kind === 'deposit-patient' ? m.patient : m.team)
         break
       }

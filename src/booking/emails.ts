@@ -17,7 +17,9 @@ import { paypalConfigured, METHOD_LABEL } from '@/lib/paypal'
 import { siteOrigin } from '@/lib/email'
 import { DEFAULTS } from '@/site.config'
 import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
-import { REMINDER } from './terms'
+import { policyReminder } from './terms'
+import * as tpl from '@/email/patient'
+import { shell, panel as box, paragraphs, note, TEAM_FOOTER } from '@/email/layout'
 import { sourceLabel } from './source'
 import { ageRule, GUARDIAN_REQUIRED_UNDER } from './age'
 
@@ -48,11 +50,6 @@ export const nameOf = (b: Pick<BookingRow, 'name' | 'first_name' | 'last_name'>)
 export const firstOf = (b: Pick<BookingRow, 'name' | 'first_name'>) => (b.first_name || String(b.name || '').split(' ')[0] || 'there')
 export const termsUrl = () => `${siteOrigin(DEFAULTS.siteUrl)}/book-now/terms/`
 
-function table(rows: [string, string][]): string {
-  return '<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;font:15px/1.5 Arial,sans-serif;color:#284858">'
-    + rows.map(([k, v]) => `<tr><td style="vertical-align:top;color:#7E6548;white-space:nowrap"><strong>${core.escHtml(k)}</strong></td><td style="vertical-align:top">${core.escHtml(v).replace(/\n/g, '<br>')}</td></tr>`).join('')
-    + '</table>'
-}
 const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
 
 function facts(cfg: core.Cfg, b: BookingRow) {
@@ -103,13 +100,15 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
   ]
   const nextStep = 'Next step: block this time in Core Practice, reply to the patient to confirm and send the new patient information pack, then mark it confirmed under Bookings in the website dashboard (/admin).'
   const intro = `${o.test ? 'TEST EMAIL with sample details, no booking was made. ' : ''}New booking request for ${TM}.${paid ? ' The deposit has been paid online.' : ''} This time is held on the website but not yet confirmed.`
+  const heading = `${o.test ? '[TEST] ' : ''}New booking request ${b.ref}`
   return {
     to: live.team.list,
     ...(live.bcc.length && !o.test ? { bcc: live.bcc } : {}),
     reply_to: b.email,
     subject: `${o.test ? '[TEST] ' : ''}New booking request ${b.ref}, ${f.short}${b.special ? ' [opening special]' : ''}`,
     text: `${intro}\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\n${nextStep}\nReplying to this email replies to the patient.`,
-    html: para(intro) + table(rows) + `<p style="font:15px/1.5 Arial,sans-serif;color:#284858">${core.escHtml(nextStep)}<br>Replying to this email replies to the patient.</p>`,
+    // v1.14.0: the branded layout; the wording and the text version are unchanged
+    html: shell({ origin: emailOrigin(), variant: 'team', subject: heading, heading, footer: TEAM_FOOTER, sections: [paragraphs(intro), box(rows), paragraphs(`${nextStep}\nReplying to this email replies to the patient.`, { size: 15 })] }).html,
   }
 }
 
@@ -122,33 +121,51 @@ export function under18(cfg: core.Cfg, b: Pick<BookingRow, 'dob' | 'slot_start'>
   return !!r && r.age !== null && r.age < GUARDIAN_REQUIRED_UNDER
 }
 
-export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: { payLink?: string; test?: boolean } = {}): core.Email {
+/** v1.14.0: the website address used for every link and image in an email. */
+export const emailOrigin = () => siteOrigin(DEFAULTS.siteUrl)
+
+/** What the merge fields become for one booking. */
+export function mergeFor(cfg: core.Cfg, b: Pick<BookingRow, 'ref' | 'slot_start' | 'name' | 'first_name' | 'deposit_amount'>, apeInbox: string, extra: Partial<Record<tpl.FieldKey, string>> = {}): Partial<Record<tpl.FieldKey, string>> {
+  const tz = cfg.booking.timeZone
+  const start = new Date(b.slot_start)
+  return {
+    first_name: firstOf(b),
+    reference: b.ref,
+    appointment_date: core.fmtDay(start, tz, true),
+    appointment_time: core.fmtTime(start, tz),
+    appointment_length: '70 minutes',
+    location: `${cfg.clinic.name}, ${cfg.clinic.street}, ${cfg.clinic.suburb}`,
+    deposit_amount: core.money(Number(b.deposit_amount) || cfg.pricing.deposit),
+    contact_phone: cfg.contact.phone,
+    contact_email: apeInbox,
+    ...extra,
+  }
+}
+
+/**
+ * "We have received your booking request" (v1.14.0: branded, wording from Patient emails). The details box, the
+ * deposit line, Lorna's deposit policy line and the under-18 line are added here and cannot be edited.
+ */
+export function patientEmail(cfg: core.Cfg, b: BookingRow, apeInbox: string, o: { payLink?: string; test?: boolean; template?: tpl.Template; policyText?: string | null } = {}): core.Email {
   const f = facts(cfg, b)
   const depositAmt = cfg.pricing.deposit
-  const first = firstOf(b)
-  const lines = [
-    ...(o.test ? ['TEST EMAIL with sample details, no booking was made.'] : []),
-    `Hi ${first},`,
-    `Thank you for your booking request for ${TM} New Patient Appointment.`,
-    `Requested time: ${f.when}\nLocation: ${f.clinicLine}\nFee: ${f.fee}\nReference: ${b.ref}`,
-    deposit.isPaid(String(b.deposit_status || 'unpaid'))
-      ? `Your ${core.money(Number(b.deposit_amount) || depositAmt)} deposit has been received, so your time is secured. It comes off the cost of your appointment on the day.${b.paypal_capture_id ? ` PayPal transaction: ${b.paypal_capture_id}.` : ''}`
-      : o.payLink
-      ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
-      : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`,
-    `${REMINDER} You can read the full deposit policy here: ${termsUrl()}`,
-    ...(under18(cfg, b) ? [UNDER_18_LINE] : []),
-    'The APE team will be in touch to confirm your appointment and send your new patient information pack.',
-    `If anything changes or you have a question, simply reply to this email or call us on ${cfg.contact.phone}.`,
-    `Warm regards,\n${TM} team`,
-  ]
-  return {
-    to: [b.email],
-    reply_to: apeInbox,
-    subject: `${o.test ? '[TEST] ' : ''}We have received your booking request | ${TM}`,
-    text: lines.join('\n\n'),
-    html: lines.map(para).join(''),
+  const depositLine = deposit.isPaid(String(b.deposit_status || 'unpaid'))
+    ? `Your ${core.money(Number(b.deposit_amount) || depositAmt)} deposit has been received, so your time is secured. It comes off the cost of your appointment on the day.${b.paypal_capture_id ? ` PayPal transaction: ${b.paypal_capture_id}.` : ''}`
+    : o.payLink
+    ? `A ${core.money(depositAmt)} deposit secures your appointment. If you have not already paid it on the website, you can pay it here (PayPal or card): ${o.payLink}`
+    : `A ${core.money(depositAmt)} deposit secures your appointment. Deposit details will be sent with your confirmation.`
+  const reminder = policyReminder(o.policyText, { phone: cfg.contact.phone, deposit: core.money(depositAmt) })
+  const ctx: tpl.Context = {
+    origin: emailOrigin(),
+    test: o.test,
+    merge: mergeFor(cfg, b, apeInbox),
+    panel: [['Requested time', f.when], ['Location', f.clinicLine], ['Fee', f.fee], ['Reference', b.ref]],
+    system: [note(depositLine), note(`${reminder} You can read the full deposit policy here: ${termsUrl()}`), ...(under18(cfg, b) ? [note(UNDER_18_LINE)] : [])],
+    markers: {},
+    footer: { clinicLine: f.clinicLine, email: apeInbox, phone: cfg.contact.phone },
   }
+  const m = tpl.render('booking-patient', o.template ?? tpl.defaultTemplate('booking-patient'), ctx)
+  return { to: [b.email], reply_to: apeInbox, subject: m.subject, text: m.text, html: m.html }
 }
 
 export type Outcome = { label: string; ok: boolean; id: string; error: string; retrying?: boolean }
@@ -179,7 +196,8 @@ export async function alertGya(what: string, ref?: string | null, live?: Live): 
     `An email from The Anxious Patient Experience website could not be sent: ${what}${ref ? ` (booking ${ref})` : ''}.`,
     'Details are on the dashboard: Site Settings > Email (GYA only). No patient details are included in this alert.',
   ]
-  await deliver('alert', { to: [l.gya.to], subject: `APE email failed: ${what}${ref ? ` ${ref}` : ''}`, text: lines.join('\n\n'), html: lines.map(para).join('') }, { ref })
+  const subject = `APE email failed: ${what}${ref ? ` ${ref}` : ''}`
+  await deliver('alert', { to: [l.gya.to], subject, text: lines.join('\n\n'), html: shell({ origin: emailOrigin(), variant: 'team', subject, heading: 'An email was not sent', footer: TEAM_FOOTER, sections: [paragraphs(lines.join('\n\n'))] }).html }, { ref })
 }
 
 async function bookingRow(d: core.Db, ref: string): Promise<BookingRow | null> {
@@ -194,6 +212,12 @@ async function payLinkFor(d: core.Db, b: BookingRow): Promise<string> {
   return token ? deposit.payLinkFor(token) : ''
 }
 
+/** The deposit policy text saved in Site Settings (null: the default policy is in use, or it cannot be read). */
+export async function currentPolicyText(d: core.Db): Promise<string | null> {
+  const r = await d.query<{ t: string | null }>(`SELECT booking_terms_text AS t FROM site_settings LIMIT 1`).catch(() => [])
+  return r[0]?.t ? String(r[0].t) : null
+}
+
 type Which = 'patient' | 'team'
 const COL: Record<Which, string> = { patient: 'email_patient', team: 'email_team' }
 const KIND: Record<Which, Kind> = { patient: 'booking-patient', team: 'booking-team' }
@@ -206,9 +230,12 @@ export async function sendBookingEmails(d: core.Db, cfg: core.Cfg, ref: string, 
   const b = await bookingRow(d, ref)
   if (!b) return {}
   const live = o.live ?? await liveRecipients()
+  // v1.14.0: the patient email's wording (Patient emails) and the deposit policy in use, read at send time
+  const template = which.includes('patient') ? await tpl.loadTemplate('booking-patient') : undefined
+  const policyText = which.includes('patient') ? await currentPolicyText(d) : null
   const out: Partial<Record<Which, Result>> = {}
   for (const w of which) {
-    const msg = w === 'team' ? teamEmail(cfg, b, live) : patientEmail(cfg, b, live.apeInbox, { payLink: o.payLink ?? await payLinkFor(d, b) })
+    const msg = w === 'team' ? teamEmail(cfg, b, live) : patientEmail(cfg, b, live.apeInbox, { payLink: o.payLink ?? await payLinkFor(d, b), template, policyText })
     const r = await deliver(KIND[w], msg, { ref, failStatus: mode === 'first' ? 'retrying' : 'failed' })
     out[w] = r
     const state = r.ok ? 'sent' : mode === 'first' ? 'retry' : 'failed'

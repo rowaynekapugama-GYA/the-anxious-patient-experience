@@ -11,7 +11,7 @@ import { db } from '@/booking/core'
 import { deliver } from '@/lib/mailer'
 import { siteOrigin } from '@/lib/email'
 import { DEFAULTS } from '@/site.config'
-import { toHtml } from '@/lib/questionnaire'
+import { shell, paragraphs, LOGIN_FOOTER } from '@/email/layout'
 
 export type Who = { id?: string | number; email: string; role?: string; practiceOwner?: boolean | null }
 
@@ -45,7 +45,9 @@ export function accessEmail(to: { email: string; name?: string }, by: string): {
     `Sign in and choose Questionnaires:\n${siteOrigin(DEFAULTS.siteUrl)}/admin/questionnaires`,
     'Every time a questionnaire is opened, printed or marked reviewed, it is logged. If you did not expect this, please reply to this email.',
   ].join('\n\n')
-  return { subject: 'You can now open patient questionnaires | The Anxious Patient Experience™', text, html: toHtml(text) }
+  const subject = 'You can now open patient questionnaires | The Anxious Patient Experience™'
+  // v1.14.0: the branded layout; the wording stays fixed
+  return { subject, text, html: shell({ origin: siteOrigin(DEFAULTS.siteUrl), variant: 'login', subject, heading: 'You can now open patient questionnaires', footer: LOGIN_FOOTER, sections: [paragraphs(text)] }).html }
 }
 
 /**

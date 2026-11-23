@@ -10,6 +10,9 @@ import * as core from './core'
 import { newToken, hashToken } from '@/lib/crypto'
 import { siteOrigin } from '@/lib/email'
 import { paypalActivityUrl, siteOriginFallback, METHOD_LABEL } from '@/lib/paypal'
+import * as tpl from '@/email/patient'
+import { shell, paragraphs, TEAM_FOOTER } from '@/email/layout'
+import { DEFAULTS } from '@/site.config'
 
 export const PAY_LINK_DAYS = 14
 export type DepositStatus = 'unpaid' | 'paid' | 'manual' | 'refunded' | 'failed'
@@ -109,31 +112,41 @@ export function depositView(row: Partial<BookingRow>) {
   }
 }
 
-const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
-
-/** The two "Deposit received" emails (patient and team), also used for test emails. */
-export function depositEmails(cfg: core.Cfg, row: Pick<BookingRow, 'ref' | 'slot_start' | 'name' | 'email'>, amount: number, captureId: string, apeInbox: string, team: string[], o: { test?: boolean } = {}) {
+/**
+ * The two "Deposit received" emails (patient and team), also used for test emails.
+ * v1.14.0: the patient email is branded, with its wording from Patient emails; the team email keeps its wording.
+ */
+export function depositEmails(cfg: core.Cfg, row: Pick<BookingRow, 'ref' | 'slot_start' | 'name' | 'email'>, amount: number, captureId: string, apeInbox: string, team: string[], o: { test?: boolean; template?: tpl.Template } = {}) {
   const tz = cfg.booking.timeZone
-  const when = `${core.fmtDateTime(new Date(row.slot_start), tz, true)} (Sydney time)`
-  const first = row.name.split(' ')[0]
-  const t = o.test ? ['TEST EMAIL with sample details, no payment was made.'] : []
-  const patient = [
-    ...t,
-    `Hi ${first},`,
-    `Thank you, your ${core.money(amount)} deposit has been received for your ${core.TM} New Patient Appointment.`,
-    `Requested time: ${when}\nReference: ${row.ref}\nPayPal transaction: ${captureId}`,
-    'The APE team will be in touch to confirm your appointment. If anything changes, simply reply to this email.',
-    `Warm regards,\n${core.TM} team`,
-  ]
+  const start = new Date(row.slot_start)
+  const when = `${core.fmtDateTime(start, tz, true)} (Sydney time)`
+  const origin = siteOrigin(DEFAULTS.siteUrl)
+  const clinicLine = `${cfg.clinic.name}, ${cfg.clinic.street}, ${cfg.clinic.suburb}`
+  const patient = tpl.render('deposit-patient', o.template ?? tpl.defaultTemplate('deposit-patient'), {
+    origin,
+    test: o.test,
+    merge: {
+      first_name: row.name.split(' ')[0], reference: row.ref, appointment_date: core.fmtDay(start, tz, true), appointment_time: core.fmtTime(start, tz),
+      appointment_length: '70 minutes', location: clinicLine, deposit_amount: core.money(amount), contact_phone: cfg.contact.phone, contact_email: apeInbox,
+    },
+    panel: [['Requested time', when], ['Reference', row.ref], ['PayPal transaction', captureId]],
+    system: [],
+    markers: {},
+    footer: { clinicLine, email: apeInbox, phone: cfg.contact.phone },
+  })
   const teamLines = [
-    ...t,
+    ...(o.test ? ['TEST EMAIL with sample details, no payment was made.'] : []),
     `Deposit received for ${row.ref} (${row.name}, ${when}): ${core.money(amount)} through PayPal checkout, transaction ${captureId}.`,
     'The booking shows Deposit received in the dashboard. Nothing to do in PayPal.',
   ]
   const pre = o.test ? '[TEST] ' : ''
+  const teamSubject = `${pre}Deposit received ${row.ref}, ${core.fmtDateTime(start, tz, false)}`
   return {
-    patient: { to: [row.email], reply_to: apeInbox, subject: `${pre}Deposit received | ${core.TM}`, text: patient.join('\n\n'), html: patient.map(para).join('') },
-    team: { to: team, reply_to: row.email, subject: `${pre}Deposit received ${row.ref}, ${core.fmtDateTime(new Date(row.slot_start), tz, false)}`, text: teamLines.join('\n\n'), html: teamLines.map(para).join('') },
+    patient: { to: [row.email], reply_to: apeInbox, subject: patient.subject, text: patient.text, html: patient.html },
+    team: {
+      to: team, reply_to: row.email, subject: teamSubject, text: teamLines.join('\n\n'),
+      html: shell({ origin, variant: 'team', subject: teamSubject, heading: `${pre}Deposit received ${row.ref}`, footer: TEAM_FOOTER, sections: [paragraphs(teamLines.join('\n\n'))] }).html,
+    },
   }
 }
 
@@ -144,7 +157,7 @@ export async function sendDepositReceived(cfg: core.Cfg, row: BookingRow, amount
   const { liveRecipients } = await import('@/lib/recipients')
   const { deliver } = await import('@/lib/mailer')
   const live = await liveRecipients()
-  const m = depositEmails(cfg, row, amount, captureId, live.apeInbox, live.team.list)
+  const m = depositEmails(cfg, row, amount, captureId, live.apeInbox, live.team.list, { template: await tpl.loadTemplate('deposit-patient') })
   await Promise.all([
     deliver('deposit-patient', m.patient, { ref: row.ref }),
     deliver('deposit-team', m.team, { ref: row.ref }),

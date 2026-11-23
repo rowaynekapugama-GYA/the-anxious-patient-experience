@@ -19,5 +19,14 @@
  { "rule": "specialist", "contains": "for \"specialist\" (blocks saving)", "note": "Changelog line about the Team screen check that blocks the word." },
  { "rule": "specialist", "contains": "as a \"specialist\": she is", "note": "The how-to guide reminder on the Team section." },
  { "rule": "best", "contains": "Choose the number that best describes how you feel", "note": "Lorna's questionnaire wording (v1.9.0): best describes, not a claim" },
- { "rule": "best", "contains": "Circle the number that best describes how you feel", "note": "Lorna's paper questionnaire wording (v1.9.2): best describes, not a claim" }
+ { "rule": "best", "contains": "Circle the number that best describes how you feel", "note": "Lorna's paper questionnaire wording (v1.9.2): best describes, not a claim" },
+ { "rule": "painless", "contains": "|painless|guarantee[sd]?|best|expert|experts|", "note": "v1.14.0: the AHPRA word check in Patient emails (src/email/patient.ts) names the words it warns about." },
+ { "rule": "guarantee", "contains": "|painless|guarantee[sd]?|best|expert|experts|", "note": "v1.14.0: the AHPRA word check in Patient emails (src/email/patient.ts) names the words it warns about." },
+ { "rule": "best", "contains": "|painless|guarantee[sd]?|best|expert|experts|", "note": "v1.14.0: the AHPRA word check in Patient emails (src/email/patient.ts) names the words it warns about." },
+ { "rule": "expert", "contains": "|painless|guarantee[sd]?|best|expert|experts|", "note": "v1.14.0: the AHPRA word check in Patient emails (src/email/patient.ts) names the words it warns about." },
+ { "rule": "pain-free", "contains": "pain-free, guaranteed, best", "note": "v1.14.0: the AHPRA reminder and warning in Patient emails name the words to avoid." },
+ { "rule": "guarantee", "contains": "pain-free, guaranteed, best", "note": "v1.14.0: the AHPRA reminder and warning in Patient emails name the words to avoid." },
+ { "rule": "best", "contains": "pain-free, guaranteed, best", "note": "v1.14.0: the AHPRA reminder and warning in Patient emails name the words to avoid." },
+ { "rule": "expert", "contains": "pain-free, guaranteed, best", "note": "v1.14.0: the AHPRA reminder and warning in Patient emails name the words to avoid." },
+ { "rule": "pain-free", "contains": "main: 'A pain-free visit'", "note": "v1.14.0: a test that the AHPRA warning fires." }
 ]

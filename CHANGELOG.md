@@ -1,5 +1,94 @@
 # Changelog
 
+## 1.14.0 (23 Nov 2026): branded HTML emails, patient email wording editable in the dashboard
+
+Update to the existing repo (on top of 1.13.0, `dc1359a`). From Lorna's phone call with the GYA team on 23 Nov 2026.
+
+- **One branded email layout** for every email the website sends (`src/email/layout.ts`). It has:
+  - the APE logo (a PNG on the live domain);
+  - an optional photo (one of APE's four, cropped 1200 x 500 in `public/email/`);
+  - an eyebrow and a Playfair Display heading (Georgia fallback), with Figtree text (Arial fallback);
+  - a sand-edged details box and one navy button that also draws in Outlook (VML);
+  - a sign-off and a footer with where appointments are held, the APE email and phone, the website and privacy
+    policy links, and why the person got the email. No unsubscribe link, because these are service emails.
+
+  Technical details:
+  - 600 px wide, table layout, inline styles, `lang="en-AU"`, `role="presentation"`.
+  - A hidden preheader and a plain-text version with every email.
+  - Light and dark colours, all WCAG AA.
+  - No tracking pixels, scripts or third-party fonts. The fonts are the website's own files, and Outlook on Windows
+    uses the fallbacks.
+  - Every link and image uses `NEXT_PUBLIC_SERVER_URL`.
+  - Each email is about 7 to 15 KB, well under Gmail's 100 KB clipping limit.
+
+  Hand-built rather than React Email or MJML: the output is the same kind of markup, renders at send time in the
+  serverless functions, and needs no new packages.
+- **Patient emails** keep the full design and wording the practice edits:
+  - booking request received;
+  - appointment confirmed (the welcome pack email);
+  - deposit received.
+
+  **Team emails** get the shell with their wording unchanged:
+  - new booking;
+  - deposit received;
+  - questionnaire received;
+  - email failure alert.
+
+  **Login and security emails** also get the shell, with fixed wording:
+  - invite;
+  - password reset;
+  - password changed;
+  - questionnaire access.
+
+  The GYA delivery check stays plain. Sending, the email log, retries, Resend and the failure flags are unchanged.
+- **Patient emails in the dashboard** (`/admin/emails`, Lorna, editors and GYA). One card per patient email.
+  - **Fields you can edit:**
+    - subject (120 characters);
+    - preheader (90);
+    - eyebrow;
+    - heading;
+    - main message and an optional second message (paragraphs, **bold**, *italic*, links and bullet lists);
+    - button label and target (a fixed list);
+    - the photo;
+    - sign-off and sender.
+  - **Merge fields:**
+    - shown as chips that insert at the cursor;
+    - only the fields each email has data for are offered;
+    - the welcome email also has `{where_to_go}`, the "Where to go" box.
+  - **Preview:** desktop, mobile and plain text with sample details.
+  - **Send me a test:** goes only to your own address, 6 an hour.
+  - **Saving:**
+    - **Version history:** the last 10 versions, with restore.
+    - **Reset to default:** asks you to confirm first.
+  - **What saving checks:**
+    - **Required:** a subject, a heading and a main message.
+    - **Welcome email:** it must keep the questionnaire link.
+    - **Merge fields:** unknown ones are blocked, with a suggestion.
+    - **Links:** must be https or mailto.
+  - **AHPRA words** (pain-free, guaranteed, best, expert) warn but don't block saving.
+  - **What stays locked:**
+    - the details box and the deposit status;
+    - the deposit policy line, taken from the policy in use in Site Settings > Deposit policy;
+    - the under-18 line, the questionnaire paragraph and "Where to go".
+- **The default wording is the wording the emails had before, word for word.** The welcome email's default comes
+  from whatever was saved in Site Settings > Welcome pack, converted. That screen now links to Patient emails instead
+  of editing the wording itself.
+- **Email check** (`/admin/settings/email`) sends the branded versions with the saved wording, and links to Patient
+  emails.
+  - Fix: the test "Questionnaire received" email linked to a page that did not exist. It now opens Questionnaires >
+    Tests (`?show=tests`).
+- **Storage:** `ape_email_templates` and `ape_email_template_versions`. These are additive tables, created
+  automatically like the other `ape_` tables. Sending reads the saved wording at send time, so no rebuild or Publish
+  is needed.
+- **Checks:**
+  - tsc, `npm run qa` (banned words: 0 em dashes);
+  - test:email (63, including 23 new);
+  - test:booking (182) and test:questionnaire;
+  - Playwright on Patient emails as Editor and GYA admin (24), including one paid booking through Book Now, Mark
+    confirmed and cancel;
+  - the v1.11.0 (74), pay to book (21) and age (33) regressions;
+  - `doiuse-email` (caniemail data) on every template.
+
 ## 1.13.0 (19 Nov 2026): questionnaire live, 15 and over, guardian name, homepage photo, PDF name and DOB
 
 Update to the existing repo (on top of 1.12.0). From Lorna's email of 19 Nov 2026 ("Quick Update APE").

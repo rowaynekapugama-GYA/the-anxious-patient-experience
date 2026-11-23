@@ -32,6 +32,7 @@ export function Shell({ user, children, toConfirm = 0, toReview = 0, reviewHref 
     { href: '/admin/availability', label: 'Availability', icon: 'availability' },
     { href: '/admin/special', label: 'Opening special', icon: 'special' },
     { href: '/admin/questionnaires', label: 'Questionnaires', icon: 'enquiries', count: toReview },
+    { href: '/admin/emails', label: 'Patient emails', icon: 'mail' },
     { href: reviewHref, label: 'Review page', icon: 'eye' },
     'sep',
     { href: '/admin/seo', label: 'SEO', icon: 'seo' },

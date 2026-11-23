@@ -106,15 +106,8 @@ export function WelcomePack() {
         <h2>Welcome email</h2>
         <Select label="Send it when" value={sendWhen} onChange={(v) => { setSendWhen(v === 'requested' ? 'requested' : 'confirmed'); setDirty(true) }}
           options={[{ value: 'confirmed', label: 'a booking is marked confirmed (recommended)' }, { value: 'requested', label: 'a booking request is received' }]} />
-        <TextInput label="Subject" value={words.subject} onChange={(v) => edit('subject', v)} placeholder={data.defaults.subject} />
-        <TextArea label="Wording" value={words.body} onChange={(v) => edit('body', v)} rows={16} placeholder={data.defaults.body}
-          help={<>Leave empty to use the draft shown. {'{first}'} is the first name, {'{when}'} the appointment, {'{questionnaire}'} the questionnaire paragraph (the online link when it is live, otherwise &quot;bring it with you&quot;), {'{where}'} the address and Lorna&apos;s train and parking directions, {'{phone}'} the phone number. A line starting with &quot;- &quot; becomes a bullet point. Never put health details in this email.</>} />
-        <details className="pack-preview">
-          <summary>Preview with sample details</summary>
-          <p><b>Subject:</b> {data.preview.subject}<br /><b>Attached:</b> {data.preview.attachments.join(', ')}</p>
-          <pre>{data.preview.text}</pre>
-          <p className="help">The preview shows what is saved. Press Save to see your changes here.</p>
-        </details>
+        {/* v1.14.0: the wording, the branded design and the preview are in Patient emails */}
+        <Notice tone="info" icon={Icon.info()}><p>The wording of this email (subject, message, button and photo) is now edited in <a href="/admin/emails#welcome">Patient emails</a>, with a preview and a test send. Anything saved here before carries over.</p></Notice>
       </div>
 
       <div className="panel" id="notice">

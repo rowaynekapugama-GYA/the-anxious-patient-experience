@@ -47,6 +47,8 @@ export function QuestionnairesScreen({ role }: { role: string }) {
   const [error, setError] = useState('')
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<'toreview' | 'all' | 'waiting' | 'tests'>('toreview')
+  // v1.14.0: the test notice email links to ?show=tests
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get('show') === 'tests') setFilter('tests') } catch { /* no address bar */ } }, [])
   const load = useCallback(async () => { try { setData(await call('GET')); setError('') } catch (e) { setError((e as Error).message) } }, [])
   useEffect(() => { void load() }, [load])
   const rows = useMemo(() => (filter === 'tests' ? data?.tests || [] : data?.rows || []).filter((r) => {

@@ -300,6 +300,20 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS ape_email_log_at ON ape_email_log (at DESC)`,
   `CREATE TABLE IF NOT EXISTS ape_rate (key text NOT NULL, at timestamptz NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS ape_rate_key ON ape_rate (key, at)`,
+  // v1.14.0: patient email wording edited in the dashboard (Patient emails), and the last 10 saved versions of each
+  `CREATE TABLE IF NOT EXISTS ape_email_templates (
+     kind text PRIMARY KEY,
+     data jsonb NOT NULL,
+     updated_at timestamptz NOT NULL DEFAULT now(),
+     updated_by text NOT NULL DEFAULT '')`,
+  `CREATE TABLE IF NOT EXISTS ape_email_template_versions (
+     id bigserial PRIMARY KEY,
+     kind text NOT NULL,
+     data jsonb NOT NULL,
+     saved_at timestamptz NOT NULL DEFAULT now(),
+     saved_by text NOT NULL DEFAULT '',
+     note text NOT NULL DEFAULT '')`,
+  `CREATE INDEX IF NOT EXISTS ape_email_template_versions_kind ON ape_email_template_versions (kind, saved_at DESC)`,
   `CREATE TABLE IF NOT EXISTS ape_paypal_events (
      event_id text PRIMARY KEY,
      event_type text NOT NULL,

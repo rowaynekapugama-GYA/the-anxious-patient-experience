@@ -245,7 +245,8 @@ async function main() {
   const placeW = await q.place(payload)
   const w18 = q.welcomeEmail({ words, name: 'Zelda Quartermaine', slotStart: new Date('2026-12-03T00:00:00Z'), link: null, where: placeW, under18: true })
   const wAdult = q.welcomeEmail({ words, name: 'Zelda Quartermaine', slotStart: new Date('2026-12-03T00:00:00Z'), link: null, where: placeW })
-  check("welcome email: the under-18 line after the first paragraph", w18.text.split('\n\n')[2] === "As you're under 18, please bring your parent or guardian to your first visit." && !/under 18/.test(wAdult.text))
+  // v1.14.0: the line sits after the greeting, the confirmation and the appointment details, before the questionnaire paragraph
+  check("welcome email: the under-18 line before the questionnaire paragraph", w18.text.includes("As you're under 18, please bring your parent or guardian to your first visit.") && w18.text.indexOf('under 18') < w18.text.indexOf('fill in the questionnaire') && !/under 18/.test(wAdult.text))
   await d.query(`DELETE FROM ape_bookings WHERE ref = 'APE-UNIT13'`)
   await d.query(`INSERT INTO ape_bookings (ref, slot_start, name, email, phone, notes, price, special, status, dob) VALUES ('APE-UNIT13', now() + interval '403 days', 'Young Patient', 'young.patient@example.com', '0499 111 222', '', 250, false, 'confirmed', (now() + interval '403 days' - interval '16 years')::date)`)
   const b13 = (await d.query(`SELECT ref, name, email, slot_start, dob FROM ape_bookings WHERE ref = 'APE-UNIT13'`))[0] as any

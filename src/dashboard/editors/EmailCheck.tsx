@@ -84,7 +84,7 @@ export function EmailCheck({ me }: { me: string }) {
 
       <section className="panel" id="tests">
         <h2>Send test emails</h2>
-        <p className="help" style={{ marginTop: -6 }}>Sample details (Test Patient GYA, APE-TEST01) with [TEST] at the start of the subject. They go only to the address below: never to the booking list, the APE inbox or a patient, and no booking is made. 3 runs an hour.</p>
+        <p className="help" style={{ marginTop: -6 }}>Sample details (Test Patient GYA, APE-TEST01) with [TEST] at the start of the subject. They go only to the address below: never to the booking list, the APE inbox or a patient, and no booking is made. 3 runs an hour. Since v1.14.0 they are the branded versions; the patient emails use the wording saved in <a href="/admin/emails">Patient emails</a>.</p>
         <div className="field" style={{ maxWidth: 420 }}>
           <label htmlFor="test-to">Send to</label>
           <input id="test-to" className="input" type="email" value={to} onChange={(e) => setTo(e.target.value)} />
