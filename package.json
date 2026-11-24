@@ -1,6 +1,6 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "private": true,
   "type": "module",
   "description": "The Anxious Patient Experience website (static pages built from content/) with the GYA client dashboard and booking dashboard at /admin.",

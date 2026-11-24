@@ -130,6 +130,13 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   const [manual, setManual] = useState<{ b: Booking; note: string } | null>(null)
   const [busy, setBusy] = useState('')
   const now = Date.now()
+  // v1.17.0: the team emails' "Open this booking" button links to /admin/bookings?ref=APE-XXXXXX
+  useEffect(() => {
+    let ref = ''
+    try { ref = (new URLSearchParams(window.location.search).get('ref') || '').trim().toUpperCase() } catch { /* no address bar */ }
+    if (!/^APE-[A-Z0-9]{4,12}$/.test(ref)) return
+    setFilter('all'); setQ(ref); setOpen(ref)
+  }, [])
 
   const counts = useMemo(() => {
     const b = data?.bookings ?? []

@@ -172,6 +172,38 @@ async function main() {
     check('welcome email: wording word for word, the Where to go box and the questionnaire button (VML for Outlook)', wl.subject === 'Your APE appointment is confirmed' && wl.text.includes("There's no pressure to answer everything, and there are no wrong answers.") && /Where to go/.test(wl.html) && /Croydon Street council car park/.test(wl.text)
       && /v:roundrect/.test(wl.html) && /Fill in your questionnaire/.test(wl.html) && wl.text.includes('https://theanxiouspatientexperience.com.au/questionnaire/abc') && /See you soon,<br>Dr Lorna, Alex and the APE team/.test(wl.html))
     check('team and login emails keep their wording (text version unchanged)', team.text.startsWith('New booking request for') && /Choose your password: https/.test(all[6][1].text))
+    // v1.17.0: every email the team, GYA or a login receives is branded HTML, laid out for a quick read
+    {
+      const okOut = [{ label: 'New booking email to the team', ok: true, id: 'id-team-1', error: '' }, { label: 'Booking request received, to the patient', ok: true, id: 'id-pat-1', error: '' }]
+      const gOk = emails.gyaNoticeEmail(cfg, b, okOut, 'gya@example.com')
+      const gTest = emails.gyaNoticeEmail(cfg, b, okOut, 'gya@example.com', { test: true })
+      const alert = emails.alertHtml('APE email failed: x APE-UNIT01', 'booking request received, to the patient', 'APE-UNIT01')
+      const inbound: [string, { subject: string; text: string; html: string }][] = [
+        ['GYA delivery check (all accepted)', gOk], ['GYA delivery check (a failure)', g], ['GYA alert', { subject: 'APE email failed', text: 'x', html: alert }],
+        ['reset (login)', pw.passwordEmail('someone@example.com', 'reset', 'https://theanxiouspatientexperience.com.au/admin/reset-password?token=abc')],
+        ...all.slice(3),
+      ]
+      for (const [name, m] of inbound) {
+        const ok = /<html lang="en-AU"/.test(m.html) && /ape-logo-320\.png/.test(m.html) && /class="eyebrow"/.test(m.html) && /class="h1 serif"/.test(m.html)
+          && !/<script/i.test(m.html) && !/vercel\.app/.test(m.html) && !/\u2014/.test(m.html) && Buffer.byteLength(m.html) < 100 * 1024
+        check(`v1.17.0 formatted: ${name} (logo, eyebrow, heading, under 100 KB, no em dash)`, ok, `${(Buffer.byteLength(m.html) / 1024).toFixed(1)} KB`)
+      }
+      check('GYA check: green status, one tick per email, SMTP2GO ids, how to turn it off', /All emails accepted/.test(gOk.html) && (gOk.html.match(/&#10003;<\/div><\/td>/g) || []).length >= 2 && gOk.html.includes('id-team-1') && /Send GYA a delivery check for each booking/.test(gOk.html))
+      check('GYA check with a failure: amber status, a cross, the email check button', /1 email failed/.test(g.html) && /&#10005;/.test(g.html) && /admin\/settings\/email/.test(g.html) && /v:roundrect/.test(g.html))
+      check('GYA check: text version unchanged', gOk.text.includes(`APE booking ${b.ref}, appointment`) && /Nothing to do\./.test(gOk.text) && /accepted by SMTP2GO \(id-team-1\)/.test(gOk.text))
+      check('GYA check and alert: still no name, email, phone or note', !/Zelda|Quartermaine|zelda\.patient|0499|private note/i.test(gOk.html + g.html + alert + gTest.html))
+      check('GYA check test: yellow TEST strip', /TEST EMAIL/.test(gTest.html) && /#FFF5D6/.test(gTest.html) && gTest.subject.startsWith('[TEST] '))
+      check('team email: Appointment, Patient, Next steps and Records groups, numbered steps, Open this booking', ['Appointment', 'Patient', 'Next steps', 'Records'].every((x) => team.html.includes(`>${x}</p>`)) && /Block this time in Core Practice\./.test(team.html) && team.html.includes(`/admin/bookings?ref=${b.ref}`) && /Open this booking/.test(team.html))
+      check('team email: every detail row still in the HTML', ['Reference', 'Requested time', 'Fee', 'Deposit', 'Location', 'Date of birth', 'Age at appointment', 'Email', 'Phone', 'Note from patient', 'Deposit policy', 'Where they came from', 'Collection notice', 'Submitted'].every((k) => team.html.includes(`>${k}</td>`)))
+      check('team email: text version unchanged (rows in the same order)', team.text.startsWith('New booking request for') && /Reference: APE-UNIT01\nRequested time:/.test(team.text) && /Note from patient: private note about my teeth\nDeposit policy:/.test(team.text) && /Replying to this email replies to the patient\.$/.test(team.text))
+      const dep = D.depositEmails(cfg, b, 100, 'CAP1', 'ape@example.com', ['t@example.com']).team
+      check('deposit (team): green status with the amount, transaction, button', /Deposit received: \$100/.test(dep.html) && /CAP1/.test(dep.html) && /admin\/bookings\?ref=APE-UNIT01/.test(dep.html))
+      const qn = Q.noticeEmail({ id: 9, bookingRef: 'APE-UNIT01', appointmentAt: new Date().toISOString() })
+      check('questionnaire received: button to the questionnaire, never an answer', /Read the questionnaire/.test(qn.html) && /admin\/questionnaires\/9/.test(qn.html) && /answers are never included/.test(qn.html))
+      const pc = pw.passwordChangedEmail('someone@example.com')
+      check('password changed: login and time box, "if it was not you" strip, reset button', /If it was not you/.test(pc.html) && /admin\/forgot-password/.test(pc.html) && />Changed</.test(pc.html))
+      check('login emails: the link is only in the button and the text version', (inbound[3][1].html.match(/token=abc/g) || []).length === 2 && inbound[3][1].text.includes('token=abc'))
+    }
     check('test notice from Email check links to the Tests list (not a missing page)', Q.noticeEmail({ id: 'test', bookingRef: 'APE-TEST01', appointmentAt: new Date().toISOString() }, true).text.includes('/admin/questionnaires?show=tests'))
 
     // the legacy Welcome pack wording converts to the template and back to the same words

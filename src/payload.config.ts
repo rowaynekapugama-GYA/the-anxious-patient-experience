@@ -5,7 +5,9 @@ import { postgresAdapter } from '@payloadcms/db-postgres'
 import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import sharp from 'sharp'
 import type { EmailAdapter } from 'payload'
-import { sendEmail } from './lib/email'
+import { sendEmail, siteOrigin } from './lib/email'
+import { shell, LOGIN_FOOTER } from './email/layout'
+import { DEFAULTS } from './site.config'
 
 import { Users } from './sitekit/collections/Users'
 import { Media } from './sitekit/collections/Media'
@@ -31,8 +33,12 @@ const smtp2go: EmailAdapter = () => ({
   defaultFromName: 'The Anxious Patient Experience',
   sendEmail: async (m) => {
     const to = (Array.isArray(m.to) ? m.to : [m.to]).map((x) => (typeof x === 'string' ? x : (x as { address: string }).address)).filter(Boolean) as string[]
-    const html = typeof m.html === 'string' ? m.html : ''
-    return sendEmail({ to, subject: String(m.subject || ''), html, text: typeof m.text === 'string' ? m.text : html.replace(/<[^>]+>/g, ' ') })
+    const raw = typeof m.html === 'string' ? m.html : ''
+    const subject = String(m.subject || '')
+    const text = typeof m.text === 'string' ? m.text : raw.replace(/<[^>]+>/g, ' ')
+    // v1.17.0: anything Payload sends itself also arrives in the branded layout
+    const html = raw && !/<!doctype/i.test(raw) ? shell({ origin: siteOrigin(DEFAULTS.siteUrl), variant: 'login', subject, heading: subject, sections: [{ html: raw, text }], footer: LOGIN_FOOTER }).html : raw
+    return sendEmail({ to, subject, html, text })
   },
 })
 

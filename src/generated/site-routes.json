@@ -13,7 +13,7 @@
   "id": "GTM-PNMVSBCW",
   "head": "<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'granted'});gtag('set',{allow_google_signals:false,allow_ad_personalization_signals:false});</script><script async src=\"https://www.googletagmanager.com/gtm.js?id=GTM-PNMVSBCW\"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());</script>",
   "body": "<noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-PNMVSBCW\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>",
-  "tail": "<script>window.APE_TM=\"GTM-PNMVSBCW\";</script><script src=\"/assets/analytics.js?v=1.16.0\" defer></script>",
+  "tail": "<script>window.APE_TM=\"GTM-PNMVSBCW\";</script><script src=\"/assets/analytics.js?v=1.17.0\" defer></script>",
   "hosts": [
    "theanxiouspatientexperience.com.au",
    "www.theanxiouspatientexperience.com.au"

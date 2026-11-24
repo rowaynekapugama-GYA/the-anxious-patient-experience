@@ -11,7 +11,7 @@ import { db } from '@/booking/core'
 import { deliver } from '@/lib/mailer'
 import { siteOrigin } from '@/lib/email'
 import { DEFAULTS } from '@/site.config'
-import { shell, paragraphs, LOGIN_FOOTER } from '@/email/layout'
+import { shell, paragraphs, panel, status, button, small, LOGIN_FOOTER } from '@/email/layout'
 
 export type Who = { id?: string | number; email: string; role?: string; practiceOwner?: boolean | null }
 
@@ -37,17 +37,33 @@ export async function accessLog(limit = 50): Promise<LogEntry[]> {
 }
 
 /** The short email to someone who can now open questionnaires. No patient details. */
-export function accessEmail(to: { email: string; name?: string }, by: string): { subject: string; text: string; html: string } {
+export function accessEmail(to: { email: string; name?: string }, by: string, o: { test?: boolean } = {}): { subject: string; text: string; html: string } {
   const first = String(to.name || '').trim().split(/\s+/)[0] || 'there'
+  const link = `${siteOrigin(DEFAULTS.siteUrl)}/admin/questionnaires`
   const text = [
+    ...(o.test ? ['TEST EMAIL. No access was changed.'] : []),
     `Hi ${first},`,
     `You can now open patient questionnaires in The Anxious Patient Experience website dashboard. Access was given by ${by}.`,
     `Sign in and choose Questionnaires:\n${siteOrigin(DEFAULTS.siteUrl)}/admin/questionnaires`,
     'Every time a questionnaire is opened, printed or marked reviewed, it is logged. If you did not expect this, please reply to this email.',
   ].join('\n\n')
-  const subject = 'You can now open patient questionnaires | The Anxious Patient Experience™'
+  const subject = `${o.test ? '[TEST] ' : ''}You can now open patient questionnaires | The Anxious Patient Experience™`
   // v1.14.0: the branded layout; the wording stays fixed
-  return { subject, text, html: shell({ origin: siteOrigin(DEFAULTS.siteUrl), variant: 'login', subject, heading: 'You can now open patient questionnaires', footer: LOGIN_FOOTER, sections: [paragraphs(text)] }).html }
+  // v1.17.0: laid out for a quick read; the text version is unchanged
+  const html = shell({
+    origin: siteOrigin(DEFAULTS.siteUrl), variant: 'login', subject, footer: LOGIN_FOOTER,
+    preheader: `Access was given by ${by}.`,
+    eyebrow: 'Website dashboard', heading: 'You can now open patient questionnaires',
+    sections: [
+      ...(o.test ? [status('test', 'TEST EMAIL', 'No access was changed.')] : []),
+      paragraphs(`Hi ${first},`),
+      status('ok', 'Questionnaire access given', `Access was given by ${by}.`),
+      panel([['Your login', to.email], ['Where', 'Dashboard > Questionnaires']]),
+      button('Open Questionnaires', link),
+      small('Every time a questionnaire is opened, printed or marked reviewed, it is logged. If you did not expect this, please reply to this email.'),
+    ],
+  }).html
+  return { subject, text, html }
 }
 
 /**

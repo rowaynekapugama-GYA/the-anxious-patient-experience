@@ -10,7 +10,7 @@ import { emailConfigured, siteOrigin } from '@/lib/email'
 import { deliver, type Result } from '@/lib/mailer'
 import { getSettings, originOf } from '@/lib/site'
 import * as core from '@/booking/core'
-import { shell, paragraphs, button, LOGIN_FOOTER } from '@/email/layout'
+import { shell, paragraphs, button, panel, status, small, LOGIN_FOOTER } from '@/email/layout'
 
 export const RESET_MINUTES = 60
 export const origin = () => siteOrigin(originOf(getSettings()))
@@ -44,10 +44,20 @@ export function passwordEmail(email: string, kind: 'invite' | 'reset', link: str
     to: [email],
     subject,
     text: [...lines, `Choose your password: ${link}`, ...after].join('\n\n'),
+    // v1.17.0: a details box and a quieter closing; the wording and the text version are unchanged
     html: shell({
       origin: origin(), variant: 'login', subject, footer: LOGIN_FOOTER,
+      preheader: kind === 'invite' ? 'Choose your password. The link works once and expires in 72 hours.' : 'Choose a new password. The link works once and expires in 1 hour.',
+      eyebrow: 'Website dashboard',
       heading: kind === 'invite' ? 'Your dashboard login' : 'Reset your password',
-      sections: [paragraphs(lines.join('\n\n')), button('Choose your password', link), paragraphs(after.join('\n\n'))],
+      sections: [
+        ...(o.test ? [status('test', 'TEST EMAIL', 'The link below is a sample and does not work.')] : []),
+        paragraphs(lines.filter((x) => !/^TEST EMAIL/.test(x)).join('\n\n')),
+        panel([['Your login', email], ['The link', kind === 'invite' ? 'Works once, expires in 72 hours' : 'Works once, expires in 1 hour'], ['Then sign in at', signIn]]),
+        button('Choose your password', link),
+        paragraphs(after[1], { size: 15 }),
+        small(after[2]),
+      ],
     }).html,
   }
 }
@@ -84,7 +94,21 @@ export function passwordChangedEmail(email: string, o: { test?: boolean } = {}) 
     to: [email],
     subject: `${o.test ? '[TEST] ' : ''}Your password was changed | The Anxious Patient Experience dashboard`,
     text: lines.join('\n\n'),
-    html: shell({ origin: origin(), variant: 'login', subject: `${o.test ? '[TEST] ' : ''}Your password was changed`, heading: 'Your password was changed', footer: LOGIN_FOOTER, sections: [paragraphs(lines.join('\n\n'))] }).html,
+    // v1.17.0: laid out for a quick read; the wording and the text version are unchanged
+    html: shell({
+      origin: origin(), variant: 'login', subject: `${o.test ? '[TEST] ' : ''}Your password was changed`, footer: LOGIN_FOOTER,
+      preheader: `The password for ${email} was changed. If this was you, there is nothing to do.`,
+      eyebrow: 'Website dashboard', heading: 'Your password was changed',
+      sections: [
+        ...(o.test ? [status('test', 'TEST EMAIL', 'No password was changed.')] : []),
+        paragraphs('Hello,'),
+        panel([['Login', email], ['Changed', `${when} (Sydney time)`]]),
+        status('ok', 'If this was you, there is nothing to do.'),
+        status('warn', 'If it was not you', 'Reset it straight away and call GYA on 1300 889 840.'),
+        button('Reset your password', `${origin()}/admin/forgot-password`),
+        small('The Anxious Patient Experience website, supported by GYA'),
+      ],
+    }).html,
   }
 }
 

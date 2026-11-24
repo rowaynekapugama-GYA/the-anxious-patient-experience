@@ -28,7 +28,7 @@ import { liveRecipients, questionnaireRecipients } from './recipients'
 import { DEFAULTS } from '@/site.config'
 import { escHtml, fmtDateTime, fmtDay, fmtTime, money, db, loadConfig } from '@/booking/core'
 import * as tpl from '@/email/patient'
-import { box, note, paragraphs, shell, TEAM_FOOTER } from '@/email/layout'
+import { box, note, paragraphs, shell, panel, status, button, small, TEAM_FOOTER } from '@/email/layout'
 import { under18, UNDER_18_LINE } from '@/booking/emails'
 import { FORM_ID, cleanAnswers, problems as answerProblems, identityProblems, identityDiffers, ID, type Answers } from './ape-questionnaire'
 import { retainUntil, fullName } from '@/booking/patient'
@@ -463,7 +463,20 @@ export function noticeEmail(row: { id: string | number; bookingRef: string; appo
   const link = row.id === 'test' ? `${origin}/admin/questionnaires?show=tests` : `${origin}/admin/questionnaires/${row.id}`
   const text = `${test ? 'TEST EMAIL. This is a test questionnaire, deleted after 24 hours.\n\n' : ''}A patient questionnaire has been completed for booking ${row.bookingRef} (appointment ${when}).\n\nRead it in the dashboard (sign in needed; only people with questionnaire access can open it):\n${link}\n\nThe answers are never included in email.`
   const subject = `${test ? '[TEST] ' : ''}Questionnaire received ${row.bookingRef}, ${fmtDateTime(new Date(row.appointmentAt), TZ, false)}`
-  const html = shell({ origin, variant: 'team', subject, heading: `${test ? '[TEST] ' : ''}Questionnaire received ${row.bookingRef}`, footer: TEAM_FOOTER, sections: [paragraphs(text)] }).html
+  // v1.17.0: laid out for a quick read; still only the reference and the appointment, never an answer
+  const html = shell({
+    origin, variant: 'team', subject, footer: TEAM_FOOTER,
+    preheader: `Booking ${row.bookingRef}, appointment ${when}. Read it in the dashboard.`,
+    eyebrow: `${test ? 'Test: ' : ''}Questionnaire received`,
+    heading: `Booking ${row.bookingRef}`,
+    sections: [
+      ...(test ? [status('test', 'TEST EMAIL', 'This is a test questionnaire, deleted after 24 hours.')] : []),
+      status('ok', 'A patient questionnaire has been completed', 'The answers are never included in email.'),
+      panel([['Booking', row.bookingRef], ['Appointment', `${when} (Sydney time)`]]),
+      button('Read the questionnaire', link),
+      small('Sign in needed; only people with questionnaire access can open it.'),
+    ],
+  }).html
   return { subject, text, html }
 }
 

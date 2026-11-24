@@ -199,6 +199,14 @@ of places stay in `content/booking.json` (GYA).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
 
+## Formatted team, GYA and login emails (v1.17.0)
+
+Every email the team, GYA or a dashboard login receives now uses the same branded layout as the patient emails, laid
+out for a quick read: a coloured status strip, the details in a box, numbered next steps where there are any, and one
+button (Open this booking, Read the questionnaire, Open the email check, Choose your password or Reset your password).
+The plain-text version of each email is unchanged. To see them all: Site Settings > Email check (GYA only) sends a test
+of each kind to one address.
+
 ## Booking notes, Onboarding call and questionnaire wording (v1.16.0)
 
 Requested by Dr Lorna Gladwin and Alex, 24 Nov 2026. Dashboard only; the public pages are unchanged apart from the

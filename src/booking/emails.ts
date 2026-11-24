@@ -19,7 +19,7 @@ import { DEFAULTS } from '@/site.config'
 import { fullName, fmtDob, ageOn, sydneyToday } from './patient'
 import { policyReminder } from './terms'
 import * as tpl from '@/email/patient'
-import { shell, panel as box, paragraphs, note, TEAM_FOOTER } from '@/email/layout'
+import { shell, panel as box, paragraphs, note, button, status, subhead, steps, deliveries, small, TEAM_FOOTER, GYA_FOOTER } from '@/email/layout'
 import { sourceLabel } from './source'
 import { ageRule, GUARDIAN_REQUIRED_UNDER } from './age'
 
@@ -50,8 +50,6 @@ export const nameOf = (b: Pick<BookingRow, 'name' | 'first_name' | 'last_name'>)
 export const firstOf = (b: Pick<BookingRow, 'name' | 'first_name'>) => (b.first_name || String(b.name || '').split(' ')[0] || 'there')
 export const termsUrl = () => `${siteOrigin(DEFAULTS.siteUrl)}/book-now/terms/`
 
-const para = (l: string) => `<p style="font:16px/1.6 Arial,sans-serif;color:#284858">${core.escHtml(l).replace(/\n/g, '<br>')}</p>`
-
 function facts(cfg: core.Cfg, b: BookingRow) {
   const tz = cfg.booking.timeZone
   const start = new Date(b.slot_start)
@@ -79,13 +77,16 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
   const paid = deposit.isPaid(String(b.deposit_status || 'unpaid'))
   const how = (METHOD_LABEL as Record<string, string>)[String(b.deposit_method || '')] || ''
   const paidLine = `${core.money(Number(b.deposit_amount) || depositAmt)}: paid online${how ? ` (${how})` : ''}${b.deposit_paid_at ? `, ${tick(b.deposit_paid_at)}` : ''}${b.paypal_capture_id ? `. PayPal transaction ${b.paypal_capture_id}` : ''}`
-  const rows: [string, string][] = [
+  // v1.17.0: the same rows as before, in three groups so the email reads at a glance
+  const appt: [string, string][] = [
     ['Reference', b.ref],
     ['Requested time', f.when],
     ['Appointment', `${TM}: New Patient Appointment (70 minutes)`],
     ['Fee', f.fee],
     ['Deposit', paid ? paidLine : paypal ? `${core.money(depositAmt)}: not paid yet. The patient pays through PayPal on the website; you will get a "Deposit received" email and the dashboard ticks itself.` : `${core.money(depositAmt)}: no online payment set up yet, send deposit details with the confirmation`],
     ['Location', f.clinicLine],
+  ]
+  const person: [string, string][] = [
     ...(b.first_name ? [['First name', b.first_name], ['Last name', b.last_name || '']] as [string, string][] : [['Name', b.name]] as [string, string][]),
     ['Date of birth', dob ? `${fmtDob(dob)} (age ${ageOn(dob, sydneyToday())})` : 'Not given'],
     ['Age at appointment', dob ? String(ageRule(dob, new Date(b.slot_start)).age) : 'Not given'],
@@ -93,11 +94,14 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     ['Email', b.email],
     ['Phone', b.phone || 'Not provided'],
     ['Note from patient', b.notes || 'None'],
+  ]
+  const record: [string, string][] = [
     ['Deposit policy', b.terms_consent_at ? `Agreed ${tick(b.terms_consent_at)}${b.terms_version ? `, version ${b.terms_version}` : ''}` : 'Read and accepted'],
     ['Where they came from', sourceLabel(b.source)],
     ['Collection notice', 'Agreed'],
     ['Submitted', f.submitted],
   ]
+  const rows = [...appt, ...person, ...record]
   const nextStep = 'Next step: block this time in Core Practice, reply to the patient to confirm and send the new patient information pack, then mark it confirmed under Bookings in the website dashboard (/admin).'
   const intro = `${o.test ? 'TEST EMAIL with sample details, no booking was made. ' : ''}New booking request for ${TM}.${paid ? ' The deposit has been paid online.' : ''} This time is held on the website but not yet confirmed.`
   const heading = `${o.test ? '[TEST] ' : ''}New booking request ${b.ref}`
@@ -107,8 +111,25 @@ export function teamEmail(cfg: core.Cfg, b: BookingRow, live: Pick<Live, 'team' 
     reply_to: b.email,
     subject: `${o.test ? '[TEST] ' : ''}New booking request ${b.ref}, ${f.short}${b.special ? ' [opening special]' : ''}`,
     text: `${intro}\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\n${nextStep}\nReplying to this email replies to the patient.`,
-    // v1.14.0: the branded layout; the wording and the text version are unchanged
-    html: shell({ origin: emailOrigin(), variant: 'team', subject: heading, heading, footer: TEAM_FOOTER, sections: [paragraphs(intro), box(rows), paragraphs(`${nextStep}\nReplying to this email replies to the patient.`, { size: 15 })] }).html,
+    // v1.17.0: laid out for a quick read (status, grouped details, numbered next steps, a button to the booking).
+    // The wording and the text version are unchanged.
+    html: shell({
+      origin: emailOrigin(), variant: 'team', subject: heading, footer: TEAM_FOOTER,
+      preheader: `${nameOf(b)}, ${f.short}. ${paid ? 'Deposit paid. ' : ''}Not yet confirmed.`,
+      eyebrow: `${o.test ? 'Test: ' : ''}New booking request ${b.ref}`,
+      heading: `${nameOf(b)}, ${f.short}`,
+      sections: [
+        ...(o.test ? [status('test', 'TEST EMAIL with sample details', 'No booking was made.')] : []),
+        paid ? status('ok', 'Deposit paid online', 'This time is held on the website but not yet confirmed.') : status('info', 'Deposit not paid yet', 'This time is held on the website but not yet confirmed.'),
+        subhead('Appointment'), box(appt),
+        subhead('Patient'), box(person),
+        subhead('Next steps'),
+        steps(['Block this time in Core Practice.', 'Reply to the patient to confirm and send the new patient information pack.', 'Mark it confirmed under Bookings in the website dashboard.']),
+        button(o.test ? 'Open Bookings' : 'Open this booking', o.test ? `${emailOrigin()}/admin/bookings` : bookingLink(b.ref)),
+        small('Replying to this email replies to the patient.'),
+        subhead('Records'), box(record),
+      ],
+    }).html,
   }
 }
 
@@ -123,6 +144,8 @@ export function under18(cfg: core.Cfg, b: Pick<BookingRow, 'dob' | 'slot_start'>
 
 /** v1.14.0: the website address used for every link and image in an email. */
 export const emailOrigin = () => siteOrigin(DEFAULTS.siteUrl)
+/** v1.17.0: Bookings in the dashboard, opened on one booking (sign in needed). */
+export const bookingLink = (ref: string) => `${emailOrigin()}/admin/bookings?ref=${encodeURIComponent(ref)}`
 
 /** What the merge fields become for one booking. */
 export function mergeFor(cfg: core.Cfg, b: Pick<BookingRow, 'ref' | 'slot_start' | 'name' | 'first_name' | 'deposit_amount'>, apeInbox: string, extra: Partial<Record<tpl.FieldKey, string>> = {}): Partial<Record<tpl.FieldKey, string>> {
@@ -181,11 +204,30 @@ export function gyaNoticeEmail(cfg: core.Cfg, b: Pick<BookingRow, 'ref' | 'slot_
     failed.length ? 'The booking is saved. If a retry also fails, it shows "Email not sent" in Bookings with Resend buttons.' : 'Nothing to do.',
     'No patient details are included in this notice.',
   ]
+  const subject = `${o.test ? '[TEST] ' : ''}${failed.length ? 'CHECK ' : ''}APE delivery check ${b.ref}: ${failed.length ? `${failed.length} email${failed.length > 1 ? 's' : ''} failed` : 'all emails accepted'}`
   return {
     to: [to],
-    subject: `${o.test ? '[TEST] ' : ''}${failed.length ? 'CHECK ' : ''}APE delivery check ${b.ref}: ${failed.length ? `${failed.length} email${failed.length > 1 ? 's' : ''} failed` : 'all emails accepted'}`,
+    subject,
     text: lines.join('\n\n'),
-    html: lines.map(para).join(''),
+    // v1.17.0: the branded layout. Still only the reference, the appointment time and the send results.
+    html: shell({
+      origin: emailOrigin(), variant: 'team', subject, footer: GYA_FOOTER,
+      preheader: failed.length ? `${failed.length} email${failed.length > 1 ? 's' : ''} failed for ${b.ref}. The booking is saved.` : `Every email for ${b.ref} was accepted. Nothing to do.`,
+      eyebrow: `${o.test ? 'Test: ' : ''}GYA delivery check`,
+      heading: `Booking ${b.ref}`,
+      sections: [
+        ...(o.test ? [status('test', 'TEST EMAIL', 'No booking was made.')] : []),
+        failed.length
+          ? status('warn', `${failed.length} email${failed.length > 1 ? 's' : ''} failed`, 'The booking is saved. If a retry also fails, it shows "Email not sent" in Bookings with Resend buttons.')
+          : status('ok', 'All emails accepted', 'Nothing to do.'),
+        box([['Reference', b.ref], ['Appointment', `${short} (Sydney time)`]]),
+        subhead('Emails sent'),
+        deliveries(outcomes.map((x) => ({ ok: x.ok, label: x.label, detail: x.ok ? 'Accepted by SMTP2GO' : `Failed${x.retrying ? ', trying again in a minute' : ''}: ${x.error}`, id: x.ok ? x.id : '' }))),
+        ...(failed.length ? [button('Open the email check', `${emailOrigin()}/admin/settings/email`)] : []),
+        small('No patient details are included in this notice.'),
+        small('To stop these notices: Site Settings > Send GYA a delivery check for each booking.'),
+      ],
+    }).html,
   }
 }
 
@@ -197,7 +239,26 @@ export async function alertGya(what: string, ref?: string | null, live?: Live): 
     'Details are on the dashboard: Site Settings > Email (GYA only). No patient details are included in this alert.',
   ]
   const subject = `APE email failed: ${what}${ref ? ` ${ref}` : ''}`
-  await deliver('alert', { to: [l.gya.to], subject, text: lines.join('\n\n'), html: shell({ origin: emailOrigin(), variant: 'team', subject, heading: 'An email was not sent', footer: TEAM_FOOTER, sections: [paragraphs(lines.join('\n\n'))] }).html }, { ref })
+  await deliver('alert', { to: [l.gya.to], subject, text: lines.join('\n\n'), html: alertHtml(subject, what, ref) }, { ref })
+}
+
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
+
+/** v1.17.0: the failure alert in the branded layout (no patient details). */
+export function alertHtml(subject: string, what: string, ref?: string | null, o: { test?: boolean } = {}): string {
+  return shell({
+    origin: emailOrigin(), variant: 'team', subject, footer: GYA_FOOTER,
+    preheader: `Could not be sent: ${what}${ref ? ` (booking ${ref})` : ''}.`,
+    eyebrow: 'GYA alert', heading: 'An email was not sent',
+    sections: [
+      ...(o.test ? [status('test', 'TEST EMAIL', 'Nothing failed.')] : []),
+      status('warn', 'An email from The Anxious Patient Experience website could not be sent', `${cap(what)}${ref ? ` (booking ${ref})` : ''}.`),
+      box([['Email', cap(what)], ...(ref ? [['Booking', ref]] as [string, string][] : [])]),
+      paragraphs('Details are on the dashboard: Site Settings > Email (GYA only).', { size: 15 }),
+      button('Open the email check', `${emailOrigin()}/admin/settings/email`),
+      small('No patient details are included in this alert.'),
+    ],
+  }).html
 }
 
 async function bookingRow(d: core.Db, ref: string): Promise<BookingRow | null> {

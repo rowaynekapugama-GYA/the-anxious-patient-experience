@@ -15,6 +15,7 @@ import { emailConfigured, emailProvider } from '@/lib/email'
 import { allow, deliver, failedCount, KINDS, kindLabel, recent, type Kind, type Result } from '@/lib/mailer'
 import { liveRecipients, questionnaireRecipients, type Live } from '@/lib/recipients'
 import { noticeEmail, sendWelcome } from '@/lib/questionnaire'
+import { accessEmail } from '@/lib/access'
 import { encryptionReady } from '@/lib/crypto'
 import { depositEmails } from '@/booking/deposit'
 import * as tpl from '@/email/patient'
@@ -23,7 +24,7 @@ import { loadTerms } from '@/booking/terms'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const TESTABLE: Kind[] = ['invite', 'reset', 'password-changed', 'booking-patient', 'booking-team', 'gya-notice', 'deposit-patient', 'deposit-team', 'welcome', 'questionnaire-team']
+const TESTABLE: Kind[] = ['invite', 'reset', 'password-changed', 'booking-patient', 'booking-team', 'gya-notice', 'deposit-patient', 'deposit-team', 'welcome', 'questionnaire-team', 'alert', 'access']
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
 
 function who(kind: Kind, live: Live): { to: string; source: string } {
@@ -141,6 +142,13 @@ export async function POST(req: Request) {
         r = await send({ to: [to], ...noticeEmail({ id: 'test', bookingRef: 'APE-TEST01', appointmentAt: new Date(b.slot_start).toISOString() }, true) })
         break
       }
+      // v1.17.0: the last two, so every email the team, GYA or a login receives can be seen
+      case 'alert': {
+        const subject = '[TEST] APE email failed: booking request received, to the patient APE-TEST01'
+        r = await send({ to: [to], subject, text: 'TEST EMAIL, nothing failed.\n\nAn email from The Anxious Patient Experience website could not be sent: booking request received, to the patient (booking APE-TEST01).', html: emails.alertHtml(subject, 'booking request received, to the patient', 'APE-TEST01', { test: true }) })
+        break
+      }
+      case 'access': r = await send({ to: [to], ...accessEmail({ email: to, name: '' }, a.user.email || 'GYA', { test: true }) }); break
     }
     results.push({ kind, label: kindLabel(kind), ok: !!r?.ok, id: r?.id ?? '', error: r ? r.error : 'not sent', note })
   }

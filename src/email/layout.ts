@@ -111,6 +111,79 @@ export function button(label: string, url: string): Section {
   return { html, text: `${label}: ${url}` }
 }
 
+/**
+ * v1.17.0: the pieces that make the team, GYA and login emails easy to read at a glance. All built from data, never
+ * edited, with the same inline-style table markup as the rest of the layout (Outlook safe, light and dark).
+ */
+export type Tone = 'ok' | 'warn' | 'info' | 'test'
+const TONE: Record<Tone, { bg: string; edge: string; ink: string; mark: string; dot: string }> = {
+  ok: { bg: '#EAF2EC', edge: '#5B8A69', ink: '#2F5A3E', mark: '&#10003;', dot: '#5B8A69' },
+  warn: { bg: '#FBEDE3', edge: '#B8632F', ink: '#8A4317', mark: '!', dot: '#B8632F' },
+  info: { bg: C.blush, edge: C.sand, ink: C.navy, mark: 'i', dot: C.taupe },
+  test: { bg: '#FFF5D6', edge: '#C9A227', ink: '#6B5410', mark: 'T', dot: '#C9A227' },
+}
+
+/** A coloured status strip at the top of an email: a round mark, a bold line and an optional short sentence. */
+export function status(tone: Tone, title: string, body = ''): Section {
+  const t = TONE[tone]
+  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;border-collapse:separate;">
+<tr><td class="st st-${tone}" style="background:${t.bg};border-left:4px solid ${t.edge};border-radius:12px;padding:14px 16px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="top" style="padding:1px 12px 0 0;"><div style="width:26px;height:26px;line-height:26px;border-radius:13px;background:${t.dot};color:#ffffff;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">${t.mark}</div></td>
+<td valign="top"><p class="st-t" style="margin:0;font-family:${SANS};font-size:16px;line-height:1.45;font-weight:bold;color:${t.ink};">${esc(title)}</p>${body ? `<p class="st-t" style="margin:4px 0 0;font-family:${SANS};font-size:14.5px;line-height:1.5;color:${t.ink};">${linkify(esc(body))}</p>` : ''}</td>
+</tr></table>
+</td></tr></table>`
+  return { html, text: [title, body].filter(Boolean).join('\n') }
+}
+
+/** A small heading inside the card ("Appointment", "Next steps"). */
+export function subhead(label: string): Section {
+  return {
+    html: `<p class="eyebrow" style="margin:6px 0 8px;font-family:${SANS};font-size:12px;line-height:1.4;letter-spacing:1.8px;text-transform:uppercase;font-weight:bold;color:${C.taupe};">${esc(label)}</p>`,
+    text: label.toUpperCase(),
+  }
+}
+
+/** Numbered steps, each in a sand circle: what the team does next. */
+export function steps(items: string[]): Section {
+  if (!items.length) return { html: '', text: '' }
+  const rows = items.map((x, n) => `<tr>
+<td valign="top" style="padding:0 12px 12px 0;width:28px;"><div class="stepn" style="width:26px;height:26px;line-height:26px;border-radius:13px;background:${C.blush};color:${C.taupe};text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;">${n + 1}</div></td>
+<td class="t" valign="top" style="padding:2px 0 12px;font-family:${SANS};font-size:15.5px;line-height:1.5;color:${C.navy};">${linkify(esc(x))}</td>
+</tr>`).join('')
+  return {
+    html: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;">${rows}</table>`,
+    text: items.map((x, n) => `${n + 1}. ${x}`).join('\n'),
+  }
+}
+
+/** One line per email that was sent: a green tick or an amber cross, what it was, and what SMTP2GO said. */
+export function deliveries(rows: { ok: boolean; label: string; detail: string; id?: string }[]): Section {
+  if (!rows.length) return { html: '', text: '' }
+  const cells = rows.map((r, n) => {
+    const t = TONE[r.ok ? 'ok' : 'warn']
+    return `<tr>
+<td class="rule" valign="top" style="padding:12px 12px 12px 0;width:26px;${n ? `border-top:1px solid ${C.line};` : ''}"><div style="width:24px;height:24px;line-height:24px;border-radius:12px;background:${t.dot};color:#ffffff;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;">${r.ok ? '&#10003;' : '&#10005;'}</div></td>
+<td class="rule" valign="top" style="padding:12px 0;${n ? `border-top:1px solid ${C.line};` : ''}">
+<p class="t" style="margin:0;font-family:${SANS};font-size:15px;line-height:1.45;font-weight:bold;color:${C.navy};">${esc(r.label)}</p>
+<p class="${r.ok ? 't2' : 'st-t'}" style="margin:2px 0 0;font-family:${SANS};font-size:14px;line-height:1.45;color:${r.ok ? C.soft : t.ink};">${esc(r.detail)}</p>
+${r.id ? `<p class="t2" style="margin:2px 0 0;font-family:Menlo,Consolas,'Courier New',monospace;font-size:12px;line-height:1.45;color:${C.soft};word-break:break-all;">${esc(r.id)}</p>` : ''}
+</td></tr>`
+  }).join('')
+  return {
+    html: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 22px;border-collapse:separate;">
+<tr><td class="panel" style="background:${C.cream};border:1px solid ${C.line};border-radius:12px;padding:4px 18px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${cells}</table>
+</td></tr></table>`,
+    text: rows.map((r) => `${r.ok ? 'OK' : 'FAILED'}  ${r.label}: ${r.detail}${r.id ? ` (${r.id})` : ''}`).join('\n'),
+  }
+}
+
+/** A quiet small line under everything else ("No patient details are included in this notice."). */
+export function small(text: string): Section {
+  return { html: `<p class="t2" style="margin:0 0 14px;font-family:${SANS};font-size:13px;line-height:1.55;color:${C.soft};">${linkify(esc(text))}</p>`, text }
+}
+
 export type Footer = {
   /** patient emails: where appointments happen and how to reach the team */
   location?: string
@@ -173,10 +246,11 @@ a[x-apple-data-detectors]{color:inherit !important;text-decoration:none !importa
 @media (prefers-color-scheme:dark){
 .bg{background:#16232D !important;}.card{background:#1E2E3A !important;}.panel{background:#26394A !important;border-color:#3A4E5E !important;border-left-color:${C.sand} !important;}
 .t,.t a,.h1{color:#F3EEE7 !important;}.t2,.eyebrow{color:${C.sand} !important;}.foot,.foot a{color:#C9CFD4 !important;}
-.btn{background:${C.sand} !important;color:${C.navy} !important;}.rule{border-color:#3A4E5E !important;}}
+.btn{background:${C.sand} !important;color:${C.navy} !important;}.rule{border-color:#3A4E5E !important;}
+.st{background:#26394A !important;}.st-t{color:#F3EEE7 !important;}.stepn{background:#3A4E5E !important;color:${C.sand} !important;}}
 [data-ogsc] .t,[data-ogsc] .t a,[data-ogsc] .h1{color:#F3EEE7 !important;}[data-ogsc] .t2,[data-ogsc] .eyebrow{color:${C.sand} !important;}
 [data-ogsc] .foot,[data-ogsc] .foot a{color:#C9CFD4 !important;}[data-ogsb] .bg{background:#16232D !important;}[data-ogsb] .card{background:#1E2E3A !important;}
-[data-ogsb] .panel{background:#26394A !important;}[data-ogsb] .btn{background:${C.sand} !important;}[data-ogsc] .btn{color:${C.navy} !important;}
+[data-ogsb] .panel{background:#26394A !important;}[data-ogsb] .st{background:#26394A !important;}[data-ogsc] .st-t{color:#F3EEE7 !important;}[data-ogsb] .btn{background:${C.sand} !important;}[data-ogsc] .btn{color:${C.navy} !important;}
 </style>
 </head>
 <body class="bg" style="margin:0;padding:0;background:${C.cream};">
@@ -233,6 +307,7 @@ export function patientFooter(o: { clinicLine: string; email: string; phone: str
   }
 }
 export const TEAM_FOOTER: Footer = { reason: 'Sent by The Anxious Patient Experience website to the practice team. No reply is needed unless the email says so.', privacy: false }
+export const GYA_FOOTER: Footer = { reason: 'Sent to GYA by The Anxious Patient Experience website. No patient details are included.', privacy: false }
 export const LOGIN_FOOTER: Footer = { reason: 'You are receiving this because you have a login for The Anxious Patient Experience website dashboard.', privacy: false }
 
 /** Wrap an existing team or login email's paragraphs in the branded shell, keeping its wording and text version. */

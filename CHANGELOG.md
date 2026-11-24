@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.17.0 (24 Nov 2026): every email the team and GYA receive is formatted
+
+Update to the existing repo (on top of 1.16.0, `e19ed9d`). Requested 24 Nov 2026: "they want all emails that come in
+to be formatted nicely". Emails only: no change to the public pages (apart from the asset version tag), the booking
+flow, payments, the database or the patient emails.
+
+- **GYA delivery check**: was plain paragraphs; now the branded layout with a green "All emails accepted" or amber
+  "1 email failed" strip, the reference and appointment, one line per email with a tick or cross and the SMTP2GO id,
+  an "Open the email check" button when something failed, and how to turn the notices off. Still no patient details.
+- **New booking (team)**: a status strip (deposit paid or not), the details in three groups (Appointment, Patient,
+  Records), numbered next steps and an **Open this booking** button. Every row is still there, in the same order.
+- **Deposit received (team)**, **Questionnaire received (team)**, **Email failure alert (GYA)**: status strip,
+  details box and a button (to the booking, the questionnaire, or the email check). The questionnaire notice still
+  never includes an answer; the alert still has no patient details.
+- **Login emails** (invite, reset, password changed, questionnaire access): a details box (login, how long the link
+  lasts, when the password changed), and for "password changed" an amber "If it was not you" strip with a Reset
+  button.
+- Any email Payload itself sends now also goes out in the branded layout.
+- **Bookings** opens on one booking from `/admin/bookings?ref=APE-XXXXXX` (the emails' "Open this booking" button).
+  The dashboard never loads Google tags, so the reference in that address is not seen by Google.
+- **Email check** (Site Settings, GYA only) can now also send the failure alert and the questionnaire access email,
+  so all 12 kinds can be looked at. Test emails carry a yellow TEST strip.
+- The plain-text version of every email is unchanged, word for word. Headings and the new short lines are built from
+  fixed wording, never edited, and only in the team, GYA and login emails.
+- `src/email/layout.ts`: new pieces `status`, `subhead`, `steps`, `deliveries`, `small`, and `GYA_FOOTER`; dark mode
+  covered. `npm run test:email` now has 85 checks (was 63).
+
 ## 1.16.0 (24 Nov 2026): notes on each booking, the Onboarding call tick, clearer questionnaire wording
 
 Update to the existing repo (on top of 1.15.0, `a907d76`). Requested by Dr Lorna Gladwin and Alex, 24 Nov 2026.

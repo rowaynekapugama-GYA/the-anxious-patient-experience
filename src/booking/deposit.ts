@@ -11,7 +11,7 @@ import { newToken, hashToken } from '@/lib/crypto'
 import { siteOrigin } from '@/lib/email'
 import { paypalActivityUrl, siteOriginFallback, METHOD_LABEL } from '@/lib/paypal'
 import * as tpl from '@/email/patient'
-import { shell, paragraphs, TEAM_FOOTER } from '@/email/layout'
+import { shell, panel, status, button, TEAM_FOOTER } from '@/email/layout'
 import { DEFAULTS } from '@/site.config'
 
 export const PAY_LINK_DAYS = 14
@@ -145,7 +145,19 @@ export function depositEmails(cfg: core.Cfg, row: Pick<BookingRow, 'ref' | 'slot
     patient: { to: [row.email], reply_to: apeInbox, subject: patient.subject, text: patient.text, html: patient.html },
     team: {
       to: team, reply_to: row.email, subject: teamSubject, text: teamLines.join('\n\n'),
-      html: shell({ origin, variant: 'team', subject: teamSubject, heading: `${pre}Deposit received ${row.ref}`, footer: TEAM_FOOTER, sections: [paragraphs(teamLines.join('\n\n'))] }).html,
+      // v1.17.0: the branded layout, laid out for a quick read; the text version is unchanged
+      html: shell({
+        origin, variant: 'team', subject: teamSubject, footer: TEAM_FOOTER,
+        preheader: `${core.money(amount)} received for ${row.ref}. Nothing to do in PayPal.`,
+        eyebrow: `${o.test ? 'Test: ' : ''}Deposit received ${row.ref}`,
+        heading: `${row.name}, ${core.fmtDateTime(start, tz, false)}`,
+        sections: [
+          ...(o.test ? [status('test', 'TEST EMAIL with sample details', 'No payment was made.')] : []),
+          status('ok', `Deposit received: ${core.money(amount)}`, 'The booking shows Deposit received in the dashboard. Nothing to do in PayPal.'),
+          panel([['Reference', row.ref], ['Patient', row.name], ['Appointment', when], ['Amount', core.money(amount)], ['Paid through', 'PayPal checkout'], ['PayPal transaction', captureId]]),
+          button(o.test ? 'Open Bookings' : 'Open this booking', o.test ? `${origin}/admin/bookings` : `${origin}/admin/bookings?ref=${encodeURIComponent(row.ref)}`),
+        ],
+      }).html,
     },
   }
 }
