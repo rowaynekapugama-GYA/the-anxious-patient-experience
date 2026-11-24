@@ -11,6 +11,7 @@ import { ImageSlot } from '../ui/MediaPicker'
 import { PublishButton } from '../ui/PublishButton'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
+import { gtmFieldOk, gtmIdOf } from '@/lib/gtm'
 
 export type SettingsState = {
   phone: string
@@ -24,7 +25,9 @@ export type SettingsState = {
   questionnaireNotify: string[]
   gyaDeliveryNotice: boolean
   gyaNoticeTo: string
-  tracking: { ga4: string; metaPixel: string }
+  tracking: { ga4: string; metaPixel: string; gtm: string }
+  /** v1.15.0: the container the website uses when the field is blank (src/site.config.ts) */
+  gtmDefault: string
   googleReviewLink: string
   seo: { defaultTitle: string; defaultDescription: string; defaultOgImage: string; defaultOgImageMedia: number | string | null; noindexSite: boolean }
 }
@@ -52,6 +55,9 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
   const setT = (patch: Partial<SettingsState['tracking']>) => set({ tracking: { ...s.tracking, ...patch } })
   const setSeo = (patch: Partial<SettingsState['seo']>) => set({ seo: { ...s.seo, ...patch } })
 
+  // v1.15.0: the container in use: the typed ID, else the default, else none ("off" or not a real ID)
+  const tmOn = /^off$/i.test(s.tracking.gtm.trim()) ? '' : gtmIdOf({ gtm: s.tracking.gtm.trim() || s.gtmDefault })
+
   async function save() {
     if (!s.phone.trim()) { toast('Please fill in the phone number.', 'bad'); return }
     for (const [label, v] of [['APE enquiries email', s.apeEmail], ['General practice enquiries email', s.receptionEmail]] as const) {
@@ -61,6 +67,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
     if (bad.length) { toast(`This address does not look right: ${bad[0]}`, 'bad'); return }
     const link = s.googleReviewLink.trim()
     if (link && !/^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(link)) { toast('The Google review link should be the "Ask for reviews" link from the Business Profile (it starts with https://g.page/ or https://search.google.com/).', 'bad'); return }
+    if (isAdmin && !gtmFieldOk(s.tracking.gtm)) { toast('A Tag Manager ID looks like GTM-ABC1234. Type off to switch Tag Manager off, or leave it blank for the default.', 'bad'); return }
     setBusy(true)
     try {
       const settings: Record<string, unknown> = {
@@ -74,7 +81,8 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
       if (isAdmin) {
         settings.gyaDeliveryNotice = s.gyaDeliveryNotice
         settings.gyaNoticeTo = s.gyaNoticeTo.trim() || null
-        settings.tracking = { ga4: s.tracking.ga4.trim(), metaPixel: s.tracking.metaPixel.trim() }
+        const gtm = s.tracking.gtm.trim()
+        settings.tracking = { ga4: s.tracking.ga4.trim(), metaPixel: s.tracking.metaPixel.trim(), gtm: /^off$/i.test(gtm) ? 'off' : gtm.toUpperCase() }
       }
       await api('/api/globals/site-settings?depth=0', { method: 'POST', body: settings })
       // v1.10.0: saved through the Welcome pack route, which keeps the rest of that group as it is
@@ -175,11 +183,17 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
               <Toggle label="Send GYA a delivery check for each booking" checked={s.gyaDeliveryNotice} onChange={(v) => set({ gyaDeliveryNotice: v })} />
               <TextInput label="Delivery check and alerts go to" value={s.gyaNoticeTo} onChange={(v) => set({ gyaNoticeTo: v })} placeholder="rowayne@gyaclients.com" help="Blank uses rowayne@gyaclients.com." />
             </Panel>
-            <Panel id="tracking" title="Tracking (GYA only)" intro="Leave empty to switch tracking off. Nothing runs on preview deployments.">
+            <Panel id="tracking" title="Tracking (GYA only)" intro="Google Analytics runs through Google Tag Manager. Tag Manager loads on the public pages of the live website only: never on the dashboard, a preview or vercel.app address, the questionnaire, the pay-later page, or any address carrying a private link. Changes go live when you press Publish website.">
               <div className="grid-2">
-                <TextInput label="Google Analytics 4 measurement ID" value={s.tracking.ga4} onChange={(v) => setT({ ga4: v })} placeholder="G-XXXXXXXXXX" help="Goes live when you press Publish website. Only once Lorna has approved the analytics paragraph in the privacy policy." />
+                <TextInput id="tracking-gtm" label="Google Tag Manager ID" value={s.tracking.gtm} onChange={(v) => setT({ gtm: v })} placeholder={s.gtmDefault || 'GTM-XXXXXXX'}
+                  help={<>Blank uses {s.gtmDefault || 'no container'}. Type <b>off</b> to switch Tag Manager off. Anything added to the container must follow docs/GTM-CONTAINER-RULES.md.</>} />
+                <TextInput id="tracking-ga4" label="Google Analytics 4 measurement ID" value={s.tracking.ga4} onChange={(v) => setT({ ga4: v })} placeholder="G-XXXXXXXXXX"
+                  help={tmOn ? 'Not used while Tag Manager is on: Google Analytics is running through Tag Manager, so it is not loaded a second time from here.' : 'Only used when Tag Manager is off. Goes live when you press Publish website.'} />
                 <TextInput label="Meta Pixel ID (not used)" value={s.tracking.metaPixel} onChange={(v) => setT({ metaPixel: v })} help="Not added to this website (patient privacy). If it is ever needed for Instagram ads, it must never go on Book Now, the pay-later page or the questionnaire." />
               </div>
+              {tmOn
+                ? <Notice tone="info">Google Analytics is running through Tag Manager ({tmOn}). Check it with Tag Assistant after publishing.</Notice>
+                : <Notice tone="warn">Tag Manager is off{s.tracking.ga4.trim() ? '. Google Analytics loads directly from the ID above.' : ', and no Google Analytics ID is set, so nothing is being measured.'}</Notice>}
             </Panel>
           </>
         ) : null}

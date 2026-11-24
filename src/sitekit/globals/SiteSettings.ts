@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 import { adminFieldOnly, adminOrEditor } from '../access'
 import { touchSiteGlobal } from '../hooks/touchSite'
+import { gtmFieldOk } from '../../lib/gtm'
 
 /**
  * The details that appear in more than one place on the website. Changing a value here changes it
@@ -120,6 +121,13 @@ export const SiteSettings: GlobalConfig = {
       fields: [
         { name: 'ga4', type: 'text', label: 'Google Analytics 4 measurement ID' },
         { name: 'metaPixel', type: 'text', label: 'Meta Pixel ID' },
+        {
+          // v1.15.0: empty uses the default container in src/site.config.ts; "off" switches Tag Manager off
+          name: 'gtm',
+          type: 'text',
+          label: 'Google Tag Manager ID',
+          validate: (v: unknown) => gtmFieldOk(v) || 'A Tag Manager ID looks like GTM-ABC1234 (or type off to switch it off).',
+        },
       ],
     },
   ],

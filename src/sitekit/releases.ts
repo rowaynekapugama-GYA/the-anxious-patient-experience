@@ -12,6 +12,8 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 import type { Page } from '@/lib/parts'
 import { partToSectionDoc, pageToDoc, type FieldDoc, type SectionDoc } from '@/sitekit/sync'
+import { DEFAULTS } from '@/site.config'
+import { gtmIdOf } from '@/lib/gtm'
 
 type Doc = { id: number | string; sections?: (SectionDoc & { id?: string })[]; meta?: Record<string, unknown> }
 
@@ -27,6 +29,24 @@ const relId = (v: unknown) => (v && typeof v === 'object' ? (v as { id?: unknown
 const plainRows = (rows: FieldDoc[]) => rows.map((c) => ({ ...c, image: relId(c.image) as never }))
 
 export type Update = { id: string; describe: string; apply: (payload: Payload) => Promise<string> }
+
+/**
+ * v1.15.0: the Tag Manager container ID goes into Site Settings > Tracking, so GYA sees it in the dashboard.
+ * Only a blank field is filled. A different ID typed in the dashboard, or "off", is kept. Returns one line for the
+ * build log.
+ */
+export async function applyGtmContainer(payload: Payload): Promise<string> {
+  const want = gtmIdOf(DEFAULTS.tracking)
+  if (!want) return 'no default container in site.config.ts, nothing to do'
+  const g = (await payload.findGlobal({ slug: 'site-settings', depth: 0, overrideAccess: true })) as { tracking?: { ga4?: string | null; metaPixel?: string | null; gtm?: string | null } }
+  const have = String(g.tracking?.gtm || '').trim()
+  if (have) return /^off$/i.test(have) ? 'Tag Manager is switched off in the dashboard, left alone' : `the dashboard already has ${have}, left alone`
+  await payload.updateGlobal({
+    slug: 'site-settings', depth: 0, overrideAccess: true,
+    data: { tracking: { ga4: g.tracking?.ga4 ?? '', metaPixel: g.tracking?.metaPixel ?? '', gtm: want } } as never,
+  })
+  return `Google Tag Manager ID set to ${want} (the field was blank)`
+}
 
 export const UPDATES: Update[] = [
   {
@@ -360,5 +380,10 @@ export const UPDATES: Update[] = [
       await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
       return 'applied'
     },
+  },
+  {
+    id: 'v1.15.0-gtm-container',
+    describe: 'Site Settings > Tracking gets the Google Tag Manager ID, if the field is blank',
+    apply: applyGtmContainer,
   },
 ]

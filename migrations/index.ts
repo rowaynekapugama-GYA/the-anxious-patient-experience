@@ -4,6 +4,7 @@ import * as migration_20261113_070622_v183_email_settings from './20261113_07062
 import * as migration_20261116_010034_v184_last_login from './20261116_010034_v184_last_login';
 import * as migration_20261116_012208_v190_welcome_pack from './20261116_012208_v190_welcome_pack';
 import * as migration_20261117_010000_v1100_terms_owner from './20261117_010000_v1100_terms_owner';
+import * as migration_20261124_010000_v1150_gtm from './20261124_010000_v1150_gtm';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20261117_010000_v1100_terms_owner.up,
     down: migration_20261117_010000_v1100_terms_owner.down,
     name: '20261117_010000_v1100_terms_owner',
+  },
+  {
+    up: migration_20261124_010000_v1150_gtm.up,
+    down: migration_20261124_010000_v1150_gtm.down,
+    name: '20261124_010000_v1150_gtm',
   },
 ];

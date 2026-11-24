@@ -7,7 +7,7 @@ A short guide for Lorna and the APE team.
 | Question | Where to look | Where the numbers come from |
 |---|---|---|
 | How many bookings, and where those patients came from | The dashboard (section 1) | Your own booking records on the APE website. Not Google. |
-| How many people visit, where from, and how many reach Book Now and finish booking | Google Analytics (section 2) | Google Analytics on the APE website, once it is switched on |
+| How many people visit, where from, and how many reach Book Now and finish booking | Google Analytics (section 2) | Google Analytics on the APE website, which runs through Google Tag Manager (from v1.15.0) |
 | What people search on Google before finding the site | Google Search Console (section 3) | Google search results only. It knows nothing about visits or bookings |
 
 ## 1. Bookings and where they came from: the dashboard
@@ -21,7 +21,7 @@ Sign in at **theanxiouspatientexperience.com.au/admin**.
 
 ## 2. Visits and the path to booking: Google Analytics
 
-Once GYA has switched it on (after you approve the short privacy paragraph), go to **analytics.google.com** with the Google login GYA adds you to.
+Google Analytics is added to the website through Google Tag Manager, which GYA manages. Go to **analytics.google.com** with the Google login GYA adds you to. Numbers start from the day it went on; there is nothing from before.
 
 | What you want to know | Where to look |
 |---|---|
@@ -31,7 +31,9 @@ Once GYA has switched it on (after you approve the short privacy paragraph), go 
 | How many reached Book Now, and how many finished | **Reports > Engagement > Events**: `book_now_view` (opened Book Now), then `booking_time_selected`, `booking_details_completed`, `deposit_policy_agreed`, and `booking_submitted` (booking sent) and `deposit_paid` (deposit paid) |
 | Calls, emails and Instagram taps from the website | Events `click_to_call`, `click_email`, `outbound_instagram` |
 
-Google Analytics never receives a name, email, phone number, date of birth or booking reference, and it is not on the questionnaire or the dashboard. Some visitors block it, so the **dashboard count is the true number of bookings**; use Google Analytics for visits, the trend and where people came from.
+Google Analytics never receives a name, email, phone number, date of birth or booking reference. It is not on the questionnaire, the page where a deposit is paid from an emailed link, or the dashboard, and it only runs on the live website address. The steps of a booking (the events in the table above) show once GYA has added them in Tag Manager.
+
+Two things it does not count, on purpose: deposits paid from the emailed link (unless the patient goes on to another page of the website), and visits from the flyer QR code. Some visitors also block it. So the **dashboard count is the true number of bookings and deposits**; use Google Analytics for visits, the trend and where people came from.
 
 ## 3. Google searches: Search Console
 

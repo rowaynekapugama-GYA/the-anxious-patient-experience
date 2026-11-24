@@ -229,7 +229,10 @@ export function settingsFileFromGlobal(raw: Record<string, unknown>): Record<str
   }
   const recipients = ((s.bookingRecipients as { address?: string }[] | undefined) ?? []).map((r) => r.address).filter(Boolean)
   if (recipients.length) out.bookingRecipients = recipients
-  if (s.tracking && (s.tracking.ga4 || s.tracking.metaPixel)) out.tracking = { ga4: s.tracking.ga4 ?? '', metaPixel: s.tracking.metaPixel ?? '' }
+  // v1.15.0: gtm is only written when the dashboard holds one (or "off"), so a blank field keeps the default container
+  if (s.tracking && (s.tracking.ga4 || s.tracking.metaPixel || s.tracking.gtm)) {
+    out.tracking = { ga4: s.tracking.ga4 ?? '', metaPixel: s.tracking.metaPixel ?? '', ...(s.tracking.gtm ? { gtm: String(s.tracking.gtm).trim() } : {}) }
+  }
   if (s.googleReviewLink) out.googleReviewLink = s.googleReviewLink
   if (s.questionnaire) {
     const q: Record<string, unknown> = {}

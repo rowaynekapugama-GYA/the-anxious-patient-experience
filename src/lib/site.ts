@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { DEFAULTS } from '@/site.config'
 import { hasBlog } from '@/lib/blog'
+import { gtmIdOf, gtmParts, LIVE_HOSTS, type GtmParts } from '@/lib/gtm'
 
 export type SiteSettings = typeof DEFAULTS & Record<string, unknown>
 
@@ -80,11 +81,39 @@ export function ga4Id(t?: { ga4?: string } | null): string {
 }
 
 /**
- * Google Analytics 4 for the public pages, only when an ID is set (v1.11.0). The tag itself is /assets/analytics.js,
- * which strips private links and anything personal before Google sees it. Never on /admin (the dashboard has its own
- * layout). The Meta Pixel is not added to this website (patient privacy); the field in Site Settings is kept but unused.
+ * v1.15.0: the Google Tag Manager container ID, from Site Settings > Tracking (GYA only). The default is in
+ * src/site.config.ts. Typing "off" in the dashboard switches Tag Manager off.
  */
-export function analyticsTags(t: { ga4?: string; metaPixel?: string }): string {
+export function gtmId(t?: { gtm?: string } | null): string {
+  return gtmIdOf(t)
+}
+
+/**
+ * The container snippet for the live copies of the public pages, or null when Tag Manager does not run in this
+ * build: no ID, the ID is "off", or this is a preview deployment. The live copies are only ever served on the live
+ * domain (src/lib/gtm.ts, src/proxy.ts).
+ */
+export function gtmForBuild(s: SiteSettings): GtmParts | null {
+  const id = gtmId((s as { tracking?: { gtm?: string } }).tracking)
+  if (!id || isPreviewDeploy()) return null
+  return gtmParts(id, assetVersion())
+}
+
+export { LIVE_HOSTS }
+
+/**
+ * Analytics on the plain copies of the public pages.
+ *
+ * With a Tag Manager ID set (v1.15.0), Google Analytics runs through the container, which is added only to the live
+ * copies, so the plain pages carry nothing and the direct tag below never loads, even with a GA4 ID typed in.
+ *
+ * With no Tag Manager ID, v1.11.0 is unchanged: Google Analytics 4 loads directly when a GA4 ID is set. The tag is
+ * /assets/analytics.js, which strips private links and anything personal before Google sees it. Never on /admin (the
+ * dashboard has its own layout). The Meta Pixel is not added to this website (patient privacy); the field in Site
+ * Settings is kept but unused.
+ */
+export function analyticsTags(t: { ga4?: string; metaPixel?: string; gtm?: string }): string {
+  if (gtmId(t)) return ''
   const ga = ga4Id(t)
   if (!ga) return ''
   return `<script>window.APE_GA4=${JSON.stringify(ga)};</script><script src="/assets/analytics.js?v=${esc(assetVersion())}" defer></script>`

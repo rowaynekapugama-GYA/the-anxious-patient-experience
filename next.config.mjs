@@ -47,7 +47,9 @@ const nextConfig = {
       { source: '/cms/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       // the patient questionnaire pages: never indexed, never cached, no referrer sent anywhere
       { source: '/book-now/terms', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
+      // v1.15.0: both spellings of the pay-later address, so the next page never receives its private link as the referrer
       { source: '/book-now/pay', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
+      { source: '/book-now/pay/', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
       // v1.9.0: Lorna's welcome pack PDFs are sent to patients, not meant for search results
       { source: '/downloads/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
       { source: '/questionnaire/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },

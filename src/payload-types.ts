@@ -1006,6 +1006,7 @@ export interface SiteSetting {
   tracking?: {
     ga4?: string | null;
     metaPixel?: string | null;
+    gtm?: string | null;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -1139,6 +1140,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
     | {
         ga4?: T;
         metaPixel?: T;
+        gtm?: T;
       };
   updatedAt?: T;
   createdAt?: T;

@@ -6,6 +6,11 @@ Analytics can tell where each visit and booking came from. They all use `utm_cam
 Each link opens the normal page. The `utm_` part at the end only labels the visit; patients do not need to do anything.
 Copy them exactly: lower case, no spaces.
 
+**From v1.15.0 (Google Tag Manager):** always use the `utm_` links on this page. The website removes the click IDs
+that ad platforms add by themselves (`fbclid`, `gclid` and similar) before Google Tag Manager loads, so a link
+without `utm_` tags shows in Google Analytics only by the website it came from. Rules for the container:
+`docs/GTM-CONTAINER-RULES.md`.
+
 ## Instagram
 
 | Where | Link |

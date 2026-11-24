@@ -28,7 +28,11 @@ export const DEFAULTS = {
   ogImageAlt: 'A soft cream armchair beside a small wooden table with a white vase of olive branches and a lit candle, in warm afternoon light',
   ogImageWidth: '1200',
   ogImageHeight: '630',
-  tracking: { ga4: '', metaPixel: '' },
+  /**
+   * v1.15.0: gtm is the Google Tag Manager container (GTM-PNMVSBCW, "theanxiouspatientexperience"). Google Analytics
+   * runs through it, so ga4 stays empty. Site Settings > Tracking can hold a different ID, or "off".
+   */
+  tracking: { ga4: '', metaPixel: '', gtm: 'GTM-PNMVSBCW' },
   /** The Google Business Profile's "Ask for reviews" link. Empty: /review/ says coming soon. */
   googleReviewLink: '',
   /** v1.7.0 New Patient Information Pack */

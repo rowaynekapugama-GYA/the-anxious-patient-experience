@@ -1,6 +1,6 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "private": true,
   "type": "module",
   "description": "The Anxious Patient Experience website (static pages built from content/) with the GYA client dashboard and booking dashboard at /admin.",
@@ -20,9 +20,11 @@
     "pack:pdf": "node scripts/build-welcome-pack.mjs",
     "qa:editor": "tsx scripts/qa-editor.ts",
     "qa:site": "node scripts/qa-site.mjs",
+    "qa:gtm": "node scripts/qa-gtm.mjs",
+    "test:gtm": "tsx scripts/test-gtm.ts",
     "qa:banned": "node scripts/qa-banned.mjs",
     "qa:secrets": "node scripts/qa-secrets.mjs",
-    "qa": "npm run typecheck && npm run qa:parity && npm run qa:editor && npm run qa:site && npm run qa:banned && npm run qa:secrets",
+    "qa": "npm run typecheck && npm run qa:parity && npm run qa:editor && npm run qa:site && npm run qa:gtm && npm run qa:banned && npm run qa:secrets",
     "payload": "payload",
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create"

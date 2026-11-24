@@ -4,7 +4,7 @@ import { paypalConfigured, paypalClientId, paypalAdvanced, paypalEnv } from '@/l
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import * as terms from '@/booking/terms'
-import { Analytics } from '@/lib/AnalyticsTag'
+import { Analytics, DepositHandOff } from '@/lib/AnalyticsTag'
 import { getSettings } from '@/lib/site'
 import { PayDeposit } from './PayDeposit'
 
@@ -48,6 +48,7 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
           policy={{ text: terms.fill(tm.text, { phone: s.phone, deposit: core.money(cfg.pricing.deposit) }), consentLabel: tm.consentLabel, version: tm.label }}
           agreed={agreedAt ? { at: agreedAt, version: tm.label } : null} />
         <Analytics />
+        <DepositHandOff />
       </div>
     </section>
   )

@@ -3,6 +3,8 @@ import { SettingsForm } from '@/dashboard/editors/SettingsForm'
 import { mediaUrl } from '@/sitekit/sync'
 import { mergeSettings } from '@/lib/site'
 import { resolveTeam } from '@/lib/recipients'
+import { DEFAULTS } from '@/site.config'
+import { gtmIdOf } from '@/lib/gtm'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Site Settings' }
@@ -28,7 +30,8 @@ export default async function SettingsPage() {
         questionnaireNotify: ((g.questionnaire?.notifyEmails as { address?: string }[] | undefined)?.map((r) => str(r.address)).filter(Boolean) ?? []),
         gyaDeliveryNotice: isAdmin ? g.gyaDeliveryNotice !== false : true,
         gyaNoticeTo: isAdmin ? str(g.gyaNoticeTo) : '',
-        tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel) } : { ga4: '', metaPixel: '' },
+        tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel), gtm: str(g.tracking?.gtm) } : { ga4: '', metaPixel: '', gtm: '' },
+        gtmDefault: isAdmin ? gtmIdOf(DEFAULTS.tracking) : '',
         googleReviewLink: str(g.googleReviewLink),
         seo: {
           defaultTitle: str(seo.defaultTitle), defaultDescription: str(seo.defaultDescription),

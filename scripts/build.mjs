@@ -4,7 +4,8 @@
  *   1. with a database: run migrations, load the website into an empty dashboard, apply this release's content
  *      changes (src/sitekit/releases.ts), and pull whatever the dashboard holds into content/
  *   2. write the public pages from content/ into public/ (scripts/render-site.ts)
- *   3. check every page: links, anchors, files, structured data, FAQ counter, em dashes (scripts/qa-site.mjs)
+ *   3. check every page: links, anchors, files, structured data, FAQ counter, em dashes (scripts/qa-site.mjs),
+ *      and where Google Tag Manager is and is not (scripts/qa-gtm.mjs)
  *   4. next build: the dashboard at /admin, Payload at /cms, the booking and dashboard API routes
  *
  * The public pages are plain files and never talk to the database. Without DATABASE_URL, or before the content
@@ -78,6 +79,10 @@ run('npx', ['tsx', 'scripts/render-site.ts'])
 
 console.log('> checking the pages')
 run('node', ['scripts/qa-site.mjs'])
+
+// v1.15.0: stops the build if Tag Manager is on a page it must never be on, or missing from a live page
+console.log('> checking where Google Tag Manager is')
+run('node', ['scripts/qa-gtm.mjs'])
 
 console.log('> building the dashboard')
 run('npx', ['next', 'build'])

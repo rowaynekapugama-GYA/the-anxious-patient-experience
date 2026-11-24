@@ -1,5 +1,67 @@
 # Changelog
 
+## 1.15.0 (24 Nov 2026): Google Tag Manager
+
+Update to the existing repo (on top of 1.14.0, `abdea49`). Requested by Princess (GYA), 24 Nov 2026: install the
+container GTM-PNMVSBCW, which already has the Google Analytics tag published. No design, wording, booking, payment,
+email or questionnaire changes.
+
+- **The container** is on every public page of the live website: Home, Book Now, the privacy policy, the deposit
+  policy, the Google review page and the 404 page (and blog pages, if the blog is ever used). The snippet is the
+  Cronulla v2.4.0 and Lava Street v1.3.4 format, straight after the viewport tag, with the noscript frame straight
+  after `<body>`.
+- **Where it never loads**:
+  - `/admin`, `/cms`, the page editor preview and the email previews;
+  - any `vercel.app` or preview address, and localhost;
+  - `/questionnaire/` and everything under it;
+  - the pay-later page (`/book-now/pay/?t=...`);
+  - any address with a value in it other than `utm_` tags (a token, a PayPal return, anything unknown);
+  - a 404 for an address that looks like a mistyped private link;
+  - the old short addresses (`/faqs/`, `/meet-the-team/`, `/understanding-the-experience/`), which forward at once.
+- **How**: a tag in the container reads the address and referrer straight from the browser, so the v1.11.0 rules
+  are now kept by where the container loads. Every public page is written twice: the plain page, and a copy with
+  the container in `public/live-pages/`. `src/proxy.ts` serves the copy only on the live domain, for a public page,
+  at an address with nothing but `utm_` tags (`src/lib/gtm.ts`). The copies cannot be opened directly.
+- **Ad click IDs** (`fbclid`, `gclid` and similar) are removed with a redirect on the live domain, keeping `utm_`
+  tags, so those visits still count and the ID never reaches Google.
+- **Privacy defaults before the container**: advertising storage, advertising user data and ad personalisation are
+  denied (Consent Mode), and Google signals and ad personalisation signals are off, on every page, whatever the
+  container is set to. v1.11.0 had these off in the tag itself.
+- **Referrer**: the pay-later page (both spellings of its address) and the questionnaire pages send
+  `Referrer-Policy: no-referrer` and carry the matching meta tag, so the page a patient opens next never receives
+  the private link.
+- **The deposit policy page** moved to `src/app/(public)/` with its own layout. The layout of the private pages
+  (`src/app/(site)/`) has no way to add the container.
+- **No double counting**: with a Tag Manager ID set, Google Analytics is never also loaded directly, even if a GA4
+  ID is typed into Site Settings. With Tag Manager off, v1.11.0 is unchanged.
+- **Events**: the v1.11.0 events are pushed to the `dataLayer` as named events, through the same filter (now only
+  `method`, `value`, `currency` and `from` can be present):
+  `book_now_view`, `booking_time_selected`, `booking_details_completed`, `deposit_policy_agreed`, `deposit_started`,
+  `deposit_paid` (value 100, AUD), `booking_submitted` (and `generate_lead`), `questionnaire_started`,
+  `questionnaire_sent`, `click_to_call`, `click_email`, `outbound_instagram`.
+  The Google tag does not send them by itself: the container needs one trigger and one GA4 event tag
+  (`docs/GTM-CONTAINER-RULES.md`).
+- **Deposits paid from the emailed link**: that page loads nothing from Google. Its three deposit events wait in the
+  browser tab (name, amount and method only) and are sent from the next public page the patient opens there, marked
+  `from: 'pay_link'`. If they close the tab, the deposit is not counted in Google (it is always in the dashboard).
+- **Site Settings > Tracking (GYA only)**: new "Google Tag Manager ID". Blank uses GTM-PNMVSBCW, another `GTM-...` ID
+  replaces it, `off` switches Tag Manager off. A note beside the GA4 field says Google Analytics is running through
+  Tag Manager. The build fills a blank field with the default, and leaves a different ID or `off` alone.
+- **The build stops** if a page breaks the rules (`scripts/qa-gtm.mjs`, also part of `npm run qa`): exactly one
+  container script and one noscript frame on each live copy, none anywhere else, only the live domain allowed, and
+  nothing in the private parts of the site referring to Tag Manager. `npm run test:gtm` (60 checks) covers the rules.
+- **Content Security Policy**: the site sends none, so nothing was added.
+- **Docs**: `docs/GTM-CONTAINER-RULES.md` (new, for whoever manages the container), `docs/FOR-LORNA-v1.15.0.md` (the
+  analytics paragraph for the privacy policy, for approval; not published), `docs/HOW-TO-SEE-YOUR-NUMBERS.md` and the
+  README.
+- Database: additive (`tracking_gtm` on `site_settings`).
+
+**Open, outside the website:**
+- The Google tag in the container has automatic user-provided data detection on (email, phone, address). It must be
+  switched off before this goes live: `docs/GTM-CONTAINER-RULES.md`, section 2.
+- Lorna has not approved the analytics paragraph: `docs/FOR-LORNA-v1.15.0.md`.
+- The event trigger and tag in the container, and `booking_submitted` and `deposit_paid` as key events in GA4.
+
 ## 1.14.0 (23 Nov 2026): branded HTML emails, patient email wording editable in the dashboard
 
 Update to the existing repo (on top of 1.13.0, `dc1359a`). From Lorna's phone call with the GYA team on 23 Nov 2026.

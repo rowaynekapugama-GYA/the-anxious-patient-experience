@@ -54,7 +54,7 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist (no key rotation); keep a copy in the GYA password manager. | add now: Lorna approved on 19 Nov 2026 (README, v1.13.0) |
 | `PAYPAL_ADVANCED` | Preview first, then Production | `on` switches on PayPal Advanced Checkout (card fields, Apple Pay, Google Pay). Not Sensitive. Leave unset until PayPal approves it (`docs/PAYPAL-ADVANCED-SETUP.md`). | v1.10.0, later |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Production | Optional: the contents of PayPal's Apple Pay domain file, if it is not put in `config/apple-pay/`. Public, not Sensitive. | v1.10.0, optional |
-| `NEXT_PUBLIC_GA4_ID` | Production | Optional Google Analytics 4 ID (`G-...`). Normally set in the dashboard instead (Site Settings > Tracking, which wins). Not Sensitive. Leave unset until Lorna approves the analytics paragraph (`docs/FOR-LORNA-v1.11.0.md`). Needs a redeploy. | v1.11.0, optional |
+| `NEXT_PUBLIC_GA4_ID` | Production | Leave unset. From v1.15.0 Google Analytics runs through Google Tag Manager (the container ID is in Site Settings > Tracking, no environment variable). This is only read when Tag Manager is switched off. | v1.11.0, not used |
 | `BOOKING_BCC` | optional | Extra copies of each request | optional |
 | `ALLOW_FIRST_USER` | | Only for the very first login. | **delete** if still there |
 | `ADMIN_PASSWORD` | | Not used since v1.5.0 | **delete** if still there |
@@ -199,6 +199,50 @@ of places stay in `content/booking.json` (GYA).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
 
+## Google Tag Manager (v1.15.0)
+
+Container **GTM-PNMVSBCW**. Google Analytics (G-16W6YW4PR4) runs through it, so the direct GA4 tag from v1.11.0 is
+not loaded. The rules for the container itself are in `docs/GTM-CONTAINER-RULES.md`: read them before publishing
+anything in Tag Manager.
+
+- **Why it is built this way**: a tag inside the container reads the page address and the referrer straight from
+  the browser, so the v1.11.0 privacy rules cannot live in `analytics.js` any more. They are kept by deciding where
+  the container may load (`src/lib/gtm.ts`).
+- **Two copies of every public page**: `scripts/render-site.ts` writes the plain page as before, and a copy with the
+  container under `public/live-pages/`. `src/proxy.ts` serves the copy only when all three are true: the address is
+  the live domain (`theanxiouspatientexperience.com.au` or `www.`), the page is a public page, and the address
+  carries nothing but `utm_` tags. Everything else gets the plain page. The copies cannot be opened at their own
+  address.
+- **Never**: `/admin`, `/cms`, previews, any `vercel.app` address, `/questionnaire/...`, `/book-now/pay/`, any
+  address with another value in it (a token, a PayPal return), a 404 that looks like a mistyped private link, and
+  the old short addresses (`/faqs/` and so on, which forward at once).
+- **Ad click IDs** (`fbclid`, `gclid` and the rest of `CLICK_IDS`) are removed with a 307 redirect on the live
+  domain, keeping `utm_` tags, so those visits still count. Campaign links use `utm_` tags (`docs/TRACKING-LINKS.md`).
+- **The snippet** is the Cronulla v2.4.0 and Lava Street v1.3.4 format (plain `<script async>` then `gtag('js')`),
+  straight after the viewport tag, with the noscript frame straight after `<body>`. One thing is added before it:
+  the privacy defaults (Consent Mode: advertising storage, advertising user data and ad personalisation denied;
+  Google signals and ad personalisation signals off), so they hold whatever the container is set to.
+- **The deposit policy page** (`/book-now/terms/`) is the one public Next.js page. It moved to `src/app/(public)/`
+  with its own layout, which adds the container only when the proxy sets the `x-ape-tm` request header. The private
+  pages stay in `src/app/(site)/`, whose layout has no way to add it.
+- **Referrer**: the private pages send `Referrer-Policy: no-referrer` (`next.config.mjs`, both spellings of the
+  pay-later address) and carry `<meta name="referrer" content="no-referrer">` (`src/lib/SiteFrame.tsx`), so the next
+  page never learns their address.
+- **Events**: `public/assets/analytics.js` pushes the v1.11.0 events to the `dataLayer` as named events, through
+  the same filter (only `method`, `value`, `currency` and `from` can be present). The Google tag does not pick
+  them up by itself: the container needs one trigger and one GA4 event tag (`docs/GTM-CONTAINER-RULES.md`,
+  section 3). Deposits paid on the pay-later page are handed to the next public page in the same tab
+  (sessionStorage `ape_evq`: event name, amount, method) and sent from there with `from: 'pay_link'`.
+- **Site Settings > Tracking (GYA only)**: Google Tag Manager ID. Blank uses the default in `src/site.config.ts`,
+  another `GTM-...` ID replaces it, and `off` switches Tag Manager off (then, and only then, a GA4 ID loads
+  directly as in v1.11.0). The build fills a blank field with the default once (`applyGtmContainer` in
+  `src/sitekit/releases.ts`). Changes go live with Publish website.
+- **The build stops** (`scripts/qa-gtm.mjs`) if a live copy does not have exactly one container script and one
+  noscript frame, if any other page has one, if Tag Manager is allowed on anything but the live domain, or if the
+  private parts of the site refer to it. `npm run test:gtm` checks the rules themselves.
+- **No Content Security Policy** is sent by this site, so nothing was added for Google.
+- Migration: additive (`tracking_gtm` on `site_settings`).
+
 ## Branded emails and Patient emails (v1.14.0)
 
 - **Layout:** `src/email/layout.ts`, used by every email.
@@ -312,8 +356,9 @@ of places stay in `content/booking.json` (GYA).
   `booking_submitted` and `generate_lead`, `questionnaire_started` and `questionnaire_sent` (from Book Now),
   `click_to_call`, `click_email`, `outbound_instagram`. Mark `booking_submitted` and `deposit_paid` as **key events**
   in GA4. No Meta Pixel (the Site Settings field remains but outputs nothing).
-- **Before switching GA on**: Lorna approves the analytics paragraph in `docs/FOR-LORNA-v1.11.0.md` and GYA adds it to
-  the privacy policy (section 7). Search Console: `docs/SEARCH-CONSOLE.md`.
+- **v1.15.0**: Google Analytics now runs through Google Tag Manager (the section above), and this direct tag only
+  loads when Tag Manager is switched off. The analytics paragraph for the privacy policy (section 7) is redrafted in
+  `docs/FOR-LORNA-v1.15.0.md` and still needs Lorna's approval. Search Console: `docs/SEARCH-CONSOLE.md`.
 
 ## PayPal deposit (v1.8.0, cards and wallets v1.10.0)
 
@@ -352,8 +397,10 @@ dashboard (/admin)  ->  Neon Postgres  ->  "Publish website"  ->  Vercel deploy 
                                 (v1.7.0: the review page and the privacy policy's questionnaire section)
     2c. dashboard-logins        DASHBOARD_EDITORS: add missing logins and email their password links
     3. pull-content             dashboard -> content/*.json (skipped until the content has been imported)
-    4. render-site              content/*.json -> public/*.html, sitemap.xml, robots.txt, assets/site-config.js
+    4. render-site              content/*.json -> public/*.html, sitemap.xml, robots.txt, assets/site-config.js,
+                                and the copies with Google Tag Manager in public/live-pages/ (v1.15.0)
     5. qa-site                  every link, anchor, file, structured data, FAQ count; no em dashes
+    5b. qa-gtm                  v1.15.0: Google Tag Manager is on every live copy once, and on nothing else
     6. next build               the dashboard, Payload at /cms (GYA only), the booking and dashboard API
 ```
 
@@ -448,13 +495,13 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 | v1.13.0: Lorna to approve the new wording: deposit policy version 3 (age sentence), "for patients aged 15 and over" on Book Now, the under-15 message, the guardian field and its help text, the under-18 lines (emails and questionnaire), the privacy sentence; and whether 18-year-olds need a guardian | Site Settings > Deposit policy; CHANGELOG 1.13.0 |
 | v1.10.0: terms draft, the two tick boxes, the late-cancellation deposit rule, under-18s, privacy and collection notice drafts | `docs/FOR-LORNA-v1.10.0.md`; Site Settings > Booking terms (Draft until approved) |
 | v1.10.0: PayPal Advanced Checkout approval, Apple Pay domain file, fees | `docs/PAYPAL-ADVANCED-SETUP.md` (Andy and Ram) |
-| v1.11.0: GA4 property, Lorna's approval of the analytics paragraph, then the ID in Site Settings > Tracking | `docs/FOR-LORNA-v1.11.0.md`, `docs/HOW-TO-SEE-YOUR-NUMBERS.md` |
+| v1.15.0: Lorna's approval of the analytics paragraph (Google Analytics through Google Tag Manager); the Google tag's user-provided data detection switched off; the event trigger and tag added in the container | `docs/FOR-LORNA-v1.15.0.md`, `docs/GTM-CONTAINER-RULES.md`, `docs/HOW-TO-SEE-YOUR-NUMBERS.md` |
 | v1.11.0: Search Console TXT record at VentraIP and the sitemap | `docs/SEARCH-CONSOLE.md` |
 | v1.11.0: tracking links on Instagram, both clinic sites (banner and Book Now tab) and email signatures | `docs/TRACKING-LINKS.md` |
 | `npm audit` (18 Nov 2026): 25 advisories, all inside Payload 3.92.1's own dependencies (dompurify in the dashboard's code editor, picomatch in build tooling). Not changed by v1.11.0; fixing them means a Payload upgrade | A separate Payload update, tested on its own |
 | Google Business Profile option and admin email | `docs/GOOGLE-BUSINESS-PROFILE.md` |
 | Google review link | Site Settings > Google review link (after the profile exists) |
-| GA4 ID (Meta Pixel not used) | Site Settings > Tracking (GYA only), after Lorna approves the analytics paragraph |
+| Google Tag Manager ID (GA4 runs through it; Meta Pixel not used) | Site Settings > Tracking (GYA only). Lorna's approval of the analytics paragraph: `docs/FOR-LORNA-v1.15.0.md` |
 
 ## Go-live checklist
 
@@ -472,7 +519,8 @@ domain and redeploy, regenerate the QR code, and update `ape.url` / `ape.bookUrl
 - [x] Lorna's deposit policy in place (Site Settings > Deposit policy, version 2, her email of 18 Nov 2026)
 - [ ] `QUESTIONNAIRE_ENCRYPTION_KEY` in Vercel (Production and Preview, Sensitive), saved in the password manager, redeployed
 - [ ] Lorna approved deposit policy version 3 and the v1.13.0 age wording
-- [ ] Lorna approved the v1.10.0 privacy drafts and the v1.11.0 analytics paragraph; then GA4 ID added
+- [ ] Lorna approved the v1.10.0 privacy drafts and the v1.15.0 analytics paragraph (`docs/FOR-LORNA-v1.15.0.md`)
+- [ ] Tag Manager: user-provided data detection off in the Google tag, checked on Book Now with Tag Assistant (`docs/GTM-CONTAINER-RULES.md`)
 - [ ] Confirmation heading "You're booked in." agreed (bookings are confirmed by hand)
 - [ ] New copy signed off (CHANGELOG 1.5.0, 1.4.0, 1.3.0)
 - [ ] `NEXT_PUBLIC_SERVER_URL` set to the domain; QR regenerated if the flyer is not yet printed; GA4 added
