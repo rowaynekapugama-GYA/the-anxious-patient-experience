@@ -9,6 +9,7 @@ import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 import { Modal, Notice, Toggle, Field, TextInput, TextArea } from '../ui/fields'
 import { when } from '../lib/format'
+import { NOTE_MAX, NOTE_HELP, QUICK_NOTES, firstLine, onboardingState, questionnaireLabel, type NoteView } from '@/booking/followup'
 
 const API = '/api/dashboard/bookings'
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -27,6 +28,9 @@ export type Booking = {
   terms: { version: string; consentAt: string | null; readAt: string | null; payReadAt: string | null }
   /** v1.11.0: where the visit came from */
   source?: { label: string; source: string; medium: string; campaign: string }
+  /** v1.16.0: the Onboarding call tick, and the team's notes (newest first) */
+  onboarding?: { doneAt: string | null; by: string }
+  teamNotes?: NoteView[]
 }
 
 const dobText = (b: Pick<Booking, 'dob' | 'age'>) => (b.dob ? `${new Date(`${b.dob}T00:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' })} (age ${b.age})` : 'not given')
@@ -38,7 +42,7 @@ export type BookingData = {
   pricing: { appointment: number; deposit: number }
   booking: { startDate: string; minNoticeHours: number; weeksAhead: number; days: number[]; startTimes: string[]; dayNames: string[]; standard: { days: number[]; startTimes: string[] }; custom: boolean }
   bookings: Booking[]
-  questionnaire: { welcome: boolean; online: boolean; byRef: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }> }
+  questionnaire: { welcome: boolean; online: boolean; byRef: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; draftSavedAt?: string | null; expiresAt?: string | null; id: string }> }
   blocks: { day: string; time: string | null; note: string }[]
   special: {
     enabled: boolean; price: number; regular: number; from: string; to: string; max: number; used: number; showing: boolean
@@ -61,6 +65,11 @@ const ERR: Record<string, string> = {
   invalid_delay: 'Show after must be a number of seconds between 0 and 60.',
   already_paid: 'This deposit was paid through PayPal, so there is nothing to mark.',
   paid_by_paypal: 'This deposit was paid through PayPal. Refunds are done in PayPal and show here by themselves.',
+  note_empty: 'Please write something in the note first.',
+  note_too_long: `A note can be up to ${NOTE_MAX.toLocaleString('en-AU')} characters. Please shorten it or split it into two notes.`,
+  note_gone: 'That note has already been deleted (perhaps by someone else). The list has been refreshed.',
+  not_your_note: 'Only the person who wrote a note can change it. Administrators can delete any note.',
+  not_found: 'That booking could not be found. Please refresh the page.',
 }
 const errText = (e?: string) => (e && ERR[e]) || 'Something went wrong. Please try again, or contact GYA if it keeps happening.'
 const money = (n: number) => `$${Number(n).toLocaleString('en-AU')}`
@@ -109,7 +118,7 @@ function Confirm({ title, children, yes, danger, onYes, onClose }: { title: stri
 }
 
 // ================================================================ Bookings
-type Filter = 'upcoming' | 'todo' | 'unpaid' | 'past' | 'cancelled' | 'all'
+type Filter = 'upcoming' | 'todo' | 'onboarding' | 'unpaid' | 'past' | 'cancelled' | 'all'
 
 export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   const toast = useToast()
@@ -133,6 +142,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       all: b.length,
       unpaid: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid && !x.heldUntil).length,
       deposits: future.filter((x) => x.status !== 'cancelled' && !x.depositPaid && !x.heldUntil).length,
+      // v1.16.0: still going ahead and nobody has ticked the Onboarding call
+      onboarding: b.filter((x) => onboardingState(x, now) === 'todo').length,
     }
   }, [data, now])
 
@@ -142,9 +153,10 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       : filter === 'cancelled' ? b.status === 'cancelled'
         : filter === 'past' ? !future && b.status !== 'cancelled'
           : filter === 'todo' ? future && b.status === 'requested' && !b.heldUntil
-            : filter === 'unpaid' ? future && b.status !== 'cancelled' && !b.depositPaid
+            : filter === 'onboarding' ? onboardingState(b, now) === 'todo'
+              : filter === 'unpaid' ? future && b.status !== 'cancelled' && !b.depositPaid
               : future && b.status !== 'cancelled'
-    return ok && (!q || `${b.name} ${b.email} ${b.phone} ${b.ref} ${b.notes}`.toLowerCase().includes(q.toLowerCase()))
+    return ok && (!q || `${b.name} ${b.email} ${b.phone} ${b.ref} ${b.notes} ${(b.teamNotes || []).map((n) => n.body).join(' ')}`.toLowerCase().includes(q.toLowerCase()))
   }).sort((a, b) => (filter === 'past' || filter === 'cancelled' ? (a.start < b.start ? 1 : -1) : (a.start < b.start ? -1 : 1))), [data, filter, q, now])
 
   async function update(b: Booking, change: { status?: Booking['status']; depositPaid?: boolean; note?: string }, done: string) {
@@ -177,6 +189,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
     } catch (e) { toast((e as Error).message, 'bad') } finally { setBusy('') }
   }
 
+  // v1.16.0: the team's notes are deliberately not in the CSV (see the v1.16.0 report)
   function csv() {
     const rows = [['Reference', 'Appointment', 'First name', 'Last name', 'Date of birth', 'Age', 'Age at appointment', 'Parent or guardian', 'Email', 'Phone', 'Fee', 'Opening special', 'Status', 'Deposit received', 'Paid by', 'Deposit policy version', 'Deposit policy agreed', 'Source', 'Campaign', 'Note from patient', 'Requested on']]
     for (const b of shown) rows.push([b.ref, b.when, b.firstName || b.name, b.lastName, b.dob || 'not given', b.age === null ? '' : String(b.age), b.ageAtAppointment === null ? '' : String(b.ageAtAppointment), b.guardianName || '', b.email, b.phone, money(b.price), b.special ? 'Yes' : 'No', b.status, b.depositPaid ? 'Yes' : 'No', b.deposit.method || '', b.terms.version, b.terms.consentAt || b.terms.payReadAt ? when((b.terms.consentAt || b.terms.payReadAt)!) : '', b.source?.label || '', b.source?.campaign || '', b.notes, when(b.createdAt)])
@@ -203,10 +216,23 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
   const welcomeCell = (b: Booking) => {
     if (b.status === 'cancelled' && !b.welcome.sentAt) return <span className="muted">-</span>
     const qs = data.questionnaire?.byRef?.[b.ref]
+    // v1.16.0: worded for what happened (not sent yet, sent, started, completed, link expired)
+    const ql = questionnaireLabel(qs, b.welcome.sentAt, !!data.questionnaire?.online, now)
     const sent = b.welcome.sentAt ? <span className="chip good" title={`${b.welcome.count} sent, last by ${b.welcome.by}`}>{Icon.check()} Sent {new Date(b.welcome.sentAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short' })}</span> : null
     return <>
       {b.welcome.status === 'failed' ? <span className="chip warn">Not sent: failed</span> : sent || <span className="chip grey">Not sent</span>}
-      {qs ? <><br /><span className={`chip ${qs.status === 'submitted' ? 'good' : 'grey'}`}>{qs.status === 'submitted' ? 'Questionnaire received' : 'Questionnaire not yet received'}</span></> : null}
+      {ql ? <><br /><span className={`chip ${ql.tone}`} data-q={ql.key}>{ql.text}</span></> : null}
+    </>
+  }
+  // v1.16.0: the Onboarding call marker and the notes marker; either one opens the booking
+  const followCell = (b: Booking) => {
+    const ob = onboardingState(b, now)
+    const n = b.teamNotes || []
+    return <>
+      {ob ? <button type="button" className={`chip chip-btn ${ob === 'done' ? 'good' : 'warn'}`} data-onboarding={ob} title={ob === 'done' ? `Ticked by ${b.onboarding?.by || ''}${b.onboarding?.doneAt ? `, ${when(b.onboarding.doneAt)}` : ''}` : 'Open the booking to tick it once the call is done'} onClick={() => setOpen(b.ref)}>{ob === 'done' ? <>{Icon.check()} Onboarding call: done</> : 'Onboarding call: to do'}</button> : null}
+      {n.length ? <button type="button" className="note-marker" data-notes={n.length} onClick={() => setOpen(b.ref)} title="Open the booking to see the notes">
+        <span className="chip blue">{n.length} {n.length === 1 ? 'note' : 'notes'}</span> <span className="muted note-latest">{firstLine(n[0].body)}</span>
+      </button> : null}
     </>
   }
   const emailCell = (b: Booking) => <span className="ticks">{tick(b.emails.patient, 'patient')}<small>Patient</small>{tick(b.emails.team, 'team')}<small>Team</small></span>
@@ -232,7 +258,7 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
       <div className="panel">
         <div className="actions" style={{ marginBottom: 12 }}>
           <div className="tabs bookings-filters" style={{ margin: 0, border: 0 }} role="tablist" aria-label="Which bookings">
-            {([['upcoming', 'Upcoming'], ['todo', 'To confirm'], ['unpaid', 'Deposit not paid'], ['past', 'Past'], ['cancelled', 'Cancelled'], ['all', 'All']] as [Filter, string][]).map(([k, l]) => (
+            {([['upcoming', 'Upcoming'], ['todo', 'To confirm'], ['onboarding', 'Onboarding call to do'], ['unpaid', 'Deposit not paid'], ['past', 'Past'], ['cancelled', 'Cancelled'], ['all', 'All']] as [Filter, string][]).map(([k, l]) => (
               <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l} ({counts[k]})</button>
             ))}
           </div>
@@ -244,13 +270,13 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
           <table className="table bookings-table">
             <thead><tr><th>Appointment</th><th>Patient</th><th>Contact</th><th>Fee</th><th>Status</th><th>Deposit</th><th>Source</th><th>Emails</th>{showWelcome ? <th>Welcome pack</th> : null}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {!shown.length ? <tr><td colSpan={10} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : 'No bookings to show.'}</td></tr> : null}
+              {!shown.length ? <tr><td colSpan={10} className="empty">{filter === 'todo' ? 'Nothing to confirm. New requests from the Book Now page appear here.' : filter === 'onboarding' ? 'Every booking that is going ahead has had its onboarding call ticked.' : 'No bookings to show.'}</td></tr> : null}
               {shown.map((b) => (
                 <React.Fragment key={b.ref}>
                   <tr>
                     <td><b>{b.when}</b><br /><span className="muted">{b.ref}</span></td>
                     <td><button className="btn ghost small t-title" aria-expanded={open === b.ref} onClick={() => setOpen(open === b.ref ? null : b.ref)}>{b.name}</button>
-                      <br /><span className="muted">DOB {dobText(b)}</span>{b.ageAtAppointment !== null ? <><br /><span className="muted">Age {b.ageAtAppointment} at appointment</span></> : null}{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? <> <span className="chip warn" title="Under 18 at the appointment">Under 18</span></> : null}{b.guardianName ? <><br /><span className="muted">Parent or guardian: {b.guardianName}</span></> : null}</td>
+                      <br /><span className="muted">DOB {dobText(b)}</span>{b.ageAtAppointment !== null ? <><br /><span className="muted">Age {b.ageAtAppointment} at appointment</span></> : null}{b.ageAtAppointment !== null && b.ageAtAppointment < 18 ? <> <span className="chip warn" title="Under 18 at the appointment">Under 18</span></> : null}{b.guardianName ? <><br /><span className="muted">Parent or guardian: {b.guardianName}</span></> : null}<div className="t-follow">{followCell(b)}</div></td>
                     <td>{b.phone ? <><a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`}>{b.phone}</a><br /></> : null}<a href={`mailto:${b.email}`}>{b.email}</a></td>
                     <td>{money(b.price)}{b.special ? <><br /><span className="chip blue">Opening special</span></> : null}</td>
                     <td>{statusChip(b)}</td>
@@ -275,8 +301,9 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                     </td></tr>
                   ) : null}
                   {open === b.ref ? (
-                    <tr><td colSpan={10} style={{ background: '#fafbfc' }}>
-                      <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
+                    <tr className="booking-open"><td colSpan={10} style={{ background: '#fafbfc' }}>
+                      <FollowUp b={b} now={now} onChanged={reload} />
+                      <p style={{ whiteSpace: 'pre-wrap', margin: '14px 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <dl className="booking-facts">
                         <div><dt>First name</dt><dd>{b.firstName || <span className="muted">not given (booked as {b.name})</span>}</dd></div>
                         <div><dt>Last name</dt><dd>{b.lastName || <span className="muted">not given</span>}</dd></div>
@@ -332,6 +359,87 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
         </Confirm>
       ) : null}
     </>
+  )
+}
+
+// ================================================================ v1.16.0: follow-up on one booking
+/**
+ * The Onboarding call tick and the team's notes, inside an open booking (desktop and phone). Team only: nothing here
+ * is emailed, sent to the patient or to Google, and it changes nothing else about the booking.
+ */
+function FollowUp({ b, now, onChanged }: { b: Booking; now: number; onChanged: () => Promise<void> }) {
+  const toast = useToast()
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [edit, setEdit] = useState<{ id: string; body: string } | null>(null)
+  const [askDelete, setAskDelete] = useState<NoteView | null>(null)
+  const [askUndo, setAskUndo] = useState(false)
+  const notes = b.teamNotes || []
+  const ob = onboardingState(b, now)
+  const done = !!b.onboarding?.doneAt
+
+  async function act(body: Record<string, unknown>, msg: string) {
+    setBusy(true)
+    try { await call('POST', body); toast(msg, 'good'); await onChanged(); return true } catch (e) { toast((e as Error).message, 'bad'); await onChanged(); return false } finally { setBusy(false) }
+  }
+  async function add() {
+    if (!text.trim()) { toast(ERR.note_empty, 'bad'); return }
+    if (text.length > NOTE_MAX) { toast(ERR.note_too_long, 'bad'); return }
+    if (await act({ action: 'note-add', ref: b.ref, body: text }, 'Note added.')) setText('')
+  }
+  const left = NOTE_MAX - text.length
+
+  return (
+    <div className="follow-up">
+      <div className={`onboarding ${done ? 'is-done' : ''}`}>
+        {done ? <>
+          <span className="chip good">{Icon.check()} Onboarding call completed</span>
+          <span className="help">by {b.onboarding?.by}{b.onboarding?.doneAt ? `, ${when(b.onboarding.doneAt)}` : ''}</span>
+          <button type="button" className="btn small" disabled={busy} onClick={() => setAskUndo(true)}>Undo</button>
+        </> : <>
+          <button type="button" className="btn small primary" disabled={busy} onClick={() => act({ action: 'onboarding', ref: b.ref, done: true }, 'Onboarding call marked completed.')}>{Icon.check()} Mark onboarding call completed</button>
+          {ob === 'todo' ? <span className="help">Onboarding call: to do</span> : null}
+        </>}
+      </div>
+
+      <section className="notes" aria-label="Notes">
+        <h3>Notes <span className="muted">(team only)</span></h3>
+        <div className="quick-notes" role="group" aria-label="Quick notes">
+          {QUICK_NOTES.map((q, i) => <button key={q} type="button" className="btn small" disabled={busy} onClick={() => act({ action: 'note-add', ref: b.ref, quick: i }, `Note added: ${q}.`)}>{q}</button>)}
+        </div>
+        <label className="sr-only" htmlFor={`note-${b.ref}`}>New note</label>
+        <textarea id={`note-${b.ref}`} className="input note-input" rows={3} value={text} maxLength={NOTE_MAX + 200} placeholder="Write a note" onChange={(e) => setText(e.target.value)} />
+        <div className="note-add-row">
+          <p className="help note-help">{NOTE_HELP}{left < 200 ? <> <b className={left < 0 ? 'bad' : ''}>{left} characters left.</b></> : null}</p>
+          <button type="button" className="btn small primary" disabled={busy || !text.trim() || left < 0} onClick={add}>Add note</button>
+        </div>
+        {notes.length ? <ol className="note-list">
+          {notes.map((n) => <li key={n.id} className={`note note-${n.kind}`}>
+            {edit?.id === n.id ? <>
+              <label className="sr-only" htmlFor={`edit-${n.id}`}>Edit note</label>
+              <textarea id={`edit-${n.id}`} className="input note-input" rows={3} value={edit.body} onChange={(e) => setEdit({ id: n.id, body: e.target.value })} />
+              <div className="actions"><button type="button" className="btn small" onClick={() => setEdit(null)}>Cancel</button>
+                <button type="button" className="btn small primary" disabled={busy || !edit.body.trim() || edit.body.length > NOTE_MAX} onClick={async () => { if (await act({ action: 'note-edit', id: n.id, body: edit.body }, 'Note saved.')) setEdit(null) }}>Save</button></div>
+            </> : <p className="note-body">{n.body}</p>}
+            <p className="note-meta">{n.by}, {when(n.at)}{n.editedAt ? <span className="muted"> (edited {when(n.editedAt)})</span> : null}
+              {n.canEdit && edit?.id !== n.id ? <button type="button" className="link-btn" onClick={() => setEdit({ id: n.id, body: n.body })}>Edit</button> : null}
+              {n.canDelete && edit?.id !== n.id ? <button type="button" className="link-btn danger" onClick={() => setAskDelete(n)}>Delete</button> : null}</p>
+          </li>)}
+        </ol> : <p className="muted note-empty">No notes yet.</p>}
+      </section>
+
+      {askDelete ? (
+        <Confirm title="Delete this note?" yes="Delete note" danger onClose={() => setAskDelete(null)} onYes={() => act({ action: 'note-delete', id: askDelete.id }, 'Note deleted.')}>
+          <p className="note-body">{askDelete.body}</p>
+          <p className="help">{askDelete.by}, {when(askDelete.at)}. This cannot be undone.</p>
+        </Confirm>
+      ) : null}
+      {askUndo ? (
+        <Confirm title="Undo the onboarding call tick?" yes="Undo" onClose={() => setAskUndo(false)} onYes={() => act({ action: 'onboarding', ref: b.ref, done: false }, 'Onboarding call tick undone.')}>
+          <p><b>{b.name}</b>, {b.when}. It goes back to Onboarding call: to do. A line is added to the notes so there is a history.</p>
+        </Confirm>
+      ) : null}
+    </div>
   )
 }
 

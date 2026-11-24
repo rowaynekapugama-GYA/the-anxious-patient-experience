@@ -234,6 +234,7 @@ export function settingsFileFromGlobal(raw: Record<string, unknown>): Record<str
     out.tracking = { ga4: s.tracking.ga4 ?? '', metaPixel: s.tracking.metaPixel ?? '', ...(s.tracking.gtm ? { gtm: String(s.tracking.gtm).trim() } : {}) }
   }
   if (s.googleReviewLink) out.googleReviewLink = s.googleReviewLink
+  if (s.googleProfileLink) out.googleProfileLink = s.googleProfileLink
   if (s.questionnaire) {
     const q: Record<string, unknown> = {}
     if (s.questionnaire.sendWhen) q.sendWhen = s.questionnaire.sendWhen

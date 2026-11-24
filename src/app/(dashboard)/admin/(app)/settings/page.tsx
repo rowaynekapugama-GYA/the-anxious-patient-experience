@@ -33,6 +33,7 @@ export default async function SettingsPage() {
         tracking: isAdmin ? { ga4: str(g.tracking?.ga4), metaPixel: str(g.tracking?.metaPixel), gtm: str(g.tracking?.gtm) } : { ga4: '', metaPixel: '', gtm: '' },
         gtmDefault: isAdmin ? gtmIdOf(DEFAULTS.tracking) : '',
         googleReviewLink: str(g.googleReviewLink),
+        googleProfileLink: str(g.googleProfileLink),
         seo: {
           defaultTitle: str(seo.defaultTitle), defaultDescription: str(seo.defaultDescription),
           defaultOgImage: mediaUrl(seo.defaultOgImage) ?? '',

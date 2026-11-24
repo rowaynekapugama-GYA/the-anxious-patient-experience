@@ -35,6 +35,8 @@ export const DEFAULTS = {
   tracking: { ga4: '', metaPixel: '', gtm: 'GTM-PNMVSBCW' },
   /** The Google Business Profile's "Ask for reviews" link. Empty: /review/ says coming soon. */
   googleReviewLink: '',
+  /** v1.16.0: the Google Business Profile's own link (Share > Copy link), added to the structured data as sameAs. */
+  googleProfileLink: '',
   /** v1.7.0 New Patient Information Pack */
   questionnaire: { sendWhen: 'confirmed' as 'confirmed' | 'requested', notifyEmails: [] as string[] },
 }

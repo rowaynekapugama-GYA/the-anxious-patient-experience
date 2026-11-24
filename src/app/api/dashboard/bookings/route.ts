@@ -10,6 +10,10 @@
  *   POST {action:'schedule', days, startTimes}           the weekly booking times (null puts back the standard ones)
  *   POST {action:'special', enabled?, popup?, from?, to?, showAfter?, heading?, body?}   the opening special's switches,
  *                                                        dates and pop-up wording (null puts back the standard ones)
+ *   POST {action:'note-add', ref, body? | quick?}        v1.16.0: a note on the booking (typed, or quick note 0 to 3)
+ *   POST {action:'note-edit', id, body}                  the author only
+ *   POST {action:'note-delete', id}                      the author, or an administrator
+ *   POST {action:'onboarding', ref, done}                tick or undo the Onboarding call (adds a line to the notes)
  */
 import { routeUser } from '@/dashboard/lib/routeAuth'
 import * as core from '@/booking/core'
@@ -21,6 +25,7 @@ import * as emails from '@/booking/emails'
 import { ageOn, sydneyToday } from '@/booking/patient'
 import { termsView } from '@/booking/terms'
 import { sourceLabel } from '@/booking/source'
+import * as notes from '@/booking/notes'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,10 +59,13 @@ function bookingRow(r: Record<string, any>, tz: string) {
     emails: { patient: String(r.email_patient || ''), team: String(r.email_team || '') },
     // v1.9.0: the welcome pack email ('' not sent | sent | failed)
     welcome: { status: String(r.welcome_status || ''), sentAt: r.welcome_sent_at ? new Date(r.welcome_sent_at).toISOString() : null, count: Number(r.welcome_count || 0), by: String(r.welcome_by || '') },
+    // v1.16.0: the Onboarding call tick, and the team's notes (filled in by data())
+    onboarding: { doneAt: r.onboarding_done_at ? new Date(r.onboarding_done_at).toISOString() : null, by: String(r.onboarding_by || '') },
+    teamNotes: [] as import('@/booking/followup').NoteView[],
   }
 }
 
-async function data(now: number, payload: Payload) {
+async function data(now: number, payload: Payload, who: notes.Who) {
   const { cfg, state } = await core.readState()
   const tz = cfg.booking.timeZone
   const o = cfg.openingSpecial
@@ -69,6 +77,8 @@ async function data(now: number, payload: Payload) {
     await emails.retryDue(d, cfg).catch((err) => console.error('bookings: email retry failed', (err as Error).message))
     const rows = await d.query(`SELECT * FROM ape_bookings WHERE slot_start >= now() - interval '60 days' ORDER BY slot_start, created_at`)
     bookings = rows.map((r) => bookingRow(r, tz))
+    const byRef = await notes.notesFor(d, bookings.map((b) => b.ref), who)
+    for (const b of bookings) b.teamNotes = byRef[b.ref] || []
   }
   const today = core.tzParts(new Date(now), tz).day
   const pub = core.availability(cfg, state, now)
@@ -128,7 +138,7 @@ export async function GET(req: Request) {
   const { user, payload } = await routeUser(req)
   if (!user) return core.send(401, { ok: false, error: 'signed_out' })
   try {
-    return core.send(200, await data(Date.now(), payload))
+    return core.send(200, await data(Date.now(), payload, notes.whoOf(user)))
   } catch (err) {
     console.error('bookings: error', (err as Error).message)
     return core.send(500, { ok: false, error: 'server_error' })
@@ -191,6 +201,17 @@ export async function POST(req: Request) {
         welcome = await onBookingConfirmed(payload, { ref: row.ref, name: row.name, email: row.email, slot_start: row.slot_start, dob: row.dob })
       }
       return core.send(200, { ok: true, welcome })
+    }
+
+    // v1.16.0: notes and the Onboarding call. Nothing here sends an email or changes the booking itself.
+    if (action === 'note-add' || action === 'note-edit' || action === 'note-delete' || action === 'onboarding') {
+      const who = notes.whoOf(user)
+      const r = action === 'note-add' ? await notes.addNote(d, core.clean(body.ref, 20), { body: body.body, quick: body.quick }, who)
+        : action === 'note-edit' ? await notes.editNote(d, core.clean(body.id, 20), { body: body.body }, who)
+          : action === 'note-delete' ? await notes.deleteNote(d, core.clean(body.id, 20), who)
+            : await notes.setOnboarding(d, core.clean(body.ref, 20), body.done === true, who)
+      if (!r.ok) return core.send(r.status, { ok: false, error: r.error })
+      return core.send(200, { ok: true })
     }
 
     if (action === 'block') {
@@ -263,7 +284,9 @@ export async function POST(req: Request) {
 
     return core.send(400, { ok: false, error: 'unknown_action' })
   } catch (err) {
-    console.error('bookings: error', action, (err as Error).message)
+    // v1.16.0: for notes only the database's error code is logged, never anything that could carry a note's text
+    if (action.startsWith('note-') || action === 'onboarding') console.error('bookings: error', action, String((err as { code?: string }).code || 'unknown'))
+    else console.error('bookings: error', action, (err as Error).message)
     return core.send(500, { ok: false, error: 'server_error' })
   }
 }

@@ -64,6 +64,13 @@ export const SiteSettings: GlobalConfig = {
       admin: { description: 'The "Ask for reviews" link from the Google Business Profile (https://g.page/r/.../review). The /review/ page says "coming soon" until this is filled in.' },
     },
     {
+      // v1.16.0: the profile's own address, written into the structured data Google reads (sameAs)
+      name: 'googleProfileLink',
+      type: 'text',
+      label: 'Google Business Profile link',
+      admin: { description: 'The profile\'s own link (Share > Copy link, for example https://maps.app.goo.gl/...). Added to the information search engines read about APE when you publish.' },
+    },
+    {
       name: 'questionnaire',
       type: 'group',
       label: 'Welcome pack and questionnaire',

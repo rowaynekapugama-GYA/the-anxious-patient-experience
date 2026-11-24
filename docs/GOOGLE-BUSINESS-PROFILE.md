@@ -1,7 +1,8 @@
 # Google Business Profile for The Anxious Patient Experience
 
-Prepared 11 November 2026. Nothing has been created or submitted to Google. Section 2 needs a decision from Rowayne
-(confirmed with Lorna) before anything is created.
+Prepared 11 November 2026. **Updated 24 November 2026 (v1.16.0):** Lorna has created the profile and it has been
+verified. It is owned by her personal Google account. Sections 1, 2 and 4 are now history; the listing content to
+enter is in `GOOGLE-BUSINESS-PROFILE-LISTING.md`, and section 5 below is what happens next.
 
 ## 1. Does a profile already exist?
 
@@ -121,19 +122,30 @@ No browser signed in to Google was available in the build session, so nothing wa
    appear only sometimes. Do not start verification without Rowayne.
 4. Do not add the listing to any other agency tools until verified.
 
-## 5. After verification
+## 5. After verification (checked against Google's help pages on 24 Nov 2026)
 
-1. Business Profile > Business Profile settings > People and access: add **theanxiouspatientexperience@gmail.com**
-   (confirmed by Lorna on 11 Nov 2026 as the listing's owner) as **Primary owner** and move rowayne@gyaclients.com
-   to **Manager**. GYA sets the listing up first, then transfers ownership and stays on as Manager.
-2. Copy the "Ask for reviews" link (Home > Ask for reviews, a `https://g.page/r/.../review` address) into the
-   website: dashboard > Site Settings > Google review link, Save, Publish website. The `/review/` page then goes
-   live (until then it says reviews are coming soon). Print `deliverables/qr/ape-review-qr.png` for the front desk.
-3. Add the profile's Maps link to the site's structured data as `sameAs` (GYA, one line in
-   `src/lib/site.ts`, next release) and the APE website link to the profile.
-4. Reviews: all ratings are invited the same way, nobody is asked for a particular rating, no incentives, and the
-   practice never replies to a review with clinical detail or anything that identifies the patient. Reviews are not
+1. **GYA access.** Lorna adds rowayne@gyaclients.com as a **Manager**: Business Profile, More > Business Profile
+   settings > People and access > Add, enter the address, Access: Manager, Invite
+   (https://support.google.com/business/answer/3403100). A manager can edit everything except users and deleting
+   the profile.
+2. **Move it off her personal Gmail.** In the same place, Lorna adds theanxiouspatientexperience@gmail.com as an
+   **Owner**. Google makes a new owner or manager wait 7 days before ownership can be transferred to them
+   (https://support.google.com/business/answer/3403100). After the 7 days, Lorna (as primary owner) opens People and
+   access, selects the APE account, Access > Edit > **Primary owner** > Save
+   (https://support.google.com/business/answer/3415281). Her personal account can then be removed, or kept as an
+   owner. Reviews, photos and settings stay with the profile; nothing is lost.
+3. **Review link.** business.google.com > Read reviews > Get more reviews > Copy (only on a computer browser:
+   https://support.google.com/business/answer/16816815). Dashboard > Site Settings > Google review link, Save, Publish
+   website. `/review/` then goes live. Print `deliverables/qr/ape-review-qr.png` for the front desk.
+4. **Profile link in the structured data.** v1.16.0 added Site Settings > **Google Business Profile link**. Paste the
+   profile's own link (Google Maps, search the profile, Share, Copy link), Save, Publish website. It is written into
+   the structured data as `sameAs` on the APE department, and nothing visible changes.
+5. **Reviews.** All patients are invited the same way, nobody is asked for a particular rating, no incentives (Google
+   prohibits them), and no reply ever carries clinical detail or confirms someone is a patient. Reviews are not
    shown on the APE website (AHPRA).
+6. **Google's "make an ad" prompt.** Google suggests an ad to every new profile. It is optional, and ignoring it
+   changes nothing on the profile. If APE runs Google Ads later, GYA plans a proper campaign with Lorna first (and
+   `docs/GTM-CONTAINER-RULES.md` applies to any tag it needs).
 
 ## Questions for Lorna (needed before step 4)
 

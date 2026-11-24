@@ -38,6 +38,15 @@ If a link tool (Linktree or similar) sits in the bio, put the bio link above ins
 On both clinic sites these replace the current APE addresses (`ape.url` and `ape.bookUrl`, and the team link), which
 still point at the vercel.app address. That change is made in each clinic site's own repo.
 
+## Google Business Profile (v1.16.0)
+
+| Where on the profile | Link |
+|---|---|
+| Website | `https://theanxiouspatientexperience.com.au/?utm_source=gbp&utm_medium=organic&utm_campaign=ape-launch&utm_content=website` |
+| Appointment link | `https://theanxiouspatientexperience.com.au/book-now/?utm_source=gbp&utm_medium=organic&utm_campaign=ape-launch&utm_content=booking` |
+
+Bookings from these show in the dashboard as **Google Business Profile**.
+
 ## Email signature
 
 For Lorna, Alex, Lauren and the APE inbox:
@@ -61,6 +70,7 @@ address, which keeps working). Do not reprint it for this. In the dashboard thos
 | Cronulla links, or any link from thecronulladentists.com.au | Cronulla website |
 | Email signature | Email |
 | The flyer QR code | QR code |
+| Google Business Profile links above | Google Business Profile |
 | Google search | Google |
 | Typed in, a bookmark, or an app that hides where it came from | Direct |
 | Bookings made before 18 November 2026 | Not recorded |

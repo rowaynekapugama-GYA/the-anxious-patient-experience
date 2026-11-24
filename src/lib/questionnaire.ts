@@ -500,26 +500,39 @@ export async function log(payload: Payload, e: { userEmail: string; userId?: str
   }).catch((err) => console.error('questionnaire: log failed', (err as Error).message))
 }
 
-export type ListRow = { id: string; bookingRef: string; patientName: string; appointmentAt: string; status: string; sentAt: string | null; submittedAt: string | null; draftSavedAt: string | null; reviewed: boolean; reviewedBy: string; reviewedAt: string | null; retainUntil: string | null; sentCount: number; test: boolean; testEmail: string; identityDiffers: boolean }
+export type ListRow = { id: string; bookingRef: string; patientName: string; appointmentAt: string; status: string; sentAt: string | null; submittedAt: string | null; draftSavedAt: string | null; reviewed: boolean; reviewedBy: string; reviewedAt: string | null; retainUntil: string | null; sentCount: number; test: boolean; testEmail: string; identityDiffers: boolean
+  /** v1.16.0: when the private link stops working, and when the welcome pack email last went (for the status wording) */
+  expiresAt: string | null; welcomeSentAt?: string | null }
 const listRow = (d: Record<string, any>): ListRow => ({
   id: String(d.id), bookingRef: String(d.bookingRef), patientName: String(d.patientName || ''), appointmentAt: String(d.appointmentAt || ''), status: String(d.status),
   sentAt: d.sentAt || null, submittedAt: d.submittedAt || null, draftSavedAt: d.draftSavedAt || null, reviewed: !!d.reviewed, reviewedBy: String(d.reviewedBy || ''), reviewedAt: d.reviewedAt || null,
   retainUntil: d.retainUntil || null, sentCount: Number(d.sentCount || 1), test: !!d.test, testEmail: d.test ? String(d.testEmail || '') : '', identityDiffers: !!d.identityDiffers,
+  expiresAt: d.expiresAt || null,
 })
 
 /** Real questionnaires (no answers), newest first; or only the test ones. */
 export async function listQuestionnaires(payload: Payload, o: { tests?: boolean } = {}): Promise<ListRow[]> {
   await purgeTests(payload)
   const r = await payload.find({ collection: 'questionnaires', where: o.tests ? { test: { equals: true } } : { test: { not_equals: true } }, limit: 500, overrideAccess: true, depth: 0 })
-  return (r.docs as Record<string, any>[]).map(listRow).sort((a, b) => ((b.submittedAt || b.sentAt || '') > (a.submittedAt || a.sentAt || '') ? 1 : -1))
+  const rows = (r.docs as Record<string, any>[]).map(listRow).sort((a, b) => ((b.submittedAt || b.sentAt || '') > (a.submittedAt || a.sentAt || '') ? 1 : -1))
+  // v1.16.0: when each booking's welcome pack email went, so this screen words the status like Bookings does
+  const d = o.tests ? null : db()
+  if (d && rows.length) {
+    const sent = await d.query<{ ref: string; welcome_sent_at: string | null }>(`SELECT ref, welcome_sent_at FROM ape_bookings WHERE ref = ANY($1::text[])`, [rows.map((x) => x.bookingRef)]).catch(() => [])
+    const by = new Map(sent.map((x) => [x.ref, x.welcome_sent_at ? new Date(x.welcome_sent_at).toISOString() : null]))
+    for (const x of rows) x.welcomeSentAt = by.get(x.bookingRef) ?? null
+  }
+  return rows
 }
 
 /** Status per booking reference, for the Bookings screen (real rows only). */
-export async function statusByRef(payload: Payload): Promise<Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }>> {
-  const out: Record<string, { status: string; submittedAt: string | null; sentAt: string | null; id: string }> = {}
+export type RefStatus = { status: string; submittedAt: string | null; sentAt: string | null; draftSavedAt: string | null; expiresAt: string | null; id: string }
+export async function statusByRef(payload: Payload): Promise<Record<string, RefStatus>> {
+  const out: Record<string, RefStatus> = {}
   try {
-    const r = await payload.find({ collection: 'questionnaires', where: { test: { not_equals: true } }, limit: 1000, overrideAccess: true, depth: 0, select: { bookingRef: true, status: true, submittedAt: true, sentAt: true } })
-    for (const d of r.docs as Record<string, any>[]) out[String(d.bookingRef)] = { status: String(d.status), submittedAt: d.submittedAt || null, sentAt: d.sentAt || null, id: String(d.id) }
+    const r = await payload.find({ collection: 'questionnaires', where: { test: { not_equals: true } }, limit: 1000, overrideAccess: true, depth: 0, select: { bookingRef: true, status: true, submittedAt: true, sentAt: true, draftSavedAt: true, expiresAt: true } })
+    // v1.16.0: draftSavedAt (started, not sent in) and expiresAt (link expired) for the status wording; never the answers
+    for (const d of r.docs as Record<string, any>[]) out[String(d.bookingRef)] = { status: String(d.status), submittedAt: d.submittedAt || null, sentAt: d.sentAt || null, draftSavedAt: d.draftSavedAt || null, expiresAt: d.expiresAt || null, id: String(d.id) }
   } catch { /* no table yet */ }
   return out
 }

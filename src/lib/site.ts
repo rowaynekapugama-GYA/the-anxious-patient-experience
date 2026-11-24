@@ -3,6 +3,7 @@ import path from 'node:path'
 import { DEFAULTS } from '@/site.config'
 import { hasBlog } from '@/lib/blog'
 import { gtmIdOf, gtmParts, LIVE_HOSTS, type GtmParts } from '@/lib/gtm'
+import { profileLink } from '@/lib/links'
 
 export type SiteSettings = typeof DEFAULTS & Record<string, unknown>
 
@@ -151,6 +152,8 @@ export function tokensFor(s: SiteSettings, opts: { blog?: boolean } = {}): Recor
       address: postal,
       telephone: intlPhone,
       email: s.apeEmail || undefined,
+      // v1.16.0: the Google Business Profile, once its link is in Site Settings
+      sameAs: profileLink(s.googleProfileLink) ? [profileLink(s.googleProfileLink)] : undefined,
     },
   }
   const blog = opts.blog ?? hasBlog()

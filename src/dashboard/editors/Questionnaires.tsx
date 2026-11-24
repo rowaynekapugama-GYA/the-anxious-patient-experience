@@ -13,6 +13,7 @@ import { Modal, Notice, TextInput } from '../ui/fields'
 import { when } from '../lib/format'
 import type { ListRow, Opened } from '@/lib/questionnaire'
 import { answerRows, glance, identityRows } from '@/lib/ape-questionnaire'
+import { questionnaireLabel } from '@/booking/followup'
 
 const API = '/api/dashboard/questionnaires'
 
@@ -67,13 +68,13 @@ export function QuestionnairesScreen({ role }: { role: string }) {
         <>
           <div className="stat-row" style={{ marginBottom: 18 }}>
             <div className="stat"><b>{data.toReview}</b><span>To review</span></div>
-            <div className="stat"><b>{submitted.length}</b><span>Received</span></div>
-            <div className="stat"><b>{data.rows.length - submitted.length}</b><span>Sent, not yet received</span></div>
+            <div className="stat"><b>{submitted.length}</b><span>Completed</span></div>
+            <div className="stat"><b>{data.rows.length - submitted.length}</b><span>Not yet completed</span></div>
           </div>
           <div className="panel">
             <div className="actions" style={{ marginBottom: 12 }}>
               <div className="tabs bookings-filters" style={{ margin: 0, border: 0 }} role="tablist" aria-label="Which questionnaires">
-                {([['toreview', 'To review'], ['all', 'All received and sent'], ['waiting', 'Not yet received'], ...(data.tests ? [['tests', `Tests (${data.tests.length})`]] : [])] as [typeof filter, string][]).map(([k, l]) => (
+                {([['toreview', 'To review'], ['all', 'All'], ['waiting', 'Not yet completed'], ...(data.tests ? [['tests', `Tests (${data.tests.length})`]] : [])] as [typeof filter, string][]).map(([k, l]) => (
                   <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>
                 ))}
               </div>
@@ -82,7 +83,7 @@ export function QuestionnairesScreen({ role }: { role: string }) {
             </div>
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Reference</th><th>Patient</th><th>Appointment</th><th>Submitted</th><th>Reviewed</th><th><span className="sr-only">Open</span></th></tr></thead>
+                <thead><tr><th>Reference</th><th>Patient</th><th>Appointment</th><th>Questionnaire</th><th>Reviewed</th><th><span className="sr-only">Open</span></th></tr></thead>
                 <tbody>
                   {!rows.length ? <tr><td colSpan={6} className="empty">{filter === 'toreview' ? 'Nothing to review.' : 'Nothing to show.'}</td></tr> : null}
                   {rows.map((r) => (
@@ -90,7 +91,7 @@ export function QuestionnairesScreen({ role }: { role: string }) {
                       <td><b>{r.bookingRef}</b>{r.test ? <><br /><span className="chip test-chip">TEST {r.testEmail}</span></> : null}</td>
                       <td>{r.patientName || <span className="muted">(name not recorded)</span>}{r.identityDiffers ? <><br /><span className="chip warn" title="The name or date of birth on the questionnaire is not the one on the booking">Name or DOB differs from the booking</span></> : null}</td>
                       <td>{r.appointmentAt ? when(r.appointmentAt) : ''}</td>
-                      <td>{r.status === 'submitted' ? when(r.submittedAt || '') : <span className="chip grey">Not yet{r.draftSavedAt ? ', started' : ''}{r.sentAt ? `, link sent ${when(r.sentAt)}` : ''}</span>}</td>
+                      <td>{(() => { const l = questionnaireLabel(r, r.test ? r.sentAt : r.welcomeSentAt, true, Date.now())!; return r.status === 'submitted' ? <>Completed {when(r.submittedAt || '')}</> : <span className={`chip ${l.tone}`} data-q={l.key}>{l.text.replace(/^Questionnaire: /, '').replace(/^./, (c) => c.toUpperCase())}</span> })()}</td>
                       <td>{r.status !== 'submitted' ? <span className="muted">-</span> : r.reviewed ? <span className="chip good" title={`${r.reviewedBy} ${r.reviewedAt ? when(r.reviewedAt) : ''}`}>{Icon.check()} Reviewed</span> : <span className="chip warn">To review</span>}</td>
                       <td className="row-actions">{r.status === 'submitted' ? <Link className="btn small primary" href={`/admin/questionnaires/${r.id}`}>Open</Link> : null}</td>
                     </tr>
@@ -179,7 +180,7 @@ export function QuestionnaireView({ id, role }: { id: string; role: string }) {
         <div className="panel-head">
           <div className="grow">
             <h2 style={{ margin: 0 }}>{r.patientName || 'Patient'} <span className="muted">{r.bookingRef}</span>{r.test ? <> <span className="chip test-chip">TEST</span></> : null}</h2>
-            <p className="help" style={{ margin: '4px 0 0' }}>Appointment {r.appointmentAt ? when(r.appointmentAt) : ''}. {submitted ? `Sent ${r.submittedAt ? when(r.submittedAt) : ''}.` : 'Not sent yet.'}{r.reviewed ? ` Reviewed by ${r.reviewedBy}${r.reviewedAt ? ` ${when(r.reviewedAt)}` : ''}.` : ''}</p>
+            <p className="help" style={{ margin: '4px 0 0' }}>Appointment {r.appointmentAt ? when(r.appointmentAt) : ''}. {submitted ? `Completed ${r.submittedAt ? when(r.submittedAt) : ''}.` : 'Not yet completed.'}{r.reviewed ? ` Reviewed by ${r.reviewedBy}${r.reviewedAt ? ` ${when(r.reviewedAt)}` : ''}.` : ''}</p>
           </div>
           <div className="actions no-print">
             <Link className="btn" href="/admin/questionnaires">Back to the list</Link>
@@ -189,7 +190,7 @@ export function QuestionnaireView({ id, role }: { id: string; role: string }) {
           </div>
         </div>
       </div>
-      {!submitted ? <div className="panel"><p className="empty">The patient has not sent this questionnaire yet. Answers saved to finish later stay private until they press Send.</p></div> : data.legacy ? (
+      {!submitted ? <div className="panel"><p className="empty">The patient has not completed this questionnaire yet. Answers saved to finish later stay private until they press Send.</p></div> : data.legacy ? (
         <div className="panel q-print">
           <h1 className="q-print-title">{data.legacy.title}</h1>
           {data.legacy.questions.map((sec) => (

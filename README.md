@@ -199,6 +199,34 @@ of places stay in `content/booking.json` (GYA).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
 
+## Booking notes, Onboarding call and questionnaire wording (v1.16.0)
+
+Requested by Dr Lorna Gladwin and Alex, 24 Nov 2026. Dashboard only; the public pages are unchanged apart from the
+asset version tag.
+
+- **Notes** on every booking (Bookings, click the patient's name), desktop and phone: a text box with Add note (up to
+  2,000 characters), four quick notes ("Called, no answer", "Left a voicemail", "Sent a text", "Spoke to the
+  patient"), who and when on each note (Sydney time), newest first. The author edits or deletes their own notes;
+  administrators can delete any. Deleting asks first. The list shows the number of notes and the first line of the
+  latest under the patient's name.
+- **Onboarding call**: Mark onboarding call completed, with who and when, and Undo (asks first). Both add a line to
+  the notes. The list shows "Onboarding call: to do / done", and the tab **Onboarding call to do** lists bookings that
+  are going ahead (upcoming, not cancelled or released, not still paying) and not ticked. Nothing else changes: no
+  email, status, deposit, welcome pack or Google.
+- **Storage**: `ape_booking_notes` (one row per note, `ON DELETE CASCADE` from `ape_bookings`) and
+  `ape_bookings.onboarding_done_at` / `onboarding_by`, created by `src/booking/core.ts` with `IF NOT EXISTS`. Code:
+  `src/booking/notes.ts` (server), `src/booking/followup.ts` (rules shared with the screen),
+  `src/app/api/dashboard/bookings/route.ts` (actions `note-add`, `note-edit`, `note-delete`, `onboarding`).
+- **Privacy**: notes need a dashboard login, never go to the patient, any email, the CSV, the dataLayer, an address or
+  the server logs (errors on note actions log the database error code only), are shown as plain text, and are deleted
+  with their booking. `npm run test:notes` checks all of this.
+- **Questionnaire wording** (Bookings and Questionnaires): not sent yet; sent, not yet completed; started, not yet
+  completed; completed (date); not completed, link expired (`questionnaireLabel` in `src/booking/followup.ts`).
+- **Site Settings > Google Business Profile link** (new field, migration `20261124_090000_v1160_profile_link`):
+  written into the structured data as `sameAs` on the APE department when set. Blank changes nothing.
+- **Sources**: `utm_source=gbp` shows as "Google Business Profile" (`docs/TRACKING-LINKS.md`).
+- Guides: `docs/HOW-TO-USE-THE-BOOKING-DASHBOARD.md`, `docs/GOOGLE-BUSINESS-PROFILE-LISTING.md`.
+
 ## Google Tag Manager (v1.15.0)
 
 Container **GTM-PNMVSBCW**. Google Analytics (G-16W6YW4PR4) runs through it, so the direct GA4 tag from v1.11.0 is

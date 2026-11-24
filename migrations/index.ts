@@ -5,6 +5,7 @@ import * as migration_20261116_010034_v184_last_login from './20261116_010034_v1
 import * as migration_20261116_012208_v190_welcome_pack from './20261116_012208_v190_welcome_pack';
 import * as migration_20261117_010000_v1100_terms_owner from './20261117_010000_v1100_terms_owner';
 import * as migration_20261124_010000_v1150_gtm from './20261124_010000_v1150_gtm';
+import * as migration_20261124_090000_v1160_profile_link from './20261124_090000_v1160_profile_link';
 
 export const migrations = [
   {
@@ -41,5 +42,10 @@ export const migrations = [
     up: migration_20261124_010000_v1150_gtm.up,
     down: migration_20261124_010000_v1150_gtm.down,
     name: '20261124_010000_v1150_gtm',
+  },
+  {
+    up: migration_20261124_090000_v1160_profile_link.up,
+    down: migration_20261124_090000_v1160_profile_link.down,
+    name: '20261124_090000_v1160_profile_link',
   },
 ];

@@ -314,6 +314,20 @@ const SCHEMA = [
      saved_by text NOT NULL DEFAULT '',
      note text NOT NULL DEFAULT '')`,
   `CREATE INDEX IF NOT EXISTS ape_email_template_versions_kind ON ape_email_template_versions (kind, saved_at DESC)`,
+  // v1.16.0: the team's notes on each booking (one row per note, so two people adding at once never overwrite each
+  // other; removed with the booking), and the Onboarding call tick (who and when; null: not done)
+  `CREATE TABLE IF NOT EXISTS ape_booking_notes (
+     id bigserial PRIMARY KEY,
+     booking_id bigint NOT NULL REFERENCES ape_bookings(id) ON DELETE CASCADE,
+     kind text NOT NULL DEFAULT 'note',
+     body text NOT NULL,
+     author_id text NOT NULL DEFAULT '',
+     author_name text NOT NULL DEFAULT '',
+     created_at timestamptz NOT NULL DEFAULT now(),
+     edited_at timestamptz)`,
+  `CREATE INDEX IF NOT EXISTS ape_booking_notes_booking ON ape_booking_notes (booking_id, created_at DESC)`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS onboarding_done_at timestamptz`,
+  `ALTER TABLE ape_bookings ADD COLUMN IF NOT EXISTS onboarding_by text NOT NULL DEFAULT ''`,
   `CREATE TABLE IF NOT EXISTS ape_paypal_events (
      event_id text PRIMARY KEY,
      event_type text NOT NULL,

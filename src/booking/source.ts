@@ -28,6 +28,8 @@ const NAMES: [RegExp, string][] = [
 export function sourceLabel(source: string | null | undefined): string {
   const s = String(source || '').trim().toLowerCase()
   if (!s) return 'Not recorded'
+  // v1.16.0: the links on the Google Business Profile (website and appointment links)
+  if (/^(gbp|google-business|google-business-profile)$/.test(s)) return 'Google Business Profile'
   if (/^google(\.|$)/.test(s)) return 'Google'
   for (const [re, name] of NAMES) if (re.test(s)) return name
   return s

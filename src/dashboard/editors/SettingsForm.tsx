@@ -12,6 +12,7 @@ import { PublishButton } from '../ui/PublishButton'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 import { gtmFieldOk, gtmIdOf } from '@/lib/gtm'
+import { profileLink } from '@/lib/links'
 
 export type SettingsState = {
   phone: string
@@ -29,6 +30,8 @@ export type SettingsState = {
   /** v1.15.0: the container the website uses when the field is blank (src/site.config.ts) */
   gtmDefault: string
   googleReviewLink: string
+  /** v1.16.0: the Google Business Profile's own link (structured data, sameAs) */
+  googleProfileLink: string
   seo: { defaultTitle: string; defaultDescription: string; defaultOgImage: string; defaultOgImageMedia: number | string | null; noindexSite: boolean }
 }
 
@@ -67,6 +70,8 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
     if (bad.length) { toast(`This address does not look right: ${bad[0]}`, 'bad'); return }
     const link = s.googleReviewLink.trim()
     if (link && !/^https:\/\/(g\.page|search\.google\.com|www\.google\.com|maps\.app\.goo\.gl|goo\.gl|maps\.google\.com|business\.google\.com)\//i.test(link)) { toast('The Google review link should be the "Ask for reviews" link from the Business Profile (it starts with https://g.page/ or https://search.google.com/).', 'bad'); return }
+    const profile = s.googleProfileLink.trim()
+    if (profile && !profileLink(profile)) { toast('The Google Business Profile link should be the profile\'s own link from Share > Copy link (it starts with https://maps.app.goo.gl/ or https://share.google/).', 'bad'); return }
     if (isAdmin && !gtmFieldOk(s.tracking.gtm)) { toast('A Tag Manager ID looks like GTM-ABC1234. Type off to switch Tag Manager off, or leave it blank for the default.', 'bad'); return }
     setBusy(true)
     try {
@@ -76,6 +81,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
         receptionEmail: s.receptionEmail.trim(),
         clinic: Object.fromEntries(Object.entries(s.clinic).map(([k, v]) => [k, v.trim()])),
         googleReviewLink: link,
+        googleProfileLink: profile,
         bookingRecipients: s.bookingRecipients.map((a) => a.trim()).filter(Boolean).map((address) => ({ address })),
       }
       if (isAdmin) {
@@ -135,6 +141,7 @@ export function SettingsForm({ initial, isAdmin }: { initial: SettingsState; isA
 
         <Panel id="reviews" title="Google review page" intro="The page at /review/ for QR codes, emails and text messages. It is not in the menu and search engines do not list it. Every star and the button go to this one link; until it is filled in, the page says reviews are coming soon.">
           <TextInput label="Google review link" value={s.googleReviewLink} onChange={(v) => set({ googleReviewLink: v })} placeholder="https://g.page/r/.../review" help="From the Google Business Profile: Ask for reviews. Takes effect when you publish." />
+          <TextInput label="Google Business Profile link" value={s.googleProfileLink} onChange={(v) => set({ googleProfileLink: v })} placeholder="https://maps.app.goo.gl/..." help="The profile's own link (Share > Copy link). It is added to the information Google reads about APE when you publish. Not shown on the page." />
         </Panel>
 
         <Panel id="booking-terms" title="Deposit policy" intro="Lorna's deposit policy, which patients read and agree to in a pop-up before the deposit (Book Now and the pay-later page). Each change gets a new version number, and every booking records the version the patient agreed to.">

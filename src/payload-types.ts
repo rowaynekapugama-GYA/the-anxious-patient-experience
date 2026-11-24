@@ -971,6 +971,10 @@ export interface SiteSetting {
    * The "Ask for reviews" link from the Google Business Profile (https://g.page/r/.../review). The /review/ page says "coming soon" until this is filled in.
    */
   googleReviewLink?: string | null;
+  /**
+   * The profile's own link (Share > Copy link, for example https://maps.app.goo.gl/...). Added to the information search engines read about APE when you publish.
+   */
+  googleProfileLink?: string | null;
   questionnaire?: {
     sendWhen?: ('confirmed' | 'requested') | null;
     /**
@@ -1105,6 +1109,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   gyaDeliveryNotice?: T;
   gyaNoticeTo?: T;
   googleReviewLink?: T;
+  googleProfileLink?: T;
   questionnaire?:
     | T
     | {

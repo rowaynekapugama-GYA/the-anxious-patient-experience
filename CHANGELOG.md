@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.16.0 (24 Nov 2026): notes on each booking, the Onboarding call tick, clearer questionnaire wording
+
+Update to the existing repo (on top of 1.15.0, `a907d76`). Requested by Dr Lorna Gladwin and Alex, 24 Nov 2026.
+Dashboard only: no change to the public pages (apart from the asset version tag), booking, payments, patient emails
+or the questionnaire itself.
+
+- **Notes** on every booking, for call attempts and admin notes: Add note (up to 2,000 characters), four quick notes,
+  who and when on each, newest first, edit and delete (the author; administrators can delete any), and a marker in
+  the Bookings list with the number of notes and the latest first line. Under the box: "For call attempts and admin
+  notes. Please keep clinical details in Core Practice."
+- **Onboarding call**: Mark onboarding call completed (who and when), Undo (asks first), both logged in the notes; a
+  marker in the list and a new tab, **Onboarding call to do**, counting only bookings that are going ahead.
+- **Questionnaire wording**, the same in Bookings and Questionnaires: "Questionnaire: not sent yet", "sent, not yet
+  completed", "started, not yet completed", "completed" with the date, "not completed, link expired". Replaces
+  "Questionnaire not yet received" (Alex's question: it meant the team had not had it back).
+- **Privacy**: notes are dashboard-only, never in any email, the CSV, the dataLayer, an address or the server logs,
+  shown as plain text, deleted with the booking. New `npm run test:notes` (70 checks).
+- **Site Settings > Google Business Profile link**: new field, added to the structured data as `sameAs` when set.
+- **Booking sources**: links tagged `utm_source=gbp` show as "Google Business Profile".
+- **Fix**: the Bookings screen could be scrolled sideways at laptop width (the hidden screen-reader labels in the
+  Emails column sat outside the table's scroll box). The table box now contains them.
+- **Database**: new table `ape_booking_notes`, two new columns on `ape_bookings` (`onboarding_done_at`,
+  `onboarding_by`), one new Site Settings column (`google_profile_link`). All additive with `IF NOT EXISTS`, so 1.15.0
+  still runs on the same database after a rollback.
+- Docs: `HOW-TO-USE-THE-BOOKING-DASHBOARD.md` (now in the repo), `GOOGLE-BUSINESS-PROFILE-LISTING.md` (new),
+  `GOOGLE-BUSINESS-PROFILE.md` and `TRACKING-LINKS.md` updated.
+
 ## 1.15.0 (24 Nov 2026): Google Tag Manager
 
 Update to the existing repo (on top of 1.14.0, `abdea49`). Requested by Princess (GYA), 24 Nov 2026: install the
