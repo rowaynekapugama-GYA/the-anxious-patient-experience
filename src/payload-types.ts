@@ -383,6 +383,10 @@ export interface User {
    * Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard's Users screen, and every change and every view is logged.
    */
   canViewQuestionnaires?: boolean | null;
+  /**
+   * Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard's Users screen, and every change is logged.
+   */
+  canTreatmentPlans?: boolean | null;
   mustChangePassword?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -779,6 +783,7 @@ export interface UsersSelect<T extends boolean = true> {
   lastLoginAt?: T;
   practiceOwner?: T;
   canViewQuestionnaires?: T;
+  canTreatmentPlans?: T;
   mustChangePassword?: T;
   updatedAt?: T;
   createdAt?: T;

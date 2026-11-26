@@ -1,6 +1,6 @@
 {
   "name": "the-anxious-patient-experience",
-  "version": "1.17.0",
+  "version": "1.18.1",
   "private": true,
   "type": "module",
   "description": "The Anxious Patient Experience website (static pages built from content/) with the GYA client dashboard and booking dashboard at /admin.",
@@ -23,6 +23,7 @@
     "qa:gtm": "node scripts/qa-gtm.mjs",
     "test:gtm": "tsx scripts/test-gtm.ts",
     "test:notes": "tsx scripts/test-notes.ts",
+    "test:plans": "tsx scripts/test-plans.ts",
     "qa:banned": "node scripts/qa-banned.mjs",
     "qa:secrets": "node scripts/qa-secrets.mjs",
     "qa": "npm run typecheck && npm run qa:parity && npm run qa:editor && npm run qa:site && npm run qa:gtm && npm run qa:banned && npm run qa:secrets",
@@ -49,6 +50,7 @@
     "graphql": "^16.8.1",
     "next": "16.4.6",
     "payload": "3.92.1",
+    "pdfkit": "0.21.0",
     "pg": "8.20.0",
     "react": "19.2.9",
     "react-dom": "19.2.9",
@@ -57,6 +59,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pdfkit": "0.17.7",
     "@types/pg": "8.20.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

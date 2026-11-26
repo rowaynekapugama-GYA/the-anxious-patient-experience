@@ -16,6 +16,7 @@ import { allow, deliver, failedCount, KINDS, kindLabel, recent, type Kind, type 
 import { liveRecipients, questionnaireRecipients, type Live } from '@/lib/recipients'
 import { noticeEmail, sendWelcome } from '@/lib/questionnaire'
 import { accessEmail } from '@/lib/access'
+import { planEmail } from '@/plans/send'
 import { encryptionReady } from '@/lib/crypto'
 import { depositEmails } from '@/booking/deposit'
 import * as tpl from '@/email/patient'
@@ -24,7 +25,7 @@ import { loadTerms } from '@/booking/terms'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const TESTABLE: Kind[] = ['invite', 'reset', 'password-changed', 'booking-patient', 'booking-team', 'gya-notice', 'deposit-patient', 'deposit-team', 'welcome', 'questionnaire-team', 'alert', 'access']
+const TESTABLE: Kind[] = ['invite', 'reset', 'password-changed', 'booking-patient', 'booking-team', 'gya-notice', 'deposit-patient', 'deposit-team', 'welcome', 'questionnaire-team', 'alert', 'access', 'plan']
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/
 
 function who(kind: Kind, live: Live): { to: string; source: string } {
@@ -37,6 +38,7 @@ function who(kind: Kind, live: Live): { to: string; source: string } {
     case 'gya-notice': return { to: live.gya.on ? live.gya.to : 'switched off', source: live.gya.on ? live.gya.source : 'Site Settings' }
     case 'alert': return { to: live.gya.to, source: live.gya.source }
     case 'access': return { to: 'the person given questionnaire access', source: 'Users screen' }
+    case 'plan': return { to: `the patient, from their booking (Reply-To: ${live.apeInbox})`, source: 'Treatment plans' }
   }
 }
 
@@ -149,6 +151,8 @@ export async function POST(req: Request) {
         break
       }
       case 'access': r = await send({ to: [to], ...accessEmail({ email: to, name: '' }, a.user.email || 'GYA', { test: true }) }); break
+      // v1.18.0: the treatment plan email with a sample link that does not work (no plan, no content)
+      case 'plan': r = await send({ to: [to], ...planEmail({ mode: 'link', firstName: 'Test', link: `${origin()}/plan/TEST-SAMPLE-LINK-DOES-NOT-WORK-0000000000/`, expiresAt: new Date(Date.now() + 14 * 86400000).toISOString(), askDob: true, test: true }) }); note = 'Sample link (does not work)'; break
     }
     results.push({ kind, label: kindLabel(kind), ok: !!r?.ok, id: r?.id ?? '', error: r ? r.error : 'not sent', note })
   }

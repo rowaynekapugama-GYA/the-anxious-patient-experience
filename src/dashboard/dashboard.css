@@ -655,3 +655,42 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
   .quick-notes { display: grid; grid-template-columns: 1fr 1fr; }
   .quick-notes .btn { padding: 6px 6px; font-size: 12.5px; white-space: normal; }
 }
+
+/* v1.18.0: treatment plans */
+.plan-conds li { align-items: flex-start; }
+.plan-conds .chip { margin-top: 2px; min-width: 86px; justify-content: center; }
+.plan-modes { border: 0; padding: 0; margin: 0 0 14px; }
+.plan-mode { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; font-size: 14px; }
+.plan-head { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.plan-who { flex: 1; min-width: 260px; }
+.plan-who h2 { margin: 0 0 8px; }
+.plan-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 10px; }
+.plan-facts dt { font-size: 12px; color: var(--pd-muted); }
+.plan-facts dd { margin: 2px 0 0; font-weight: 600; }
+.plan-actions { justify-content: flex-end; max-width: 520px; }
+.plan-section h2 { margin-bottom: 12px; }
+.plan-fixed { border-left: 3px solid #D2B490; background: #faf8f5; padding: 10px 14px; margin: 0 0 14px; border-radius: 0 6px 6px 0; }
+.plan-fixed p { margin: 4px 0; white-space: pre-line; }
+.plan-field fieldset, fieldset.plan-field { border: 0; padding: 0; margin: 0 0 14px; }
+.plan-field .req { color: var(--pd-bad); }
+.plan-tick { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-weight: 400; }
+.plan-money { display: flex; align-items: center; gap: 6px; max-width: 220px; }
+.plan-rows .plan-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; border-bottom: 1px solid var(--pd-line-2); padding: 8px 0; }
+.plan-cell { display: grid; gap: 4px; flex: 2 1 200px; font-size: 12.5px; color: var(--pd-muted); }
+.plan-cell.t-number, .plan-cell.t-currency { flex: 1 1 100px; }
+.plan-total { margin: 10px 0 0; }
+.plan-to, .plan-password { font-size: 18px; font-weight: 700; background: #faf8f5; border: 1px solid var(--pd-line); border-radius: 6px; padding: 10px 12px; word-break: break-all; }
+.plan-on-booking { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--pd-line-2); }
+.plan-on-booking .list-plain li { padding: 4px 0; }
+.fb-section { border-left: 3px solid #D2B490; }
+.fb-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.fb-row > .field { flex: 1 1 220px; }
+.fb-move { margin-bottom: 14px; }
+.fb-item { border: 1px solid var(--pd-line); border-radius: 6px; padding: 12px 14px 2px; margin: 0 0 12px; background: #fff; }
+.fb-cols { padding: 6px 0 8px 12px; border-left: 2px solid var(--pd-line); margin-bottom: 10px; }
+.fb-add { max-width: 300px; }
+@media (max-width: 720px) {
+  .plan-facts { grid-template-columns: 1fr 1fr; }
+  .plan-actions { justify-content: flex-start; }
+  .plan-actions .btn { flex: 1 1 auto; }
+}

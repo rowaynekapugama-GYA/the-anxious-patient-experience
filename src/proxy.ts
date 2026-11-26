@@ -7,7 +7,8 @@
  *   /book-now/           -> serves public/book-now/index.html (written by scripts/render-site.ts)
  *   anything else        -> the site's own 404 page, with a 404 status
  *
- * /admin, /cms, /api, /_next and /questionnaire (the private patient pages, v1.7.0) are left to Next.js and Payload.
+ * /admin, /cms, /api, /_next, /questionnaire (the private patient pages, v1.7.0) and /plan (the patient's treatment
+ * plan link, v1.18.0) are left to Next.js and Payload.
  *
  * v1.15.0, Google Tag Manager: each public page exists twice, the plain page and a copy with the container under
  * /live-pages/. The copy is served only on the live domain and only when the address carries nothing but utm_ tags
@@ -25,7 +26,8 @@ type R = { from: string; to: string; type?: string }
 const norm = (p: string) => '/' + p.trim().replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '').replace(/\/+$/, '') + '/'
 const REDIRECTS = new Map<string, R>((site.redirects as R[]).filter((r) => r.from && r.to).map((r) => [norm(r.from), r]))
 
-const APP = /^\/(admin|cms|api|_next|questionnaire)(\/|$)/
+// v1.18.0: /plan/ is the patient's private treatment plan link, a Next.js page like the questionnaire
+const APP = /^\/(admin|cms|api|_next|questionnaire|plan)(\/|$)/
 const PAY = /^\/book-now\/pay\/?$/
 // v1.10.0: the booking terms page, and Apple Pay's domain check file (served from /api/apple-pay-domain)
 const TERMS = /^\/book-now\/terms\/?$/

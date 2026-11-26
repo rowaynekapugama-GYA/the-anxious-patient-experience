@@ -386,4 +386,62 @@ export const UPDATES: Update[] = [
     describe: 'Site Settings > Tracking gets the Google Tag Manager ID, if the field is blank',
     apply: applyGtmContainer,
   },
+  {
+    id: 'v1.18.1-privacy-treatment-plans',
+    describe: 'The privacy policy gains section 15, "Your treatment plan"; "Changes to this policy" becomes 16',
+    async apply(payload) {
+      const doc = await pageDoc(payload, 'privacy-policy')
+      const rows = doc?.sections ?? []
+      const i = rows.findIndex((r) => (r.content ?? []).some((c) => c.fieldId === 'f60'))
+      if (!doc || i < 0) return 'no privacy policy section in the dashboard'
+      const row = rows[i]
+      if (row.template.includes('{{f68}}') || (row.content ?? []).some((c) => c.fieldId === 'f68')) return 'already has the treatment plan section, left alone'
+      if (/\b\d{1,2}\.\s+(your\s+)?treatment\s+plans?\b/i.test(JSON.stringify(rows))) return 'already has a numbered treatment plan section, left alone'
+      if (!row.template.includes('<h2>{{f60}}</h2>')) return 'the policy has been restructured, left alone (add the section by hand)'
+      const repo = repoPage('privacy-policy').sections[0]
+      const fresh = partToSectionDoc(repo).content
+      const added = fresh.filter((c) => ['f68', 'f69', 'f70', 'f71', 'f72'].includes(c.fieldId))
+      const content = (row.content ?? []).map((c) => {
+        // the contact section moves from 15 to 16, and the date at the top changes, only if they are still the standard wording
+        if (c.fieldId === 'f60' && /^15\. Changes to this policy/.test(String(c.text ?? ''))) return { ...c, ...(fresh.find((f) => f.fieldId === 'f60') ?? {}) }
+        if (c.fieldId === 'f2' && /^Last updated:/.test(String(c.text ?? ''))) return { ...c, ...(fresh.find((f) => f.fieldId === 'f2') ?? {}) }
+        return c
+      })
+      const sections = rows.map((r, n) => (n === i
+        ? { ...r, template: r.template.replace('<h2>{{f60}}</h2>', '<h2>{{f68}}</h2><p>{{f69}}</p><p>{{f70}}</p><p>{{f71}}</p><p>{{f72}}</p><h2>{{f60}}</h2>'), content: plainRows([...content, ...added]) }
+        : { ...r, content: plainRows(r.content ?? []) }))
+      await payload.update({ collection: 'pages', id: doc.id, depth: 0, overrideAccess: true, data: { sections } as never })
+      return 'applied'
+    },
+  },
+  {
+    id: 'v1.18.1-plan-form',
+    describe: "Treatment plans: Lorna's own form (her template, with GYA's suggested wording) replaces the placeholder, waiting for her approval",
+    async apply() {
+      const plans = await import('@/plans/store')
+      const cur = await plans.currentForm()
+      if (!cur.placeholder) return `form version ${cur.version} is already the practice's own, left alone`
+      const form = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'content', 'plans', 'lornas-treatment-plan-form.json'), 'utf8'))
+      const saved = await plans.saveForm({ id: 0, email: 'GYA (release v1.18.1)', role: 'admin', practiceOwner: false, canPlans: false }, form)
+      return `saved as form version ${saved.version}; Lorna's approval still to be recorded (Treatment plans > Form > Record approval)`
+    },
+  },
+  {
+    id: 'v1.18.1-plan-privacy-line',
+    describe: 'Treatment plans: the privacy line in the patient email, if it is blank',
+    async apply() {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      // once only: if the practice later empties the line on purpose, it stays empty
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.18.1-plan-privacy-line', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const plans = await import('@/plans/store')
+      const s = await plans.readSettings()
+      if (s.privacyLine) return 'already has a line, left alone'
+      await plans.saveSettings({ id: 0, email: 'GYA (release v1.18.1)', role: 'admin', practiceOwner: false, canPlans: false }, { privacyLine: plans.PRIVACY_LINE })
+      return 'set'
+    },
+  },
 ]

@@ -125,6 +125,16 @@ export const Users: CollectionConfig = {
       access: { create: adminFieldOnly, update: adminFieldOnly },
     },
     {
+      // v1.18.0: treatment plans. Off for everyone, GYA administrators included; the practice owner (or GYA on her
+      // word) ticks it on the dashboard's Users screen. Read fresh from the database on every plan request.
+      name: 'canTreatmentPlans',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Can create and view treatment plans',
+      admin: { description: 'Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard\'s Users screen, and every change is logged.' },
+      access: { create: adminFieldOnly, update: adminFieldOnly },
+    },
+    {
       name: 'mustChangePassword',
       type: 'checkbox',
       defaultValue: false,

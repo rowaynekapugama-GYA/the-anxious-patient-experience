@@ -52,6 +52,8 @@ with a message if `DATABASE_URL` is set but `PAYLOAD_SECRET` is not. Mark keys a
 | `NEXT_PUBLIC_SERVER_URL` | Production | At go-live: `https://theanxiouspatientexperience.com.au`, no trailing slash (`docs/GO-LIVE-DOMAIN.md`). Leave unset on vercel.app. | at go-live |
 | `QUESTIONNAIRE_ENABLED` | Production, Preview | Leave unset. Since v1.9.0 the switches are in the dashboard (Site Settings > Welcome pack); `false` here is only an emergency off switch for the online questionnaire. | optional |
 | `QUESTIONNAIRE_ENCRYPTION_KEY` | Production, Preview | 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts questionnaire answers. Needed before the online questionnaire can go on. Never change it once answers exist (no key rotation); keep a copy in the GYA password manager. | add now: Lorna approved on 19 Nov 2026 (README, v1.13.0) |
+| `TREATMENT_PLAN_ENCRYPTION_KEY` | Production, Preview | v1.18.0. 32 random bytes, base64 (`openssl rand -base64 32`), Sensitive. Encrypts treatment plans (a separate key from the questionnaire's). One of the four conditions before treatment plans can go on. Never change it once plans exist (no key rotation); keep a copy in the GYA password manager. | v1.18.0, add when Lorna has answered |
+| `TREATMENT_PLANS_ENABLED` | Production, Preview | v1.18.0. Leave unset. `false` is an emergency off switch for treatment plans; nothing else (including `true`) turns them on. | optional |
 | `PAYPAL_ADVANCED` | Preview first, then Production | `on` switches on PayPal Advanced Checkout (card fields, Apple Pay, Google Pay). Not Sensitive. Leave unset until PayPal approves it (`docs/PAYPAL-ADVANCED-SETUP.md`). | v1.10.0, later |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Production | Optional: the contents of PayPal's Apple Pay domain file, if it is not put in `config/apple-pay/`. Public, not Sensitive. | v1.10.0, optional |
 | `NEXT_PUBLIC_GA4_ID` | Production | Leave unset. From v1.15.0 Google Analytics runs through Google Tag Manager (the container ID is in Site Settings > Tracking, no environment variable). This is only read when Tag Manager is switched off. | v1.11.0, not used |
@@ -198,6 +200,41 @@ of places stay in `content/booking.json` (GYA).
   access. **Questionnaire notifications go to** in Site Settings (empty: the booking list).
 - **Questionnaire top**: full name and date of birth, filled in from the booking, needed to send, sealed with the
   answers; the dashboard flags "Name or DOB differs from the booking".
+
+## Treatment plans (v1.18.0)
+
+From Dr Lorna Gladwin's email of 25 Nov 2026. Built the same way as the questionnaire, and **off until four things are
+true** (Dashboard > Treatment plans shows which are missing): `TREATMENT_PLAN_ENCRYPTION_KEY` is set in Vercel, Lorna
+has approved the form wording (recorded with the date), the published Privacy Policy has its own numbered section on
+treatment plans, and at least one login has "Can create and view treatment plans" (Users screen; off for everyone,
+GYA included). `TREATMENT_PLANS_ENABLED=false` is an emergency off switch.
+
+- **Form:** Dashboard > Treatment plans > Form. Sections, fixed wording (paragraphs and boxed notes) and fields:
+  short text, long text, date, number, currency, tick box, choice list (one or several) and rows (a small table, with
+  an optional total printed as an estimate for that patient). Every save is a new numbered version; plans keep the
+  version they were written on. It ships with a placeholder form, marked as such on screen and in the PDF. Lorna's own
+  form is loaded with "Load a form file" (content, not code).
+- **Plans:** created from a booking (Bookings, open the booking, Create treatment plan; or New plan from a booking), so
+  the name, date of birth and reference are never typed. A draft saves as she goes; Finalise locks it with the date
+  and who; "Change this plan" starts the next numbered version and keeps the earlier one. Only a finalised plan can be
+  printed or sent. Print gives the PDF itself.
+- **PDF:** A4, APE branded (logo, Playfair Display, Figtree from `src/pdf/fonts`, SIL Open Font License), reads in
+  black and white, "Page 1 of 3", the patient, date of birth, booking reference, appointment, plan date, version and
+  clinician on it. Made with `pdfkit` on the server.
+- **Sending** (Treatment plans > Settings): a secure link (default; expires after a set number of days, can ask for
+  the date of birth, can be revoked), a password protected PDF attached (the password shows once on screen, to give by
+  phone or SMS), or a plain PDF attached. The email never contains anything from the plan. The address is the
+  booking's, shown before sending with a confirm step. Every send is recorded.
+- **Privacy:** content encrypted in the app (AES-256-GCM) with its own key, read fresh permission on every request,
+  an audit log of every action (administrators: Treatment plans > Audit log), `/plan/` never loads Tag Manager and
+  sends no referrer (checked by `npm run qa:gtm`), retention 7 years after the appointment or until 25, an
+  administrator-only delete. Tables `ape_plans`, `ape_plan_forms`, `ape_plan_links`, `ape_plan_sends`, `ape_plan_log`
+  are created on first use (IF NOT EXISTS); the one migration adds `users.can_treatment_plans`.
+- `npm run test:plans` (90 checks).
+- **v1.18.1:** Lorna's form (`content/plans/lornas-treatment-plan-form.json`, with GYA's suggested wording), privacy
+  policy section 15 "Your treatment plan" and the patient email privacy line are copied into the dashboard by the build
+  (`src/sitekit/releases.ts`, each only once and only over the placeholder or standard wording). The form still needs
+  Lorna's approval recorded in Treatment plans > Form.
 
 ## Formatted team, GYA and login emails (v1.17.0)
 

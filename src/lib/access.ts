@@ -86,6 +86,20 @@ export async function setAccess(payload: Payload, actor: Who, targetId: string |
   return { ok: true, user, emailed }
 }
 
+/**
+ * v1.18.0: tick or untick "Can create and view treatment plans" for one login. The practice owner or a GYA
+ * administrator; logged in the same access log. No email (the person is told by the practice).
+ */
+export async function setPlanAccess(payload: Payload, actor: Who, targetId: string | number, on: boolean): Promise<{ ok: true; user: Record<string, any> } | { ok: false; status: number; error: string }> {
+  if (!canManageAccess(actor)) return { ok: false, status: 403, error: 'Only the practice owner or GYA can change who creates and views treatment plans.' }
+  const target = await payload.findByID({ collection: 'users', id: targetId, depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
+  if (!target) return { ok: false, status: 404, error: 'That login no longer exists.' }
+  if (!!target.canTreatmentPlans === on) return { ok: true, user: target }
+  const user = await payload.update({ collection: 'users', id: target.id, data: { canTreatmentPlans: on }, depth: 0, overrideAccess: true }) as Record<string, any>
+  await logAccess({ by: actor.email, for: String(target.email), change: on ? 'treatment plans: given' : 'treatment plans: removed' })
+  return { ok: true, user }
+}
+
 /** GYA makes a login the practice owner (or not). Logged. */
 export async function setOwner(payload: Payload, actor: Who, targetId: string | number, on: boolean): Promise<{ ok: true; user: Record<string, any> } | { ok: false; status: number; error: string }> {
   if (!canSetOwner(actor)) return { ok: false, status: 403, error: 'Only GYA can choose the practice owner.' }

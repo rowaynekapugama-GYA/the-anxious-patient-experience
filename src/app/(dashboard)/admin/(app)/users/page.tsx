@@ -19,7 +19,7 @@ export default async function Users() {
   const res = await payload.find({ collection: 'users', limit: 500, sort: 'email', depth: 0, overrideAccess: true })
   const users = res.docs.map((d) => {
     const x = d as Record<string, any>
-    return { id: x.id, name: String(x.name || ''), email: String(x.email), role: x.role === 'admin' ? 'admin' as const : 'editor' as const, mustChangePassword: !!x.mustChangePassword, canViewQuestionnaires: !!x.canViewQuestionnaires, practiceOwner: !!x.practiceOwner, createdAt: String(x.createdAt || ''), lastLoginAt: (x.lastLoginAt as string | null | undefined) ?? null }
+    return { id: x.id, name: String(x.name || ''), email: String(x.email), role: x.role === 'admin' ? 'admin' as const : 'editor' as const, mustChangePassword: !!x.mustChangePassword, canViewQuestionnaires: !!x.canViewQuestionnaires, canTreatmentPlans: !!x.canTreatmentPlans, practiceOwner: !!x.practiceOwner, createdAt: String(x.createdAt || ''), lastLoginAt: (x.lastLoginAt as string | null | undefined) ?? null }
   })
   // v1.8.3: the last login email to each person, from the email log (GYA only)
   const last = admin ? await lastLoginEmails() : {}

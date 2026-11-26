@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.18.1 (25 Nov 2026): treatment plan form, privacy section and email line published
+
+Update to the existing repo, on top of 1.18.0 (local commit `214d883`, never pushed on its own; `deploy.sh` carries both
+if main is still 1.17.0). Rowayne asked GYA to publish the drafts from the 1.18.0 report and to use the suggested
+wording in Lorna's template.
+
+- **Privacy policy:** new section "15. Your treatment plan" (four paragraphs: what a plan is, encryption and access,
+  how it is sent, retention); "Changes to this policy and how to contact us" becomes 16; "Last updated: 25 November
+  2026". In `content/pages/privacy-policy.json` (fields f68 to f72) and copied into the dashboard by the release step
+  `v1.18.1-privacy-treatment-plans` (only while the policy still has the standard wording; a policy already restructured
+  in the dashboard is left alone). This ticks the "privacy policy covers treatment plans" condition.
+- **Lorna's form:** her template, `content/plans/lornas-treatment-plan-form.json`, with GYA's suggested wording: the
+  numbing gel ("to numb the surface first"), the anaesthetic ("to help it feel more comfortable"),
+  inhalation sedation ("a light sedation ... We will talk through how it works and its risks before you decide."),
+  the staging bullet ("so you can build confidence one step at a time") and the follow-up paragraph ("There is no
+  pressure. When you feel ready, we can start with a small first step, at your pace."). Saved as a new form version by
+  the release step `v1.18.1-plan-form` only while the form is still the placeholder. **Not marked as approved:** the
+  "Lorna has approved the form wording" condition stays open until her approval is recorded (Treatment plans > Form).
+- **Patient email:** the privacy line "For your privacy, this email does not contain any details of your treatment
+  plan. Please do not forward it." set once by `v1.18.1-plan-privacy-line` if the line is blank.
+- Treatment plans stay **off**: the encryption key and the permission are still needed, and Lorna's approval.
+
+## 1.18.0 (25 Nov 2026): treatment plans
+
+Update to the existing repo (on top of 1.17.0, GitHub main `fd371ec`, tree `d2766ca`). From Dr Lorna Gladwin's email
+of 25 Nov 2026: a customisable treatment plan in the dashboard, filled in after the first appointment, made into a
+PDF, printed or sent to the patient. Built like the questionnaire and **switched off** until four conditions hold.
+
+- **Treatment plans** screen: the four conditions (encryption key, Lorna's approval of the form, the privacy policy
+  section, at least one person with the permission) with what is still missing; the plan list; settings.
+- **Form builder** (Treatment plans > Form): sections, fixed paragraphs and boxed notes, and fields (short text, long
+  text, date, number, currency, tick box, choice list, rows with an optional total). Add, rename, reorder, remove,
+  required or optional. Every save is a numbered version; plans keep theirs. Ships with a placeholder form; a form
+  file can be loaded and downloaded. Approval is recorded with the date (saved by the practice owner, it counts as
+  approved by her).
+- **Plans**: created from a booking (a box on the booking in Bookings, or New plan from a booking); draft that saves as
+  she goes; Finalise (date and who); "Change this plan" makes version 2 and keeps version 1; Print and Download give
+  the PDF; versions, links and sends listed on the plan.
+- **PDF**: A4, APE branded, black and white safe, "Page 1 of 3", patient details, version and clinician; placeholder,
+  draft and sample marks; totals printed as an estimate for this patient, never a calculated or suggested fee.
+- **Sending**: secure link (default; expires, optional date of birth check, revoke), password protected PDF (password
+  shown once to give by phone or SMS), or plain PDF. The email has no plan content. Address from the booking with a
+  confirm step. Resend, revoke and a send record on every plan. "Treatment plan (patient)" added to the Email check.
+- **Patient link** `/plan/<token>/`: calm page, date of birth check, the PDF; wrong, made-up, expired and revoked links
+  all show the same page; rate limited; five wrong dates of birth revoke the link; no Tag Manager, no referrer,
+  noindex (added to `qa:gtm`, so a later release cannot undo it).
+- **Privacy**: encrypted with a new key, `TREATMENT_PLAN_ENCRYPTION_KEY`; new permission "Can create and view
+  treatment plans" (off for everyone, given on the Users screen, logged); audit log for administrators; retention 7
+  years after the appointment or until 25; administrator-only delete. `TREATMENT_PLANS_ENABLED=false` is an emergency
+  off switch.
+- **Database**: migration `20261125_090000_v1180_treatment_plans` adds `users.can_treatment_plans`; five `ape_plan*`
+  tables created on first use with IF NOT EXISTS. All additive: 1.17.0 runs on the same database after a rollback.
+- New dependency `pdfkit` 0.21.0 (with `@types/pdfkit`), and five font files (OFL) in `src/pdf/fonts`.
+- New `npm run test:plans` (90 checks).
+
 ## 1.17.0 (24 Nov 2026): every email the team and GYA receive is formatted
 
 Update to the existing repo (on top of 1.16.0, `e19ed9d`). Requested 24 Nov 2026: "they want all emails that come in

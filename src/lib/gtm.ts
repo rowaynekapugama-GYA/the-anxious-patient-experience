@@ -5,7 +5,8 @@
  * browser, so the v1.11.0 privacy rules are kept by deciding WHERE the container is allowed to load:
  *
  *   - only on the live domain (never a vercel.app or preview address, never localhost)
- *   - only on the public pages (never /admin, /cms, the questionnaire, the pay-later page or any preview)
+ *   - only on the public pages (never /admin, /cms, the questionnaire, the treatment plan link, the pay-later page or
+ *     any preview)
  *   - only when the address carries nothing but utm_ tags. A private value in the address means the page is served
  *     without the container. A known ad click ID (fbclid, gclid and so on) is removed with a redirect first.
  *
@@ -95,7 +96,7 @@ export function classifyQuery(search: string): QueryVerdict {
  */
 export function pathLooksPrivate(pathname: string): boolean {
   const p = String(pathname || '')
-  if (/question|\/pay|token|\/admin|\/cms/i.test(p)) return true
+  if (/question|\/pay|token|\/admin|\/cms|\/plan/i.test(p)) return true
   if (PERSONAL.test(decodeURIComponent(p.replace(/%(?![0-9a-f]{2})/gi, '%25')))) return true
   return p.split('/').some((seg) => {
     if (seg.length > 40) return true

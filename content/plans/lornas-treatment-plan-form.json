@@ -1,0 +1,230 @@
+{
+  "title": "Your Personal Treatment Plan",
+  "subtitle": "The Anxious Patient Experience™",
+  "sections": [
+    {
+      "id": "dear",
+      "heading": "Dear {first_name},",
+      "items": [
+        {
+          "id": "p1",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "Thank you for trusting us with your care. It was a pleasure to meet you, and I want you to know: you did brilliantly just by walking through the door."
+        },
+        {
+          "id": "p2",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "Now that we’ve had a chance to talk and understand your needs, I’ve put together a treatment plan designed with you in mind. This letter explains what we found, what we recommend and, most importantly, how we’ll make each step as comfortable as possible for you."
+        },
+        {
+          "id": "p3",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "There’s no rush. We’ll move at your pace, and nothing will happen without your say-so."
+        },
+        {
+          "id": "c1",
+          "type": "callout",
+          "label": "A reminder",
+          "text": "This plan is yours. You can ask questions about any part of it, change your mind, or take more time to decide. We’ll never pressure you. Your comfort always comes first."
+        }
+      ]
+    },
+    {
+      "id": "discussed",
+      "heading": "What we discussed",
+      "items": [
+        {
+          "id": "p4",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "During your visit, we completed the following and talked through your concerns."
+        },
+        {
+          "id": "completed",
+          "type": "choice",
+          "label": "Completed at your visit",
+          "multiple": true,
+          "options": [
+            "An examination",
+            "X-rays",
+            "Photos"
+          ],
+          "help": "Tick what was done."
+        },
+        {
+          "id": "p5",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "Based on what we found, here is a summary of the treatment we’d recommend:"
+        },
+        {
+          "id": "recommended",
+          "type": "rows",
+          "label": "Recommended treatment",
+          "required": true,
+          "help": "One row per item, for example Upper right tooth: small filling needed.",
+          "columns": [
+            {
+              "id": "where",
+              "label": "Tooth or area",
+              "type": "text"
+            },
+            {
+              "id": "what",
+              "label": "Recommended treatment",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "comfort",
+      "heading": "How we'll keep you comfortable",
+      "items": [
+        {
+          "id": "p6",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "Your comfort options and how we’ll stage your care."
+        }
+      ]
+    },
+    {
+      "id": "gentle",
+      "heading": "Making treatment gentle",
+      "items": [
+        {
+          "id": "p7",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "We have a number of ways to make your treatment as comfortable as possible. Based on our conversation, here’s what we’d recommend for you:"
+        },
+        {
+          "id": "comfort_options",
+          "type": "choice",
+          "label": "Comfort options recommended for you",
+          "multiple": true,
+          "help": "Tick each one that applies to this patient. Only the ticked ones are printed.",
+          "options": [
+            "Topical numbing gel: applied before any injection to numb the surface first",
+            "Gentle anaesthetic technique: slow, warm and carefully placed to help it feel more comfortable",
+            "Inhalation sedation (happy gas): a light sedation breathed through a small nose piece to help you feel calmer. We will talk through how it works and its risks before you decide.",
+            "Breaks whenever you need them: just raise your hand",
+            "Noise-cancelling headphones and music available"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage",
+      "heading": "How we'll stage your appointments",
+      "items": [
+        {
+          "id": "p8",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "We won’t try to do everything at once. Your treatment has been planned in stages, considering:\n• Appointment length: shorter visits where possible so you don’t feel overwhelmed\n• Priority: we’ll address the most important things first\n• Your energy: we’ll pace things so each visit feels manageable\n• Building confidence: starting with simpler treatment first, so you can build confidence one step at a time"
+        }
+      ]
+    },
+    {
+      "id": "suggested",
+      "heading": "Your suggested plan",
+      "items": [
+        {
+          "id": "visits",
+          "type": "rows",
+          "label": "Your visits",
+          "help": "For example: Visit 1, Clean and polish, 30 mins.",
+          "columns": [
+            {
+              "id": "visit",
+              "label": "Visit",
+              "type": "text"
+            },
+            {
+              "id": "treatment",
+              "label": "Treatment",
+              "type": "text"
+            },
+            {
+              "id": "length",
+              "label": "Length",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "id": "p9",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "This plan can change at any time. If something doesn’t feel right, or you’d like to adjust the pace, just let us know. We’ll always work with you, not against you."
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "heading": "Your next steps",
+      "items": [
+        {
+          "id": "p10",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "What to do from here and how to reach us."
+        }
+      ]
+    },
+    {
+      "id": "expect",
+      "heading": "What you can expect from us",
+      "items": [
+        {
+          "id": "p11",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "After every appointment, we’ll give you a welfare check call within 24 hours, just to see how you’re feeling and answer any questions."
+        },
+        {
+          "id": "p12",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "After this treatment plan is sent, we’ll contact you within a week to see if you’re ready to book your first appointment. There is no pressure. When you feel ready, we can start with a small first step, at your pace."
+        },
+        {
+          "id": "c2",
+          "type": "callout",
+          "label": "A note about finances",
+          "text": "We understand that cost can be a barrier to treatment, and we don’t want that to hold you back. If you’d like to talk through the financial side, we can let you know what your health fund will cover and we also offer payment plans to make things more manageable. Just ask, there’s no awkwardness here."
+        }
+      ]
+    },
+    {
+      "id": "now",
+      "heading": "What to do now",
+      "items": [
+        {
+          "id": "p13",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "There’s no deadline on this. Take your time to read through, and when you’re ready:\n• Call or message us to book your first treatment appointment\n• Let us know if you have any questions about the plan\n• Tell us if anything has changed or if you’d like to adjust the order\n• If you’d like to discuss sedation options further, we’re happy to chat"
+        },
+        {
+          "id": "p14",
+          "type": "paragraph",
+          "label": "Wording",
+          "text": "You’ll also receive a detailed treatment plan via Co-Treat, which includes all your treatment items, costings, and photos. There’s no pressure to read this. If the detail feels like too much right now, that’s completely okay. It’s simply there for you should you want it."
+        },
+        {
+          "id": "c3",
+          "type": "callout",
+          "label": "How to reach us",
+          "text": "Phone: (02) 8599 9815  |  Email: theanxiouspatientexperience@gmail.com"
+        }
+      ]
+    }
+  ]
+}

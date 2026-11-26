@@ -13,6 +13,8 @@ const nextConfig = {
   poweredByHeader: false,
   // the public pages handle their own trailing slash in src/proxy.ts; /admin, /cms and /api are never redirected
   skipTrailingSlashRedirect: true,
+  // v1.18.0: the PDF library reads its own files at run time, so it is not bundled
+  serverExternalPackages: ['pdfkit'],
   // files the dashboard reads while it runs (the content model, the photo list, the asset version)
   outputFileTracingIncludes: {
     '/api/import-content': ['./content/**/*'],
@@ -22,7 +24,9 @@ const nextConfig = {
     '/book-now/pay': ['./content/**/*'],
     '/book-now/terms': ['./content/**/*'],
     '/api/apple-pay-domain': ['./config/apple-pay/*'],
-    '/api/dashboard/**/*': ['./content/**/*', './public/downloads/*'],
+    '/api/dashboard/**/*': ['./content/**/*', './public/downloads/*', './src/pdf/fonts/*', './public/email/ape-logo-320.png'],
+    // v1.18.0: the treatment plan PDF (fonts and logo) for the patient's private link
+    '/plan/**/*': ['./content/**/*', './src/pdf/fonts/*', './public/email/ape-logo-320.png'],
     '/api/booking': ['./content/**/*', './public/downloads/*'],
   },
   images: {
@@ -53,6 +57,8 @@ const nextConfig = {
       // v1.9.0: Lorna's welcome pack PDFs are sent to patients, not meant for search results
       { source: '/downloads/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
       { source: '/questionnaire/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
+      // v1.18.0: the patient's private treatment plan link, the same as the questionnaire
+      { source: '/plan/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }, { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' }] },
     ]
   },
 }

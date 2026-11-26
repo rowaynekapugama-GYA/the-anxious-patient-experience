@@ -13,7 +13,7 @@ import { Modal, Select, TextInput } from '../ui/fields'
 import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 
-type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; practiceOwner?: boolean; createdAt?: string; lastLoginAt?: string | null; lastEmail?: { at: string; status: string; kind: string } | null }
+type U = { id: number | string; name?: string; email: string; role: 'admin' | 'editor'; mustChangePassword?: boolean; canViewQuestionnaires?: boolean; canTreatmentPlans?: boolean; practiceOwner?: boolean; createdAt?: string; lastLoginAt?: string | null; lastEmail?: { at: string; status: string; kind: string } | null }
 
 function tempPassword() {
   const words = ['Calm', 'Breathe', 'Gentle', 'Linen', 'Candle', 'Cronulla', 'Harbour', 'Willow']
@@ -83,6 +83,14 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
       refreshLog()
     } catch (e) { toast((e as Error).message, 'bad') }
   }
+  async function setPlans(u: U, on: boolean) {
+    try {
+      const r = await api<{ user: Partial<U> }>('/api/dashboard/questionnaire-access', { method: 'POST', body: { id: u.id, canTreatmentPlans: on } })
+      setUsers((x) => x.map((y) => (y.id === u.id ? { ...y, ...r.user } : y)))
+      toast(on ? `${u.email} can now create and view treatment plans.` : `${u.email} can no longer create or view treatment plans.`, 'good')
+      refreshLog()
+    } catch (e) { toast((e as Error).message, 'bad') }
+  }
   async function setOwner(u: U, on: boolean) {
     try {
       const r = await api<{ user: Partial<U> }>('/api/dashboard/questionnaire-access', { method: 'POST', body: { id: u.id, practiceOwner: on } })
@@ -122,6 +130,7 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
         <span><b>{users.filter((u) => u.lastLoginAt).length}</b> signed in</span>
         <span><b>{users.filter((u) => !u.lastLoginAt).length}</b> not signed in yet</span>
         <span><b>{users.filter((u) => u.canViewQuestionnaires).length}</b> with questionnaire access</span>
+        <span><b>{users.filter((u) => u.canTreatmentPlans).length}</b> with treatment plans</span>
       </div>
       <ul className="user-list">
         {users.map((u) => {
@@ -138,6 +147,7 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
                     <span className={`chip ${u.role === 'admin' ? 'grey' : 'blue'}`}>{u.role === 'admin' ? 'Administrator (GYA)' : 'Editor (practice)'}</span>
                     {u.practiceOwner ? <span className="chip blue">Practice owner</span> : null}
                     {u.canViewQuestionnaires ? <span className="chip good">Can view questionnaires</span> : null}
+                    {u.canTreatmentPlans ? <span className="chip good">Treatment plans</span> : null}
                   </div>
                 </div>
               </div>
@@ -172,6 +182,11 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
                   <input type="checkbox" checked={!!u.canViewQuestionnaires} onChange={(e) => setQuestionnaires(u, e.target.checked)} aria-describedby="access-line" />
                   <span className="track" aria-hidden="true" />
                   <span>Can view patient questionnaires</span>
+                </label>
+                <label className="toggle user-toggle" title="Off for everyone until the practice owner ticks it, GYA included.">
+                  <input type="checkbox" checked={!!u.canTreatmentPlans} onChange={(e) => setPlans(u, e.target.checked)} />
+                  <span className="track" aria-hidden="true" />
+                  <span>Can create and view treatment plans</span>
                 </label>
                 {admin ? (
                   <label className="toggle user-toggle" title="The practice owner chooses who can open questionnaires. GYA only.">

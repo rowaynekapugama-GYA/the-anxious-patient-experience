@@ -71,7 +71,7 @@ for (const file of livePages) {
   if (!new RegExp(`<body[^>]*>${frame.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(s)) problem(r, 'the noscript frame must come straight after <body>')
   if (!head.includes(`window.APE_TM="${gtm.id}";`)) problem(r, 'the page does not put analytics.js in Tag Manager mode')
   if (/APE_GA4|googletagmanager\.com\/gtag\/js/.test(s)) problem(r, 'loads Google Analytics directly as well as through Tag Manager')
-  if (/\/questionnaire\/[A-Za-z0-9_-]{8,}|\/book-now\/pay\/?\?t=|[?&]t=[A-Za-z0-9_-]{8,}/.test(s)) problem(r, 'contains a private link')
+  if (/\/(questionnaire|plan)\/[A-Za-z0-9_-]{8,}|\/book-now\/pay\/?\?t=|[?&]t=[A-Za-z0-9_-]{8,}/.test(s)) problem(r, 'contains a private link')
 }
 
 // 2. every public page has a live copy, and only public pages do
@@ -80,7 +80,7 @@ if (on) {
   const have = new Set(livePages.map((f) => '/' + rel(f).slice(LIVE.length + 1).replace(/index\.html$/, '')))
   for (const p of want) if (!have.has(p)) problem(p, 'no live copy was written for this page')
   for (const p of have) if (!want.has(p)) problem(p, 'a live copy exists for something that is not a public page')
-  for (const p of want) if (/^\/(admin|cms|api|questionnaire|book-now\/pay)(\/|$)/.test(p)) problem(p, 'this address must never have Tag Manager')
+  for (const p of want) if (/^\/(admin|cms|api|questionnaire|plan|book-now\/pay)(\/|$)/.test(p)) problem(p, 'this address must never have Tag Manager')
   for (const p of ['/', '/book-now/', '/privacy-policy/']) if (!want.has(p)) problem(p, 'this public page has no Tag Manager copy')
   if (!livePages.length) problem('public/live-pages', 'Tag Manager is on but no live copies were written')
 }
@@ -100,7 +100,7 @@ if (on && !(gtm.hosts || []).length) problem('site-routes.json', 'Tag Manager is
 
 // 6. the private parts of the site never refer to it (comments are not code)
 const code = (f) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"'`])\/\/.*$/gm, '$1')
-const PRIVATE = ['src/app/(site)', 'src/app/(dashboard)', 'src/app/(payload)', 'src/dashboard', 'src/email', 'src/booking', 'src/sitekit/collections']
+const PRIVATE = ['src/app/(site)', 'src/app/(dashboard)', 'src/app/(payload)', 'src/dashboard', 'src/email', 'src/booking', 'src/sitekit/collections', 'src/plans']
 const FORBIDDEN = /gtm\.js|ns\.html|gtmParts|gtmPieces|injectGtm|gtmForBuild|tmFlag|TM_HEADER|x-ape-tm|APE_TM|live-pages/
 for (const dir of PRIVATE) {
   for (const f of walk(join(ROOT, dir)).filter((x) => /\.(tsx?|mjs|js|css)$/.test(x))) {
@@ -115,10 +115,17 @@ for (const f of walk(join(ROOT, 'src', 'app', '(public)')).filter((x) => /page\.
   if (/searchParams|params\b/.test(code(f))) problem(rel(f, ROOT), 'a public Next.js page must not read values from its address')
 }
 
+// 6b. v1.18.0: the treatment plan link stays a private Next.js page (the proxy passes /plan to Next.js, and the page
+// lives with the questionnaire under src/app/(site), whose layout has no way to add Tag Manager)
+const proxySrc = readFileSync(join(ROOT, 'src', 'proxy.ts'), 'utf8')
+if (!/const APP = \/\^\\\/\([^)]*\bplan\b/.test(proxySrc)) problem('src/proxy.ts', '/plan must be passed to Next.js as a private page (APP)')
+if (!existsSync(join(ROOT, 'src', 'app', '(site)', 'plan'))) problem('src/app/(site)/plan', 'the treatment plan link must live under src/app/(site)')
+if (existsSync(join(ROOT, 'src', 'app', '(public)', 'plan'))) problem('src/app/(public)/plan', 'the treatment plan link must never be a public page')
+
 // 7. no referrer from the private pages
 if (existsSync(frame) && !/<meta name="referrer" content="no-referrer"/.test(readFileSync(frame, 'utf8'))) problem('src/lib/SiteFrame.tsx', 'the private pages must carry <meta name="referrer" content="no-referrer">')
 const nextConfig = readFileSync(join(ROOT, 'next.config.mjs'), 'utf8')
-for (const src of ['/book-now/pay', '/book-now/pay/', '/questionnaire/:path*']) {
+for (const src of ['/book-now/pay', '/book-now/pay/', '/questionnaire/:path*', '/plan/:path*']) {
   const line = nextConfig.split('\n').find((l) => l.includes(`source: '${src}'`) && /Referrer-Policy/.test(l) && /no-referrer'/.test(l))
   if (!line) problem('next.config.mjs', `${src} must be sent with Referrer-Policy: no-referrer`)
 }

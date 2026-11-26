@@ -19,7 +19,7 @@
       "attrs": {
         "class": "hero-simple legal-page"
       },
-      "template": "<div class=\"wrap prose legal\"><h1>{{f1}}</h1><p class=\"legal-updated\">{{f2}}</p><p class=\"legal-lead\">{{f3}}</p><h2>{{f4}}</h2><ul><li>{{f5}}</li><li>{{f6}}</li><li>{{f7}}</li><li>{{f8}}</li><li>{{f9}}</li><li>{{f10}}</li></ul><div class=\"bio-more\" id=\"privacy-more\"><div class=\"bio-more-inner\"><h2>{{f11}}</h2><p>{{f12}}</p><p>{{f13}}</p><h2>{{f14}}</h2><p>{{f15}}</p><p>{{f16}}</p><p>{{f17}}</p><p>{{f18}}</p><h2>{{f19}}</h2><p>{{f20}}</p><h2>{{f21}}</h2><p>{{f22}}</p><ul><li>{{f23}}</li><li>{{f24}}</li><li>{{f25}}</li><li>{{f26}}</li><li>{{f27}}</li><li>{{f28}}</li></ul><p>{{f29}}</p><h2>{{f30}}</h2><p>{{f31}}</p><ul><li>{{f32}}</li><li>{{f33}}</li><li>{{f34}}</li><li>{{f35}}</li><li>{{f36}}</li></ul><p>{{f37}}</p><h2>{{f38}}</h2><p>{{f39}}</p><h2>{{f40}}</h2><p>{{f41}}</p><p>{{f42}}</p><h2>{{f43}}</h2><p>{{f44}}</p><h2>{{f45}}</h2><p>{{f46}}</p><p>{{f47}}</p><h2>{{f48}}</h2><p>{{f49}}</p><h2>{{f50}}</h2><p>{{f51}}</p><h2>{{f52}}</h2><p>{{f53}}</p><h2>{{f54}}</h2><p>{{f55}}</p><p>{{f56}}</p><ul><li>{{f57}}</li><li>{{f58}}</li><li>{{f59}}</li></ul><h2>{{f64}}</h2><p>{{f65}}</p><p>{{f66}}</p><p>{{f67}}</p><h2>{{f60}}</h2><p>{{f61}}</p><p>{{f62}}</p><p>{{f63}}</p></div></div><button type=\"button\" class=\"read-more\" aria-expanded=\"true\" aria-controls=\"privacy-more\" hidden=\"\"><span class=\"read-more-label\">Read less</span><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6l4 4 4-4\"></path></svg></button></div>",
+      "template": "<div class=\"wrap prose legal\"><h1>{{f1}}</h1><p class=\"legal-updated\">{{f2}}</p><p class=\"legal-lead\">{{f3}}</p><h2>{{f4}}</h2><ul><li>{{f5}}</li><li>{{f6}}</li><li>{{f7}}</li><li>{{f8}}</li><li>{{f9}}</li><li>{{f10}}</li></ul><div class=\"bio-more\" id=\"privacy-more\"><div class=\"bio-more-inner\"><h2>{{f11}}</h2><p>{{f12}}</p><p>{{f13}}</p><h2>{{f14}}</h2><p>{{f15}}</p><p>{{f16}}</p><p>{{f17}}</p><p>{{f18}}</p><h2>{{f19}}</h2><p>{{f20}}</p><h2>{{f21}}</h2><p>{{f22}}</p><ul><li>{{f23}}</li><li>{{f24}}</li><li>{{f25}}</li><li>{{f26}}</li><li>{{f27}}</li><li>{{f28}}</li></ul><p>{{f29}}</p><h2>{{f30}}</h2><p>{{f31}}</p><ul><li>{{f32}}</li><li>{{f33}}</li><li>{{f34}}</li><li>{{f35}}</li><li>{{f36}}</li></ul><p>{{f37}}</p><h2>{{f38}}</h2><p>{{f39}}</p><h2>{{f40}}</h2><p>{{f41}}</p><p>{{f42}}</p><h2>{{f43}}</h2><p>{{f44}}</p><h2>{{f45}}</h2><p>{{f46}}</p><p>{{f47}}</p><h2>{{f48}}</h2><p>{{f49}}</p><h2>{{f50}}</h2><p>{{f51}}</p><h2>{{f52}}</h2><p>{{f53}}</p><h2>{{f54}}</h2><p>{{f55}}</p><p>{{f56}}</p><ul><li>{{f57}}</li><li>{{f58}}</li><li>{{f59}}</li></ul><h2>{{f64}}</h2><p>{{f65}}</p><p>{{f66}}</p><p>{{f67}}</p><h2>{{f68}}</h2><p>{{f69}}</p><p>{{f70}}</p><p>{{f71}}</p><p>{{f72}}</p><h2>{{f60}}</h2><p>{{f61}}</p><p>{{f62}}</p><p>{{f63}}</p></div></div><button type=\"button\" class=\"read-more\" aria-expanded=\"true\" aria-controls=\"privacy-more\" hidden=\"\"><span class=\"read-more-label\">Read less</span><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6l4 4 4-4\"></path></svg></button></div>",
       "fields": [
         {
           "id": "f1",
@@ -31,7 +31,7 @@
           "id": "f2",
           "label": "Paragraph",
           "type": "richtext",
-          "value": "Last updated: 11 November 2026"
+          "value": "Last updated: 25 November 2026"
         },
         {
           "id": "f3",
@@ -379,7 +379,7 @@
           "id": "f60",
           "label": "Heading",
           "type": "richtext",
-          "value": "15. Changes to this policy and how to contact us"
+          "value": "16. Changes to this policy and how to contact us"
         },
         {
           "id": "f61",
@@ -422,6 +422,36 @@
           "label": "Section 14 paragraph 3",
           "type": "richtext",
           "value": "Questionnaire answers are health records, so we keep them for at least 7 years after your last appointment (or until you turn 25 if you were under 18), after which they are securely deleted. You can ask to see or correct your answers, or ask us about them, using the contact details below."
+        },
+        {
+          "id": "f68",
+          "label": "Section 15 heading",
+          "type": "richtext",
+          "value": "15. Your treatment plan"
+        },
+        {
+          "id": "f69",
+          "label": "Section 15 paragraph 1",
+          "type": "richtext",
+          "value": "After your first appointment, Dr Lorna Gladwin may write a treatment plan for you in our website’s dashboard. It sets out what we discussed, the treatment we recommend and the comfort options we talked about, and may include estimated fees. It is written from your booking, so it includes your name, date of birth, booking reference and appointment date."
+        },
+        {
+          "id": "f70",
+          "label": "Section 15 paragraph 2",
+          "type": "richtext",
+          "value": "Your plan is encrypted before it is stored, held in our website’s own database in Australia, and never shared with advertising or analytics services or used for any purpose other than your care. Only the team members who look after your care and have been given access can open it, and a record is kept each time a plan is opened, changed, printed or sent."
+        },
+        {
+          "id": "f71",
+          "label": "Section 15 paragraph 3",
+          "type": "richtext",
+          "value": "We send your plan to the email address on your booking. The email only tells you that your plan is ready: it contains a private link that works for a limited time and asks for your date of birth before the plan opens. We can cancel a link at any time and send you a new one, and you can ask for a printed copy instead."
+        },
+        {
+          "id": "f72",
+          "label": "Section 15 paragraph 4",
+          "type": "richtext",
+          "value": "Treatment plans are health records, so we keep them for at least 7 years after the appointment they relate to (or until you turn 25 if you were under 18), after which they are securely deleted. You can ask to see or correct your plan, or ask us about it, using the contact details below."
         }
       ]
     }

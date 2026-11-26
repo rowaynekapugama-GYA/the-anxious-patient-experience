@@ -9,6 +9,7 @@ import { useToast } from '../ui/Toast'
 import { Icon } from '../ui/icons'
 import { Modal, Notice, Toggle, Field, TextInput, TextArea } from '../ui/fields'
 import { when } from '../lib/format'
+import { BookingPlans } from './Plans'
 import { NOTE_MAX, NOTE_HELP, QUICK_NOTES, firstLine, onboardingState, questionnaireLabel, type NoteView } from '@/booking/followup'
 
 const API = '/api/dashboard/bookings'
@@ -310,6 +311,8 @@ export function BookingsScreen({ initial }: { initial: BookingData | null }) {
                   {open === b.ref ? (
                     <tr className="booking-open"><td colSpan={10} style={{ background: '#fafbfc' }}>
                       <FollowUp b={b} now={now} onChanged={reload} />
+                      {/* v1.18.0: treatment plans for this booking (shows only with the permission, once plans are on) */}
+                      <BookingPlans bookingRef={b.ref} />
                       <p style={{ whiteSpace: 'pre-wrap', margin: '14px 0 6px' }}><b>Note from the patient:</b> {b.notes || 'None'}</p>
                       <dl className="booking-facts">
                         <div><dt>First name</dt><dd>{b.firstName || <span className="muted">not given (booked as {b.name})</span>}</dd></div>
