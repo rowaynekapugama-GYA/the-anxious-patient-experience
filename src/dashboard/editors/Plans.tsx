@@ -9,12 +9,16 @@ import Link from 'next/link'
 import { useToast } from '../ui/Toast'
 import { Modal, Notice, Toggle, Field, TextInput, TextArea } from '../ui/fields'
 import { api } from '../lib/client'
-import { FIELD_TYPES, isField, fmtMoney, rowsTotal, ESTIMATE_LINE, type Answers, type FormDef, type Item, type ItemType, type Row, type Section, type Column } from '@/plans/form'
+import { FIELD_TYPES, isField, fmtMoney, rowsTotal, ESTIMATE_LINE, EXTRA, extrasOf, fillText, planTexts, planContext, MERGE_FIELDS, type Answers, type FormDef, type Item, type ItemType, type Row, type Section, type Column, type Extras, type MergeContext } from '@/plans/form'
+import { phraseProblems, type PhraseProblem } from '@/plans/phrases'
 
 const API = '/api/dashboard/plans'
 type Condition = { key: string; ok: boolean; text: string; detail: string }
 type Switches = { on: boolean; conditions: Condition[]; emergencyOff: boolean; emailReady: boolean; region: string; people: number }
-type Settings = { sendMode: 'link' | 'password' | 'attachment'; linkDays: number; askDob: boolean; clinician: string; privacyLine: string }
+type Practice = { apeName: string; apeEmail: string; clinicName: string; clinicAddress: string; clinicEmail: string }
+type Settings = { sendMode: 'link' | 'password' | 'attachment'; linkDays: number; askDob: boolean; clinician: string; privacyLine: string; practice: Practice }
+export type Block = { id: number; name: string; body: string; sort: number; updatedAt: string; updatedBy: string; retiredAt: string | null }
+export type TemplateSummary = { id: number; name: string; formVersion: number; createdAt: string; createdBy: string; updatedAt: string; updatedBy: string; retiredAt: string | null }
 type Me = { canPlans: boolean; canManage: boolean; canApprove: boolean; admin: boolean }
 type FormInfo = { version: number; placeholder: boolean; approvedAt: string | null; approvedBy: string; createdBy: string; createdAt: string }
 type SwitchData = { switches: Switches; settings: Settings; me: Me; form: FormInfo }
@@ -45,20 +49,21 @@ const ERR: Record<string, string> = {
   not_final: 'Only a finalised plan can be sent.',
   no_email: 'Email is not set up for the website yet.',
   admin_only: 'Only GYA administrators can delete a plan.',
+  retired: 'That template has been retired. Restore it on the Templates screen, or choose another.',
 }
-const msg = (e: unknown) => { const m = (e as Error).message || ''; return ERR[m] || m || 'Something went wrong. Please try again.' }
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '')
+export const msg = (e: unknown) => { const m = (e as Error).message || ''; return ERR[m] || m || 'Something went wrong. Please try again.' }
+export const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '')
 const dayOnly = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const dobLabel = (iso: string | null) => { if (!iso) return 'Not on the booking'; const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }) }
 
-async function call<T = any>(body: unknown): Promise<T> {
+export async function call<T = any>(body: unknown): Promise<T> {
   const res = await fetch(API, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const j = await res.json().catch(() => ({ ok: false, error: 'server_error' }))
   if (res.status === 401) { window.location.href = '/admin/login'; throw new Error('Please sign in again.') }
   if (!res.ok || j.ok === false) throw new Error(j.message || j.error || 'server_error')
   return j as T
 }
-async function get<T = any>(qs: string): Promise<T> {
+export async function get<T = any>(qs: string): Promise<T> {
   const res = await fetch(`${API}?${qs}`, { credentials: 'include', cache: 'no-store' })
   const j = await res.json().catch(() => ({ ok: false, error: 'server_error' }))
   if (res.status === 401) { window.location.href = '/admin/login'; throw new Error('Please sign in again.') }
@@ -127,8 +132,82 @@ function SettingsPanel({ data, onSaved }: { data: SwitchData; onSaved: () => voi
       </div>
       <Toggle label="Ask for the patient's date of birth before the link opens the plan" checked={s.askDob} onChange={(v) => set('askDob', v)} help="Only for bookings that have a date of birth. Five wrong tries cancel the link." />
       <TextArea label="Privacy line in the patient email (optional)" value={s.privacyLine} onChange={(v) => set('privacyLine', v)} rows={2} help="Only once Lorna has approved the wording. Blank: no line." />
+      <fieldset className="plan-practice-fields" data-practice-settings>
+        <legend className="lab">Practice details</legend>
+        <p className="help" style={{ marginTop: 0 }}>Printed at the bottom of every plan: the patient&apos;s link page, the PDF and the printed copy. Leave a box empty to leave it out.</p>
+        <div className="grid-2">
+          <TextInput label="APE name" value={s.practice.apeName} onChange={(v) => set('practice', { ...s.practice, apeName: v })} maxLength={120} />
+          <TextInput label="APE email" value={s.practice.apeEmail} onChange={(v) => set('practice', { ...s.practice, apeEmail: v })} maxLength={120} />
+          <TextInput label="Practice name" value={s.practice.clinicName} onChange={(v) => set('practice', { ...s.practice, clinicName: v })} maxLength={120} />
+          <TextInput label="Practice email" value={s.practice.clinicEmail} onChange={(v) => set('practice', { ...s.practice, clinicEmail: v })} maxLength={120} />
+        </div>
+        <TextInput label="Practice address" value={s.practice.clinicAddress} onChange={(v) => set('practice', { ...s.practice, clinicAddress: v })} maxLength={200} />
+      </fieldset>
       <div className="actions"><button className="btn primary" disabled={busy} onClick={save}>Save settings</button></div>
     </div>
+  )
+}
+
+// ================================================================ v1.19.0: where a new plan starts from
+/** 't:12' is template 12, 'p:34' is the plan record 34 (an earlier plan, patient details cleared), '' is a blank plan */
+export const startFrom = (v: string) => (v.startsWith('t:') ? { templateId: Number(v.slice(2)) } : v.startsWith('p:') ? { fromPlanId: Number(v.slice(2)) } : {})
+export function StartFrom({ value, onChange, templates, plans }: { value: string; onChange: (v: string) => void; templates: TemplateSummary[]; plans: Summary[] }) {
+  return (
+    <Field label="Start from" htmlFor="pl-start" help="A template fills in your saved wording. An earlier plan keeps its choices, tick boxes and added paragraphs; everything typed for that patient is cleared. You can change it all before finalising.">
+      <select id="pl-start" className="select" value={value} onChange={(e) => onChange(e.target.value)} data-start-from>
+        <option value="">A blank plan</option>
+        {templates.length ? <optgroup label="Your templates">{templates.map((x) => <option key={x.id} value={`t:${x.id}`}>{x.name}</option>)}</optgroup> : null}
+        {plans.length ? <optgroup label="An earlier plan (patient details cleared)">{plans.slice(0, 40).map((x) => <option key={x.id} value={`p:${x.id}`}>{x.patientName}, {dayOnly(x.finalisedAt)}</option>)}</optgroup> : null}
+      </select>
+    </Field>
+  )
+}
+
+// ================================================================ v1.19.0: the paragraph library, picked from in a plan or a template
+export function LibraryPicker({ blocks, onPick, onClose }: { blocks: Block[]; onPick: (body: string) => void; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const list = blocks.filter((b) => !b.retiredAt && (!q || `${b.name} ${b.body}`.toLowerCase().includes(q.toLowerCase())))
+  return (
+    <Modal title="Add a paragraph from your library" onClose={onClose} footer={<button className="btn" onClick={onClose}>Close</button>}>
+      <input className="input search" aria-label="Search the library" placeholder="Search your paragraphs" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12 }} />
+      {!list.length ? <p className="empty">{blocks.length ? 'Nothing matches.' : 'Your library is empty. Add paragraphs on Treatment plans > Templates and paragraphs.'}</p> : (
+        <ul className="list-plain plan-library">{list.map((b) => (
+          <li key={b.id}><span className="grow"><b>{b.name}</b><br /><span className="help plan-lib-body">{b.body}</span></span><button className="btn small primary" onClick={() => { onPick(b.body); onClose() }} data-pick-block={b.name}>Add</button></li>
+        ))}</ul>
+      )}
+    </Modal>
+  )
+}
+
+/** The paragraphs added to one section of a plan or template, each editable for this patient. */
+export function SectionExtras({ list, locked, onChange, onLibrary, ctx }: { list: string[]; locked: boolean; onChange: (l: string[]) => void; onLibrary: () => void; ctx: MergeContext }) {
+  if (locked) return list.length ? <div className="plan-extras">{list.map((p, n) => <div key={n} className="plan-fixed paragraph"><p>{fillText(p, ctx)}</p><span className="help">Added paragraph</span></div>)}</div> : null
+  return (
+    <div className="plan-extras" data-extras={list.length}>
+      {list.map((p, n) => (
+        <div key={n} className="plan-extra">
+          <textarea className="textarea" rows={3} aria-label={`Added paragraph ${n + 1}`} value={p} onChange={(e) => onChange(list.map((x, i) => (i === n ? e.target.value : x)))} />
+          <div className="actions">
+            <button type="button" className="btn ghost small" onClick={() => onChange(move(list, n, -1))} disabled={n === 0}>Up</button>
+            <button type="button" className="btn ghost small" onClick={() => onChange(move(list, n, 1))} disabled={n === list.length - 1}>Down</button>
+            <button type="button" className="btn ghost small" onClick={() => onChange(list.filter((_, i) => i !== n))}>Remove</button>
+          </div>
+        </div>
+      ))}
+      <div className="actions">
+        <button type="button" className="btn small" onClick={onLibrary} data-add-from-library>Add a paragraph from your library</button>
+        <button type="button" className="btn ghost small" onClick={() => onChange([...list, ''])}>Write a new paragraph</button>
+      </div>
+    </div>
+  )
+}
+
+/** The wording checks, shown as she types (the server checks again before finalising). */
+export function PhraseNotice({ problems }: { problems: PhraseProblem[] }) {
+  if (!problems.length) return null
+  return (
+    <Notice tone="warn"><div data-phrase-problems={problems.length}><b>Some wording needs changing before this can be finalised or saved:</b>
+      <ul>{problems.slice(0, 8).map((p, n) => <li key={n}>&quot;{p.found}&quot; in {p.where}: {p.why}.</li>)}</ul></div></Notice>
   )
 }
 
@@ -141,6 +220,8 @@ export function PlansScreen() {
   const [q, setQ] = useState('')
   const [bookings, setBookings] = useState<{ ref: string; name: string; start: string; status: string }[] | null>(null)
   const [pick, setPick] = useState('')
+  const [start, setStart] = useState('')
+  const [templates, setTemplates] = useState<TemplateSummary[]>([])
   const [busy, setBusy] = useState(false)
   const load = useCallback(async () => {
     try {
@@ -154,12 +235,13 @@ export function PlansScreen() {
     try {
       const j = await api<{ bookings: { ref: string; name: string; start: string; status: string }[] }>('/api/dashboard/bookings')
       setBookings(j.bookings.filter((b) => b.status !== 'cancelled').sort((a, b) => (a.start < b.start ? 1 : -1)))
+      setTemplates((await get<{ templates: TemplateSummary[] }>('library=1')).templates.filter((x) => !x.retiredAt))
     } catch (e) { toast(msg(e), 'bad') }
   }
   async function create() {
     if (!pick) return
     setBusy(true)
-    try { const r = await call<{ id: number }>({ action: 'create', ref: pick }); window.location.href = `/admin/plans/${r.id}` } catch (e) { toast(msg(e), 'bad'); setBusy(false) }
+    try { const r = await call<{ id: number }>({ action: 'create', ref: pick, ...startFrom(start) }); window.location.href = `/admin/plans/${r.id}` } catch (e) { toast(msg(e), 'bad'); setBusy(false) }
   }
   if (!data) return <div className="panel"><p className="empty">{err || 'Loading...'}</p></div>
   const shown = (plans || []).filter((p) => !q || `${p.patientName} ${p.bookingRef}`.toLowerCase().includes(q.toLowerCase()))
@@ -198,6 +280,7 @@ export function PlansScreen() {
             <option value="">Choose a booking</option>
             {bookings.map((b) => <option key={b.ref} value={b.ref}>{b.name}, {dayOnly(b.start)} ({b.ref})</option>)}
           </select></Field>
+          <StartFrom value={start} onChange={setStart} templates={templates} plans={(plans || []).filter((p) => p.status === 'final')} />
         </Modal>
       ) : null}
     </>
@@ -205,7 +288,7 @@ export function PlansScreen() {
 }
 
 // ================================================================ one field in the editor
-function FieldInput({ it, value, onChange, locked }: { it: Item; value: Answers[string] | undefined; onChange: (v: Answers[string] | undefined) => void; locked: boolean }) {
+export function FieldInput({ it, value, onChange, locked, onLibrary }: { it: Item; value: Answers[string] | undefined; onChange: (v: Answers[string] | undefined) => void; locked: boolean; onLibrary?: () => void }) {
   const id = `pf-${it.id}`
   const label = <>{it.label}{it.required ? <span className="req" aria-hidden="true"> *</span> : <span className="help inline">Optional</span>}</>
   const help = it.help ? <div className="help">{it.help}</div> : null
@@ -217,7 +300,8 @@ function FieldInput({ it, value, onChange, locked }: { it: Item; value: Answers[
           <input id={id} className="input" disabled={locked} type={it.type === 'date' ? 'date' : 'text'} inputMode={it.type === 'number' || it.type === 'currency' ? 'decimal' : undefined}
             value={str} onChange={(e) => onChange(e.target.value)} required={it.required} /></div>{help}</div>
     case 'textarea':
-      return <div className="field plan-field"><label htmlFor={id}>{label}</label><textarea id={id} className="textarea" rows={4} disabled={locked} value={str} onChange={(e) => onChange(e.target.value)} />{help}</div>
+      return <div className="field plan-field"><label htmlFor={id}>{label}</label><textarea id={id} className="textarea" rows={4} disabled={locked} value={str} onChange={(e) => onChange(e.target.value)} />{help}
+        {!locked && onLibrary ? <button type="button" className="btn ghost small" onClick={onLibrary}>Insert from your library</button> : null}</div>
     case 'checkbox':
       return <div className="field plan-field"><label className="plan-tick"><input type="checkbox" disabled={locked} checked={value === true} onChange={(e) => onChange(e.target.checked || undefined)} /> {it.label}</label>{help}</div>
     case 'choice': {
@@ -265,7 +349,10 @@ export function PlanEditor({ id }: { id: number }) {
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle')
   const [savedAt, setSavedAt] = useState('')
-  const [ask, setAsk] = useState<null | 'finalise' | 'send' | 'revoke' | 'version' | 'delete'>(null)
+  const [ask, setAsk] = useState<null | 'finalise' | 'send' | 'revoke' | 'version' | 'delete' | 'template'>(null)
+  const [blocks, setBlocks] = useState<Block[] | null>(null)
+  const [picking, setPicking] = useState<null | ((body: string) => void)>(null)
+  const [tplName, setTplName] = useState('')
   const [password, setPassword] = useState('')
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
@@ -314,11 +401,25 @@ export function PlanEditor({ id }: { id: number }) {
         await load()
       }
       if (kind === 'delete') { await call({ action: 'delete', planNo: plan.planNo, confirm: typed }); window.location.href = '/admin/plans' }
+      if (kind === 'template') {
+        if (saving === 'dirty' || saving === 'saving') await save()
+        const r = await call<{ template: TemplateSummary }>({ action: 'templateFromPlan', id: plan.id, name: tplName })
+        toast(`Saved as the template "${r.template.name}". Dates were left out.`, 'good'); setAsk(null)
+      }
     } catch (e) { toast(msg(e), 'bad') } finally { setBusy(false) }
   }
 
+  // v1.19.0: the paragraph library, loaded the first time it is needed
+  const library = (then: (body: string) => void) => {
+    setPicking(() => then)
+    if (!blocks) get<{ blocks: Block[] }>('library=1').then((j) => setBlocks(j.blocks)).catch((e) => { toast(msg(e), 'bad'); setPicking(null) })
+  }
+  const problems = plan ? phraseProblems(planTexts(plan.form, answers), planContext(plan.form, answers)) : []
   if (!plan || !settings) return <div className="panel"><p className="empty">{err || 'Loading...'}</p></div>
   const locked = plan.status !== 'draft'
+  const ctx: MergeContext = { firstName: plan.identity.firstName, appointmentDate: plan.identity.appointmentAt ? new Date(plan.identity.appointmentAt).toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'long', year: 'numeric' }) : '', dentist: settings.clinician }
+  const extras = extrasOf(answers)
+  const setExtras = (secId: string, l: string[]) => { const next: Extras = { ...extras, [secId]: l }; if (!l.length) delete next[secId]; change(EXTRA, Object.keys(next).length ? next : undefined) }
   const latestVersion = Math.max(...plan.versions.map((v) => v.version))
   const latestFinal = plan.versions.filter((v) => v.status === 'final').sort((a, b) => b.version - a.version)[0]
   const isLatest = plan.version === latestVersion
@@ -348,6 +449,7 @@ export function PlanEditor({ id }: { id: number }) {
             <a className="btn" href={`/api/dashboard/plans/pdf?id=${plan.id}`} data-download>Download PDF</a>
             {isLatest ? <button className="btn" onClick={() => setAsk('version')}>Change this plan</button> : null}
           </>}
+          <button className="btn ghost" onClick={() => { setTplName(''); setAsk('template') }} data-save-template>Save as a template</button>
           {latestFinal ? <button className="btn primary" onClick={() => setAsk('send')} data-send>{plan.sends.length ? 'Send again' : 'Send to patient'}</button> : null}
           {liveLinks.length ? <button className="btn danger" onClick={() => setAsk('revoke')} data-revoke>Revoke access</button> : null}
         </div>
@@ -359,14 +461,18 @@ export function PlanEditor({ id }: { id: number }) {
         ))}</ul></div>
       ) : null}
 
+      {!locked ? <PhraseNotice problems={problems} /> : null}
       <form className="plan-form" onSubmit={(e) => e.preventDefault()}>
         <div className="panel"><h2 className="plan-title">{plan.form.title}</h2>{plan.form.subtitle ? <p className="help">{plan.form.subtitle}</p> : null}</div>
         {plan.form.sections.map((sec) => (
           <section className="panel plan-section" key={sec.id}>
-            {sec.heading ? <h2>{sec.heading.split('{first_name}').join(plan.identity.firstName || 'there')}</h2> : null}
+            {sec.heading ? <h2>{fillText(sec.heading, ctx)}</h2> : null}
             {sec.items.map((it) => !isField(it.type)
-              ? <div key={it.id} className={`plan-fixed ${it.type}`}>{it.type === 'callout' && it.label ? <b>{it.label}</b> : null}<p>{(it.text || '').split('{first_name}').join(plan.identity.firstName || 'there')}</p><span className="help">Printed as written</span></div>
-              : <FieldInput key={it.id} it={it} value={answers[it.id]} onChange={(v) => change(it.id, v)} locked={locked} />)}
+              ? <div key={it.id} className={`plan-fixed ${it.type}`}>{it.type === 'callout' && it.label ? <b>{it.label}</b> : null}<p>{fillText(it.text || '', ctx)}</p><span className="help">Printed as written</span></div>
+              : <FieldInput key={it.id} it={it} value={answers[it.id]} onChange={(v) => change(it.id, v)} locked={locked}
+                  onLibrary={() => library((body) => { const cur = typeof latest.current[it.id] === 'string' ? String(latest.current[it.id]) : ''; change(it.id, cur ? `${cur}\n\n${body}` : body) })} />)}
+            <SectionExtras list={extras[sec.id] || []} locked={locked} ctx={ctx} onChange={(l) => setExtras(sec.id, l)}
+              onLibrary={() => library((body) => setExtras(sec.id, [...(extrasOf(latest.current)[sec.id] || []), body]))} />
           </section>
         ))}
       </form>
@@ -383,9 +489,14 @@ export function PlanEditor({ id }: { id: number }) {
         {admin ? <div className="actions"><Link className="btn small" href={`/admin/plans/log?plan=${plan.planNo}`}>Audit log for this plan</Link><button className="btn small danger" onClick={() => { setTyped(''); setAsk('delete') }}>Delete plan</button></div> : null}
       </div>
 
-      {ask === 'finalise' ? <Modal title="Finalise this plan?" narrow onClose={() => setAsk(null)} footer={<><button className="btn" onClick={() => setAsk(null)}>Not yet</button><button className="btn primary" disabled={busy} onClick={() => act('finalise')}>Finalise version {plan.version}</button></>}>
-        <p>Finalising locks version {plan.version} and records today&apos;s date and your name. After that it can be printed and sent, and any change starts a new version.</p>
+      {ask === 'finalise' ? <Modal title="Finalise this plan?" narrow onClose={() => setAsk(null)} footer={<><button className="btn" onClick={() => setAsk(null)}>Not yet</button><button className="btn primary" disabled={busy || problems.length > 0} onClick={() => act('finalise')}>Finalise version {plan.version}</button></>}>
+        {problems.length ? <PhraseNotice problems={problems} /> : <p>Finalising locks version {plan.version} and records today&apos;s date and your name. After that it can be printed and sent, and any change starts a new version.</p>}
       </Modal> : null}
+      {ask === 'template' ? <Modal title="Save as a template" narrow onClose={() => setAsk(null)} footer={<><button className="btn" onClick={() => setAsk(null)}>Cancel</button><button className="btn primary" disabled={busy || !tplName.trim()} onClick={() => act('template')} data-confirm-template>Save template</button></>}>
+        <p>Saves the wording, choices and added paragraphs on this plan as a template you can start new plans from. Dates are left out, and the patient&apos;s name and details are never part of a template. Check nothing in a typed box is about this patient only; you can edit the template afterwards on the Templates screen.</p>
+        <TextInput label="Template name" value={tplName} onChange={setTplName} maxLength={80} help='For example "First visit with inhalation sedation".' />
+      </Modal> : null}
+      {picking ? (blocks ? <LibraryPicker blocks={blocks} onPick={(b) => picking(b)} onClose={() => setPicking(null)} /> : <Modal title="Your library" narrow onClose={() => setPicking(null)}><p className="empty">Loading...</p></Modal>) : null}
       {ask === 'version' ? <Modal title="Change this plan?" narrow onClose={() => setAsk(null)} footer={<><button className="btn" onClick={() => setAsk(null)}>Cancel</button><button className="btn primary" disabled={busy} onClick={() => act('version')}>Start version {latestVersion + 1}</button></>}>
         <p>Version {plan.version} stays exactly as it is. Version {latestVersion + 1} starts as a draft copy for you to change and finalise.</p>
       </Modal> : null}
@@ -418,22 +529,33 @@ export function PlanEditor({ id }: { id: number }) {
 export function BookingPlans({ bookingRef }: { bookingRef: string }) {
   const toast = useToast()
   const [plans, setPlans] = useState<Summary[] | null>(null)
+  const [templates, setTemplates] = useState<TemplateSummary[]>([])
+  const [start, setStart] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     let live = true
-    fetch(`${API}?ref=${encodeURIComponent(bookingRef)}`, { credentials: 'include', cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live && j?.ok) setPlans(j.plans) }).catch(() => {})
+    fetch(`${API}?ref=${encodeURIComponent(bookingRef)}`, { credentials: 'include', cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (!live || !j?.ok) return
+      setPlans(j.plans)
+      fetch(`${API}?library=1`, { credentials: 'include', cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((x) => { if (live && x?.ok) setTemplates((x.templates as TemplateSummary[]).filter((y) => !y.retiredAt)) }).catch(() => {})
+    }).catch(() => {})
     return () => { live = false }
   }, [bookingRef])
   if (!plans) return null   // no permission, or treatment plans are off: nothing shows
   async function create() {
     setBusy(true)
-    try { const r = await call<{ id: number }>({ action: 'create', ref: bookingRef }); window.location.href = `/admin/plans/${r.id}` } catch (e) { toast(msg(e), 'bad'); setBusy(false) }
+    try { const r = await call<{ id: number }>({ action: 'create', ref: bookingRef, ...startFrom(start) }); window.location.href = `/admin/plans/${r.id}` } catch (e) { toast(msg(e), 'bad'); setBusy(false) }
   }
   return (
     <div className="follow-block plan-on-booking" data-plans={plans.length}>
       <b>Treatment plans</b>
       {plans.length ? <ul className="list-plain">{plans.map((p) => <li key={p.planNo}><Link href={`/admin/plans/${p.id}`}>Plan {p.planNo}, version {p.version}</Link> {p.status === 'final' ? <span className="chip good">Finalised</span> : <span className="chip warn">Draft</span>}</li>)}</ul> : null}
-      <button className="btn small" disabled={busy} onClick={create} data-create-plan>Create treatment plan</button>
+      <div className="actions">
+        {templates.length ? <select className="select small" aria-label="Start the plan from" value={start} onChange={(e) => setStart(e.target.value)} data-booking-template>
+          <option value="">A blank plan</option>{templates.map((x) => <option key={x.id} value={`t:${x.id}`}>Template: {x.name}</option>)}
+        </select> : null}
+        <button className="btn small" disabled={busy} onClick={create} data-create-plan>Create treatment plan</button>
+      </div>
     </div>
   )
 }
@@ -573,15 +695,15 @@ export function FormBuilder() {
 
 // ================================================================ the audit log (administrators)
 export function PlanLog({ planNo }: { planNo?: number }) {
-  const [rows, setRows] = useState<{ at: string; by: string; action: string; planNo: number | null; version: number | null; ref: string; note: string; times: number }[] | null>(null)
+  const [rows, setRows] = useState<{ at: string; by: string; byName: string; action: string; planNo: number | null; version: number | null; ref: string; patient: string; note: string; times: number }[] | null>(null)
   const [err, setErr] = useState('')
   useEffect(() => { get<{ log: NonNullable<typeof rows> }>(`log=1${planNo ? `&plan=${planNo}` : ''}`).then((j) => setRows(j.log)).catch((e) => setErr(msg(e))) }, [planNo])
   const list = useMemo(() => rows || [], [rows])
   if (!rows) return <div className="panel"><p className="empty">{err || 'Loading...'}</p></div>
   return (
     <div className="panel"><div className="table-wrap"><table className="table">
-      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Plan</th><th>Booking</th><th>Note</th></tr></thead>
-      <tbody>{list.map((r, n) => <tr key={n}><td>{when(r.at)}</td><td>{r.by}</td><td>{r.action}{r.times > 1 ? ` (${r.times} saves)` : ''}</td><td>{r.planNo ? `${r.planNo}${r.version ? `, v${r.version}` : ''}` : ''}</td><td>{r.ref}</td><td>{r.note}</td></tr>)}</tbody>
+      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Patient</th><th>Plan</th><th>Note</th></tr></thead>
+      <tbody>{list.map((r, n) => <tr key={n} data-log-action={r.action}><td>{when(r.at)}</td><td>{r.byName ? <><b>{r.byName}</b><br /><span className="help">{r.by}</span></> : r.by}</td><td>{r.action}{r.times > 1 ? ` (${r.times} saves)` : ''}</td><td>{r.patient}{r.ref ? <><br /><span className="help">{r.ref}</span></> : null}</td><td>{r.planNo ? `${r.planNo}${r.version ? `, v${r.version}` : ''}` : ''}</td><td>{r.note}</td></tr>)}</tbody>
     </table></div>{!list.length ? <p className="empty">Nothing yet.</p> : null}</div>
   )
 }

@@ -4,7 +4,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { getSettings } from '@/lib/site'
 import { allow } from '@/lib/mailer'
-import { lookupLink } from '@/plans/store'
+import { lookupLink, readSettings, practiceLines } from '@/plans/store'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Your treatment plan | The Anxious Patient Experience', robots: { index: false, follow: false, nocache: true } }
@@ -34,6 +34,8 @@ export default async function PlanLinkPage({ params, searchParams }: { params: P
       <p>For your privacy, treatment plan links stop working after a while, and a newer email replaces the link in an older one. Just reply to the email and we will send you a new link.</p>{contact}
     </Message>
   }
+  // v1.19.0: the practice details from Treatment plans > Settings, as at the bottom of the plan itself
+  const practice = await readSettings().then((x) => practiceLines(x.practice)).catch(() => [] as string[])
   return (
     <section className="qn-page">
       {css}
@@ -66,8 +68,9 @@ export default async function PlanLinkPage({ params, searchParams }: { params: P
           <p className="qn-confidential">There is no rush. Read it in your own time, and ask us anything.</p>
         </div>
         {contact}
+        {practice.length ? <div className="plan-practice" data-practice><p className="qn-label">Practice details</p>{practice.map((l) => <p key={l}>{l}</p>)}</div> : null}
       </div>
-      <style>{'.plan-dob{border:0;padding:0;margin:0 0 18px;display:grid;grid-template-columns:minmax(64px,1fr) minmax(130px,2fr) minmax(84px,1.3fr);gap:10px}.plan-dob legend{margin-bottom:8px}.plan-dob label{display:grid;gap:6px;font-size:15px;color:var(--navy)}.plan-dob input,.plan-dob select{width:100%;box-sizing:border-box;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#FFFEFA;font:inherit;color:var(--navy)}.plan-open .btn{margin-top:6px}.qn-err{color:#8A4317;font-weight:600}'}</style>
+      <style>{'.plan-dob{border:0;padding:0;margin:0 0 18px;display:grid;grid-template-columns:minmax(64px,1fr) minmax(130px,2fr) minmax(84px,1.3fr);gap:10px}.plan-dob legend{margin-bottom:8px}.plan-dob label{display:grid;gap:6px;font-size:15px;color:var(--navy)}.plan-dob input,.plan-dob select{width:100%;box-sizing:border-box;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#FFFEFA;font:inherit;color:var(--navy)}.plan-open .btn{margin-top:6px}.qn-err{color:#8A4317;font-weight:600}.plan-practice{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-size:15px}.plan-practice p{margin:0 0 4px}'}</style>
     </section>
   )
 }

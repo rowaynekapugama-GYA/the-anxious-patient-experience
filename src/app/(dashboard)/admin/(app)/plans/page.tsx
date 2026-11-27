@@ -10,8 +10,9 @@ export default async function Plans() {
   return (
     <>
       <div className="pd-head">
-        <div className="grow"><h1>Treatment plans</h1><p className="pd-sub">Written after a patient&apos;s first appointment, printed or sent to them. Content is encrypted, only people with &quot;Can create and view treatment plans&quot; can open a plan, and every action is logged.</p></div>
+        <div className="grow"><h1>Treatment plans</h1><p className="pd-sub">Written after a patient&apos;s first appointment, printed or sent to them. Content is encrypted, only people with &quot;Can create and view treatment plans&quot; can open a plan, and every view, change, send and download is logged.</p></div>
         <div className="actions">
+          <Link className="btn" href="/admin/plans/templates" data-templates-link>Templates and paragraphs</Link>
           <Link className="btn" href="/admin/plans/form">Form</Link>
           {u.role === 'admin' ? <Link className="btn" href="/admin/plans/log">Audit log</Link> : null}
         </div>

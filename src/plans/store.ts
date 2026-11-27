@@ -4,8 +4,8 @@
  * - Content (the patient's name, date of birth and every answer) is encrypted here with AES-256-GCM before it reaches
  *   the database, with its own key, TREATMENT_PLAN_ENCRYPTION_KEY. A database row on its own gives nothing away.
  * - Only a signed-in person with "Can create and view treatment plans" can list, open, write, print or send a plan.
- *   It is off for everyone by default, GYA administrators included. It is read from the database on every request,
- *   so taking it away works at once.
+ *   v1.19.0: on for every login, new ones included, at the practice owner's request (27 Nov 2026); the practice owner
+ *   or GYA can untick it. It is read from the database on every request, so taking it away works at once.
  * - Every create, edit, finalise, view, print, send, revoke and delete is written to ape_plan_log (who, when, which
  *   plan and version, never any content). Administrators can read it.
  * - The feature is off until all four conditions hold (see switches()). TREATMENT_PLANS_ENABLED=false in Vercel is an
@@ -19,7 +19,8 @@ import { db, type Db } from '@/booking/core'
 import { seal, unseal, newToken, hashToken, planKey, planKeyReady, type Sealed } from '@/lib/crypto'
 import { emailConfigured } from '@/lib/email'
 import { retainUntil, fullName } from '@/booking/patient'
-import { PLACEHOLDER_FORM, cleanForm, cleanAnswers, missingRequired, type Answers, type FormDef } from './form'
+import { PLACEHOLDER_FORM, cleanForm, cleanAnswers, missingRequired, reuseAnswers, planTexts, planContext, isField, type Answers, type FormDef } from './form'
+import { phraseProblems, phraseMessage } from './phrases'
 
 export type SendMode = 'link' | 'password' | 'attachment'
 export const SEND_MODES: { mode: SendMode; label: string }[] = [
@@ -27,12 +28,16 @@ export const SEND_MODES: { mode: SendMode; label: string }[] = [
   { mode: 'password', label: 'Password protected PDF attached, password by phone or SMS' },
   { mode: 'attachment', label: 'PDF attached (no password)' },
 ]
+/** v1.19.0: printed at the bottom of every plan (the link page, the PDF and the print). Blank lines are left out. */
+export type PracticeDetails = { apeName: string; apeEmail: string; clinicName: string; clinicAddress: string; clinicEmail: string }
+export const NO_PRACTICE: PracticeDetails = { apeName: '', apeEmail: '', clinicName: '', clinicAddress: '', clinicEmail: '' }
 export type Settings = { sendMode: SendMode; linkDays: number; askDob: boolean; clinician: string
   /** one line about privacy in the patient email, once Lorna has approved it (blank: none) */
-  privacyLine: string }
+  privacyLine: string
+  practice: PracticeDetails }
 /** v1.18.1: the line under the patient email (Settings > Privacy line), published by GYA on 25 Nov 2026. */
 export const PRIVACY_LINE = 'For your privacy, this email does not contain any details of your treatment plan. Please do not forward it.'
-export const DEFAULT_SETTINGS: Settings = { sendMode: 'link', linkDays: 14, askDob: true, clinician: 'Dr Lorna Gladwin', privacyLine: '' }
+export const DEFAULT_SETTINGS: Settings = { sendMode: 'link', linkDays: 14, askDob: true, clinician: 'Dr Lorna Gladwin', privacyLine: '', practice: NO_PRACTICE }
 
 export class PlanError extends Error {
   constructor(public status: number, public code: string, message?: string) { super(message || code) }
@@ -109,6 +114,28 @@ CREATE TABLE IF NOT EXISTS ape_plan_log (
   times integer NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS ape_plan_log_at ON ape_plan_log (at DESC);
+CREATE TABLE IF NOT EXISTS ape_plan_templates (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  form_version integer NOT NULL,
+  sealed text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text NOT NULL DEFAULT '',
+  retired_at timestamptz
+);
+CREATE TABLE IF NOT EXISTS ape_plan_blocks (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  body text NOT NULL,
+  sort integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text NOT NULL DEFAULT '',
+  retired_at timestamptz
+);
 `
 
 let ready: Promise<void> | null = null
@@ -149,6 +176,7 @@ function openContent(sealed: string): Content {
 
 export type LogAction = 'created' | 'edited' | 'finalised' | 'new version' | 'viewed' | 'printed' | 'downloaded' | 'sent' | 'send failed' | 'revoked'
   | 'deleted' | 'denied' | 'patient opened' | 'patient date of birth wrong' | 'form saved' | 'form approved' | 'settings changed'
+  | 'template saved' | 'template retired' | 'template restored' | 'paragraph saved' | 'paragraph retired' | 'paragraph restored' | 'access given to all users'
 
 /** One line per action: who, when, which plan and version. Never any content. Repeated edits by one person within 10 minutes are counted on one line. */
 export async function logPlan(e: { by: string; action: LogAction; planNo?: number | null; version?: number | null; ref?: string; note?: string }): Promise<void> {
@@ -161,24 +189,29 @@ export async function logPlan(e: { by: string; action: LogAction; planNo?: numbe
   await d.query(`INSERT INTO ape_plan_log (by_email, action, plan_no, version, booking_ref, note) VALUES ($1, $2, $3, $4, $5, $6)`,
     [e.by, e.action, e.planNo ?? null, e.version ?? null, e.ref || '', (e.note || '').slice(0, 300)])
 }
-export type LogRow = { at: string; by: string; action: string; planNo: number | null; version: number | null; ref: string; note: string; times: number }
+export type LogRow = { at: string; by: string; byName: string; action: string; planNo: number | null; version: number | null; ref: string; patient: string; note: string; times: number }
+/** The audit log, newest first, with the person's name (from their login) and the patient's name (from the booking). */
 export async function readLog(o: { planNo?: number; limit?: number } = {}): Promise<LogRow[]> {
   const d = await need()
-  const r = await d.query(`SELECT at, by_email, action, plan_no, version, booking_ref, note, times FROM ape_plan_log ${o.planNo ? 'WHERE plan_no = $2' : ''} ORDER BY at DESC, id DESC LIMIT $1`,
-    o.planNo ? [o.limit || 500, o.planNo] : [o.limit || 500])
-  return r.map((x) => ({ at: new Date(x.at).toISOString(), by: x.by_email, action: x.action, planNo: x.plan_no, version: x.version, ref: x.booking_ref, note: x.note, times: Number(x.times) || 1 }))
+  const r = await d.query(`SELECT l.at, l.by_email, l.action, l.plan_no, l.version, l.booking_ref, l.note, l.times, u.name AS by_name, b.first_name, b.last_name, b.name AS b_name
+    FROM ape_plan_log l LEFT JOIN users u ON lower(u.email) = lower(l.by_email) LEFT JOIN ape_bookings b ON b.ref = l.booking_ref
+    ${o.planNo ? 'WHERE l.plan_no = $2' : ''} ORDER BY l.at DESC, l.id DESC LIMIT $1`, o.planNo ? [o.limit || 500, o.planNo] : [o.limit || 500])
+  return r.map((x) => ({
+    at: new Date(x.at).toISOString(), by: x.by_email, byName: str(x.by_name), action: x.action, planNo: x.plan_no, version: x.version, ref: x.booking_ref,
+    patient: x.first_name ? fullName(x.first_name, x.last_name || '') : str(x.b_name), note: x.note, times: Number(x.times) || 1,
+  }))
 }
 
 // ---------------------------------------------------------------- who may do what
 
-export type PlanUser = { id: string | number; email: string; role: string; practiceOwner: boolean; canPlans: boolean }
+export type PlanUser = { id: string | number; email: string; name?: string; role: string; practiceOwner: boolean; canPlans: boolean }
 
 /** The signed-in person, read fresh from the database (so a removed permission counts straight away). */
 export async function planUser(payload: Payload, user: Record<string, any> | null): Promise<PlanUser | null> {
   if (!user) return null
   const u = await payload.findByID({ collection: 'users', id: user.id, depth: 0, overrideAccess: true }).catch(() => null) as Record<string, any> | null
   if (!u) return null
-  return { id: u.id, email: String(u.email), role: String(u.role), practiceOwner: !!u.practiceOwner, canPlans: !!u.canTreatmentPlans }
+  return { id: u.id, email: String(u.email), name: str(u.name), role: String(u.role), practiceOwner: !!u.practiceOwner, canPlans: !!u.canTreatmentPlans }
 }
 /** Change the form and the settings: anyone with the permission, the practice owner, or GYA. */
 export const canManage = (u: PlanUser) => u.canPlans || u.practiceOwner || u.role === 'admin'
@@ -198,7 +231,18 @@ export async function readSettings(): Promise<Settings> {
     askDob: v.askDob === undefined ? DEFAULT_SETTINGS.askDob : !!v.askDob,
     clinician: str(v.clinician).slice(0, 80) || DEFAULT_SETTINGS.clinician,
     privacyLine: str(v.privacyLine).slice(0, 400),
+    practice: cleanPractice(v.practice),
   }
+}
+const one = (v: unknown, max: number) => str(v).replace(/\s*[\u2013\u2014]\s*/g, ', ').replace(/\s+/g, ' ').slice(0, max)
+const email = (v: unknown) => { const x = one(v, 120); return x && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x) ? x : '' }
+function cleanPractice(v: unknown): PracticeDetails {
+  const r = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  return { apeName: one(r.apeName, 120), apeEmail: email(r.apeEmail), clinicName: one(r.clinicName, 120), clinicAddress: one(r.clinicAddress, 200), clinicEmail: email(r.clinicEmail) }
+}
+/** The practice details as printed lines (blank parts left out). */
+export function practiceLines(p: PracticeDetails): string[] {
+  return [[p.apeName, p.apeEmail].filter(Boolean).join(', '), [p.clinicName, p.clinicAddress, p.clinicEmail].filter(Boolean).join(', ')].filter(Boolean)
 }
 export async function saveSettings(u: PlanUser, raw: Record<string, unknown>): Promise<Settings> {
   if (!canManage(u)) throw new PlanError(403, 'not_allowed')
@@ -210,11 +254,16 @@ export async function saveSettings(u: PlanUser, raw: Record<string, unknown>): P
     askDob: raw.askDob === undefined ? cur.askDob : !!raw.askDob,
     clinician: str(raw.clinician).replace(/[\u2013\u2014]/g, ', ').slice(0, 80) || cur.clinician,
     privacyLine: raw.privacyLine === undefined ? cur.privacyLine : str(raw.privacyLine).replace(/[\u2013\u2014]/g, ', ').replace(/\s+/g, ' ').slice(0, 400),
+    practice: raw.practice === undefined ? cur.practice : cleanPractice(raw.practice),
+  }
+  if (raw.practice && typeof raw.practice === 'object') {
+    const bad = (['apeEmail', 'clinicEmail'] as const).filter((k) => str((raw.practice as Record<string, unknown>)[k]) && !next.practice[k])
+    if (bad.length) throw new PlanError(400, 'invalid_email', 'Please check the email addresses in the practice details.')
   }
   const d = await need()
   await d.query(`INSERT INTO ape_meta (key, value) VALUES ('plans', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [JSON.stringify(next)])
-  const changed = (Object.keys(next) as (keyof Settings)[]).filter((k) => next[k] !== cur[k])
-  if (changed.length) await logPlan({ by: u.email, action: 'settings changed', note: changed.map((k) => `${k}: ${k === 'clinician' || k === 'privacyLine' ? 'changed' : String(next[k])}`).join(', ') })
+  const changed = (Object.keys(next) as (keyof Settings)[]).filter((k) => JSON.stringify(next[k]) !== JSON.stringify(cur[k]))
+  if (changed.length) await logPlan({ by: u.email, action: 'settings changed', note: changed.map((k) => `${k}: ${k === 'clinician' || k === 'privacyLine' || k === 'practice' ? 'changed' : String(next[k])}`).join(', ') })
   return next
 }
 
@@ -361,16 +410,33 @@ function identityOf(b: BookingIdentity): Identity {
 }
 const retain = (id: Identity) => retainUntil(id.appointmentAt ? new Date(id.appointmentAt) : new Date(), id.dob).toISOString().slice(0, 10)
 
-/** A new plan from a booking: the name, date of birth and reference come from the booking, never typed. */
-export async function createPlan(u: PlanUser, ref: string): Promise<number> {
+/**
+ * A new plan from a booking: the name, date of birth, reference and appointment come from the booking, never typed.
+ * v1.19.0: it can start from a template (the practice's saved wording) or from an earlier plan (the choices, tick
+ * boxes and library paragraphs only; everything typed for that patient is cleared). Either way it is a draft on the
+ * current form, checked for wording again before it can be finalised.
+ */
+export async function createPlan(u: PlanUser, ref: string, o: { templateId?: number; fromPlanId?: number } = {}): Promise<number> {
   const d = await need()
   const b = await bookingFor(d, str(ref).toUpperCase())
   if (!b) throw new PlanError(404, 'no_booking')
   const form = await currentForm(d)
   const identity = identityOf(b)
+  let answers: Answers = {}
+  let note = `form version ${form.version}`
+  if (o.templateId) {
+    const tp = await getTemplate(o.templateId)
+    if (tp.retiredAt) throw new PlanError(409, 'retired')
+    answers = reuseAnswers(form.form, tp.answers, 'template')
+    note += `, from template "${tp.name}"`
+  } else if (o.fromPlanId) {
+    const prev = await row(d, o.fromPlanId)
+    answers = reuseAnswers(form.form, openContent(prev.sealed).answers, 'previous')
+    note += `, started from plan ${prev.plan_no} version ${prev.version} (patient details cleared)`
+  }
   const r = await d.query(`INSERT INTO ape_plans (plan_no, version, booking_ref, form_version, status, sealed, created_by, updated_by, retain_until)
-    VALUES (nextval('ape_plan_no_seq'), 1, $1, $2, 'draft', $3, $4, $4, $5) RETURNING id, plan_no`, [b.ref, form.version, sealContent({ identity, answers: {} }), u.email, retain(identity)])
-  await logPlan({ by: u.email, action: 'created', planNo: r[0].plan_no, version: 1, ref: b.ref, note: `form version ${form.version}` })
+    VALUES (nextval('ape_plan_no_seq'), 1, $1, $2, 'draft', $3, $4, $4, $5) RETURNING id, plan_no`, [b.ref, form.version, sealContent({ identity, answers }), u.email, retain(identity)])
+  await logPlan({ by: u.email, action: 'created', planNo: r[0].plan_no, version: 1, ref: b.ref, note })
   return Number(r[0].id)
 }
 
@@ -447,6 +513,9 @@ export async function finalise(u: PlanUser, id: number): Promise<void> {
   const c = openContent(p.sealed)
   const missing = missingRequired(f!.form, c.answers)
   if (missing.length) throw new PlanError(400, 'required', `Please fill in: ${missing.join(', ')}.`)
+  // v1.19.0: the same wording checks as the build, on everything typed or added (fixed form wording was approved)
+  const problems = phraseProblems(planTexts(f!.form, c.answers), planContext(f!.form, c.answers))
+  if (problems.length) throw new PlanError(400, 'wording', phraseMessage(problems))
   const r = await d.query(`UPDATE ape_plans SET status = 'final', finalised_at = now(), finalised_by = $2, updated_at = now(), updated_by = $2 WHERE id = $1 AND status = 'draft' RETURNING id`, [id, u.email])
   if (!r[0]) throw new PlanError(409, 'final')
   await logPlan({ by: u.email, action: 'finalised', planNo: p.plan_no, version: p.version, ref: p.booking_ref })
@@ -474,6 +543,116 @@ export async function deletePlan(u: PlanUser, planNo: number): Promise<void> {
   if (!r[0]) throw new PlanError(404, 'not_found')
   await d.query(`DELETE FROM ape_plans WHERE plan_no = $1`, [planNo])
   await logPlan({ by: u.email, action: 'deleted', planNo, version: Number(r[0].v), ref: r[0].booking_ref, note: `all versions; retain until ${isoDay(r[0].keep) || 'n/a'}` })
+}
+
+// ---------------------------------------------------------------- v1.19.0: templates and the paragraph library
+
+export type TemplateSummary = { id: number; name: string; formVersion: number; createdAt: string; createdBy: string; updatedAt: string; updatedBy: string; retiredAt: string | null }
+export type TemplateFull = TemplateSummary & { form: FormDef; answers: Answers }
+export type Block = { id: number; name: string; body: string; sort: number; updatedAt: string; updatedBy: string; retiredAt: string | null }
+
+const tplRow = (x: Record<string, any>): TemplateSummary => ({
+  id: x.id, name: x.name, formVersion: x.form_version, createdAt: new Date(x.created_at).toISOString(), createdBy: x.created_by,
+  updatedAt: new Date(x.updated_at).toISOString(), updatedBy: x.updated_by, retiredAt: x.retired_at ? new Date(x.retired_at).toISOString() : null,
+})
+const nameOf = (v: unknown) => str(v).replace(/\s*[\u2013\u2014]\s*/g, ', ').replace(/\s+/g, ' ').slice(0, 80)
+
+export async function listTemplates(): Promise<TemplateSummary[]> {
+  const d = await need()
+  return (await d.query(`SELECT id, name, form_version, created_at, created_by, updated_at, updated_by, retired_at FROM ape_plan_templates ORDER BY retired_at NULLS FIRST, lower(name)`)).map(tplRow)
+}
+/** One template, decrypted, with its answers fitted to the current form (a form change drops what no longer fits). */
+export async function getTemplate(id: number): Promise<TemplateFull> {
+  const d = await need()
+  const r = await d.query(`SELECT * FROM ape_plan_templates WHERE id = $1`, [id])
+  if (!r[0]) throw new PlanError(404, 'not_found')
+  const form = await currentForm(d)
+  const c = openContent(r[0].sealed)
+  return { ...tplRow(r[0]), form: form.form, answers: reuseAnswers(form.form, c.answers, 'template') }
+}
+/** Create or change a template (name and wording). Checked for wording first, as a plan is before it is finalised. */
+export async function saveTemplate(u: PlanUser, raw: { id?: number; name?: unknown; answers?: unknown }, o: { quiet?: boolean } = {}): Promise<TemplateSummary> {
+  const d = await need()
+  const form = await currentForm(d)
+  if (form.placeholder) throw new PlanError(409, 'placeholder', 'Templates need the practice\'s own form first.')
+  const name = nameOf(raw.name)
+  if (!name) throw new PlanError(400, 'name', 'Please give the template a name.')
+  const answers = reuseAnswers(form.form, cleanAnswers(form.form, raw.answers), 'template')
+  const problems = phraseProblems(planTexts(form.form, answers), planContext(form.form, answers))
+  if (problems.length) throw new PlanError(400, 'wording', phraseMessage(problems))
+  const sealed = sealContent({ identity: { name: '', firstName: '', dob: null, ref: '', appointmentAt: null }, answers })
+  const r = raw.id
+    ? await d.query(`UPDATE ape_plan_templates SET name = $2, sealed = $3, form_version = $4, updated_at = now(), updated_by = $5 WHERE id = $1 RETURNING *`, [raw.id, name, sealed, form.version, u.email])
+    : await d.query(`INSERT INTO ape_plan_templates (name, sealed, form_version, created_by, updated_by) VALUES ($1, $2, $3, $4, $4) RETURNING *`, [name, sealed, form.version, u.email])
+  if (!r[0]) throw new PlanError(404, 'not_found')
+  if (!o.quiet) await logPlan({ by: u.email, action: 'template saved', note: `"${name}"${raw.id ? '' : ', new'}` })
+  return tplRow(r[0])
+}
+/** Save a plan's wording as a new template: dates are left out, and the patient's details were never part of the answers. */
+export async function templateFromPlan(u: PlanUser, planId: number, name: unknown): Promise<TemplateSummary> {
+  const d = await need()
+  const p = await row(d, planId)
+  const c = openContent(p.sealed)
+  const t = await saveTemplate(u, { name, answers: c.answers }, { quiet: true })
+  await logPlan({ by: u.email, action: 'template saved', planNo: p.plan_no, version: p.version, ref: p.booking_ref, note: `"${t.name}" saved from this plan` })
+  return t
+}
+export async function retireTemplate(u: PlanUser, id: number, retired: boolean): Promise<void> {
+  const d = await need()
+  const r = await d.query(`UPDATE ape_plan_templates SET retired_at = ${retired ? 'now()' : 'NULL'}, updated_at = now(), updated_by = $2 WHERE id = $1 RETURNING name`, [id, u.email])
+  if (!r[0]) throw new PlanError(404, 'not_found')
+  await logPlan({ by: u.email, action: retired ? 'template retired' : 'template restored', note: `"${r[0].name}"` })
+}
+
+const blockRow = (x: Record<string, any>): Block => ({ id: x.id, name: x.name, body: x.body, sort: x.sort, updatedAt: new Date(x.updated_at).toISOString(), updatedBy: x.updated_by, retiredAt: x.retired_at ? new Date(x.retired_at).toISOString() : null })
+/**
+ * The library of standard paragraphs. The first time it is opened it starts with the wording already on the practice's
+ * own form (its fixed paragraphs and boxed notes), so nothing has to be typed in again. Once only.
+ */
+export async function listBlocks(): Promise<Block[]> {
+  const d = await need()
+  const seeded = await d.query(`SELECT 1 FROM ape_meta WHERE key = 'plans:blocks-seeded'`)
+  if (!seeded.length) {
+    const form = await currentForm(d)
+    if (!form.placeholder) {
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('plans:blocks-seeded', $1) ON CONFLICT DO NOTHING RETURNING key`, [`form version ${form.version}`])
+      if (first.length) {
+        let n = 0
+        for (const sec of form.form.sections) {
+          const heading = sec.heading.replace(/\{first_name\}/g, 'patient').replace(/[\s,.:;]+$/, '') || 'Section'
+          const paras = sec.items.filter((it) => it.type === 'paragraph' && str(it.text)).length
+          let k = 0
+          for (const it of sec.items) {
+            if (isField(it.type) || !str(it.text)) continue
+            if (it.type === 'paragraph') k++
+            const name = nameOf(it.type === 'callout' && it.label ? it.label : paras > 1 ? `${heading}, paragraph ${k}` : heading)
+            await d.query(`INSERT INTO ape_plan_blocks (name, body, sort, created_by, updated_by) VALUES ($1, $2, $3, 'from the form', 'from the form')`, [name, str(it.text), n++])
+          }
+        }
+      }
+    }
+  }
+  return (await d.query(`SELECT * FROM ape_plan_blocks ORDER BY retired_at NULLS FIRST, sort, id`)).map(blockRow)
+}
+export async function saveBlock(u: PlanUser, raw: { id?: number; name?: unknown; body?: unknown }): Promise<Block> {
+  const d = await need()
+  const name = nameOf(raw.name)
+  const body = str(raw.body).replace(/\r\n?/g, '\n').replace(/\s*[\u2013\u2014]\s*/g, ', ').slice(0, 4000)
+  if (!name || !body) throw new PlanError(400, 'name', 'A paragraph needs a name and its wording.')
+  const problems = phraseProblems([{ where: `"${name}"`, text: body }])
+  if (problems.length) throw new PlanError(400, 'wording', phraseMessage(problems))
+  const r = raw.id
+    ? await d.query(`UPDATE ape_plan_blocks SET name = $2, body = $3, updated_at = now(), updated_by = $4 WHERE id = $1 RETURNING *`, [raw.id, name, body, u.email])
+    : await d.query(`INSERT INTO ape_plan_blocks (name, body, sort, created_by, updated_by) VALUES ($1, $2, (SELECT coalesce(max(sort), 0) + 1 FROM ape_plan_blocks), $3, $3) RETURNING *`, [name, body, u.email])
+  if (!r[0]) throw new PlanError(404, 'not_found')
+  await logPlan({ by: u.email, action: 'paragraph saved', note: `"${name}"${raw.id ? '' : ', new'}` })
+  return blockRow(r[0])
+}
+export async function retireBlock(u: PlanUser, id: number, retired: boolean): Promise<void> {
+  const d = await need()
+  const r = await d.query(`UPDATE ape_plan_blocks SET retired_at = ${retired ? 'now()' : 'NULL'}, updated_at = now(), updated_by = $2 WHERE id = $1 RETURNING name`, [id, u.email])
+  if (!r[0]) throw new PlanError(404, 'not_found')
+  await logPlan({ by: u.email, action: retired ? 'paragraph retired' : 'paragraph restored', note: `"${r[0].name}"` })
 }
 
 // ---------------------------------------------------------------- the patient's private link

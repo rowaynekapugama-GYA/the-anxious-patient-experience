@@ -33,7 +33,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
   const c = await store.contentFor(found.planId)
   const s = await store.readSettings()
-  const pdf = await renderPlanPdf({ form: c.form, answers: c.answers, identity: c.identity, version: found.version, finalisedAt: c.plan.finalised_at ? new Date(c.plan.finalised_at).toISOString() : null, clinician: s.clinician })
+  const pdf = await renderPlanPdf({ form: c.form, answers: c.answers, identity: c.identity, version: found.version, finalisedAt: c.plan.finalised_at ? new Date(c.plan.finalised_at).toISOString() : null, clinician: s.clinician, practice: store.practiceLines(s.practice) })
   await store.linkOpened(found)
   return new Response(new Uint8Array(pdf), {
     status: 200,

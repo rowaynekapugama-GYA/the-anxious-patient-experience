@@ -206,8 +206,9 @@ of places stay in `content/booking.json` (GYA).
 From Dr Lorna Gladwin's email of 25 Nov 2026. Built the same way as the questionnaire, and **off until four things are
 true** (Dashboard > Treatment plans shows which are missing): `TREATMENT_PLAN_ENCRYPTION_KEY` is set in Vercel, Lorna
 has approved the form wording (recorded with the date), the published Privacy Policy has its own numbered section on
-treatment plans, and at least one login has "Can create and view treatment plans" (Users screen; off for everyone,
-GYA included). `TREATMENT_PLANS_ENABLED=false` is an emergency off switch.
+treatment plans, and at least one login has "Can create and view treatment plans" (Users screen; from v1.19.0 on for
+every login, new ones included, at the practice owner's request). `TREATMENT_PLANS_ENABLED=false` is an emergency off
+switch.
 
 - **Form:** Dashboard > Treatment plans > Form. Sections, fixed wording (paragraphs and boxed notes) and fields:
   short text, long text, date, number, currency, tick box, choice list (one or several) and rows (a small table, with
@@ -235,6 +236,28 @@ GYA included). `TREATMENT_PLANS_ENABLED=false` is an emergency off switch.
   policy section 15 "Your treatment plan" and the patient email privacy line are copied into the dashboard by the build
   (`src/sitekit/releases.ts`, each only once and only over the placeholder or standard wording). The form still needs
   Lorna's approval recorded in Treatment plans > Form.
+- **v1.19.0 (Lorna's reply of 27 Nov 2026):**
+  - Sent by **secure link asking for the date of birth** (set once by the build). Revoke access on a plan stops its link
+    at once.
+  - **Download PDF** on a finalised plan: a practice copy for Core Practice and printing, for signed-in people with the
+    permission only. The file is named surname, first name, "treatment plan", the plan date and the version, and the
+    PDF says "Practice copy, downloaded <date> by <name>". Every download (and every refused attempt) is in the audit
+    log. The patient still gets the secure link, never an attachment.
+  - **Practice details** (Treatment plans > Settings) at the bottom of every plan: the link page, the PDF and the print.
+    Filled once from Site Settings (APE name and email; The Cronulla Dentists, address and reception email).
+  - **Everyone can create and view plans:** given to every login once (release step), and on by default for new
+    logins (migration `20261127_090000_v1190_plans_for_all_users` changes the column default). The Users screen says
+    that adding a user is a clinical access decision.
+  - **Templates and paragraphs** (Treatment plans > Templates and paragraphs): named templates (from a finished plan
+    or made there; edit, rename, retire), a paragraph library (started from the form's own wording) added to any
+    section or long-text box, start from an earlier plan (choices, tick boxes and added paragraphs kept; everything
+    typed for that patient cleared), and merge fields {first_name}, {appointment_date}, {dentist}. Templates are
+    encrypted like plans (`ape_plan_templates`); paragraphs are practice wording (`ape_plan_blocks`).
+  - **Wording check** before a plan is finalised and before a template or paragraph is saved, typed or not
+    (`src/plans/phrases.ts`): the same AHPRA word list as the build's wording check, no long dashes, and wording about
+    sedation needs the line about talking through how it works and its risks somewhere on the plan.
+  - The audit log shows the person's name and the patient's name. AI drafting is not built: see
+    `docs/AI-PLAN-DRAFTING-OPTIONS.md`.
 
 ## Formatted team, GYA and login emails (v1.17.0)
 

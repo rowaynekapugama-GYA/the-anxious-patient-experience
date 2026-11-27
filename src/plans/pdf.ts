@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import PDFDocument from 'pdfkit'
-import { isField, fillText, fmtDayLong, fmtMoney, rowsTotal, ESTIMATE_LINE, type Answers, type FormDef, type Item, type Row } from './form'
+import { isField, fillText, fmtDayLong, fmtMoney, rowsTotal, extrasOf, ESTIMATE_LINE, type Answers, type FormDef, type Item, type Row, type MergeContext } from './form'
 
 const ROOT = process.cwd()
 const FONT = (f: string) => path.join(ROOT, 'src', 'pdf', 'fonts', f)
@@ -29,6 +29,10 @@ export type PdfInput = {
   mark?: 'draft' | 'sample' | null
   /** a password the patient types to open it (never stored) */
   password?: string
+  /** v1.19.0: the practice details printed at the bottom of the plan (Treatment plans > Settings), one line each */
+  practice?: string[]
+  /** v1.19.0: on a copy made in the dashboard, for example "Practice copy, downloaded 27 November 2026, 3:04 pm by Lorna Gladwin" */
+  copyLine?: string
 }
 
 const sydneyDay = (iso: string) => new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
@@ -99,16 +103,23 @@ export function renderPlanPdf(i: PdfInput): Promise<Buffer> {
   })
   doc.y = top + boxH + 22
   doc.x = M
+  if (i.copyLine) {
+    doc.font('italic').fontSize(9).fillColor(C.soft).text(i.copyLine, M, top + boxH + 8, { width: W, lineGap: 1 })
+    doc.y = top + boxH + 8 + textH(i.copyLine, 'italic', 9) + 16
+    doc.x = M
+  }
 
   // ---------------- the sections
-  const firstName = id.firstName
+  const firstName: MergeContext = { firstName: id.firstName, appointmentDate: id.appointmentAt ? sydneyDay(id.appointmentAt) : '', dentist: i.clinician }
+  const extras = extrasOf(i.answers)
   const filled = (it: Item) => {
     const v = i.answers[it.id]
     return !(v === undefined || v === '' || v === false || (Array.isArray(v) && !v.length))
   }
   for (const sec of i.form.sections) {
     const printable = sec.items.filter((it) => !isField(it.type) || filled(it))
-    if (!printable.length) continue
+    const added = extras[sec.id] || []
+    if (!printable.length && !added.length) continue
     room(60)
     if (sec.heading) {
       doc.font('serif').fontSize(15).fillColor(C.navy).text(fillText(sec.heading, firstName), M, doc.y, { width: W })
@@ -116,7 +127,21 @@ export function renderPlanPdf(i: PdfInput): Promise<Buffer> {
       doc.y += 12
     }
     for (const it of printable) item(it)
+    for (const p of added) para(fillText(p, firstName))
     doc.y += 10
+  }
+
+  // ---------------- v1.19.0: the practice details, at the bottom of the plan
+  if (i.practice?.length) {
+    const h = i.practice.reduce((s, l) => s + textH(l, 'body', 9.5) + 3, 0) + 28
+    room(h)
+    doc.y += 6
+    doc.moveTo(M, doc.y).lineTo(M + W, doc.y).lineWidth(0.8).stroke(C.sand)
+    doc.y += 10
+    doc.font('bold').fontSize(8).fillColor(C.taupe).text('PRACTICE DETAILS', M, doc.y, { width: W, characterSpacing: 0.6 })
+    doc.y += 3
+    for (const l of i.practice) { doc.font('body').fontSize(9.5).fillColor(C.ink).text(l, M, doc.y, { width: W, lineGap: 1.5 }); doc.y += 3 }
+    doc.x = M
   }
 
   function para(t: string, o: { font?: string; size?: number; color?: string; x?: number; width?: number; gap?: number } = {}) {
@@ -222,7 +247,7 @@ export function renderPlanPdf(i: PdfInput): Promise<Buffer> {
 
   // ---------------- every page: the footer, and "Page 1 of 3"
   const range = doc.bufferedPageRange()
-  const mark = i.mark === 'sample' ? 'SAMPLE' : i.mark === 'draft' ? 'DRAFT PREVIEW' : i.form.placeholder ? 'PLACEHOLDER FORM' : ''
+  const mark = i.mark === 'sample' ? 'SAMPLE' : i.mark === 'draft' ? 'DRAFT PREVIEW' : i.form.placeholder ? 'PLACEHOLDER FORM' : i.copyLine ? 'PRACTICE COPY' : ''
   for (let n = 0; n < range.count; n++) {
     doc.switchToPage(range.start + n)
     doc.page.margins.bottom = 0   // writing the footer below the text area must not start a new page

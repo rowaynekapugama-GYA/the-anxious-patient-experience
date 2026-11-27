@@ -145,8 +145,16 @@ export function cleanForm(raw: unknown): FormDef {
 // ---------------------------------------------------------------- the answers on a plan
 
 export type Row = Record<string, string>
-export type Value = string | boolean | string[] | Row[]
+/** v1.19.0: paragraphs added to a plan from the library, per section id (kept under the answers key EXTRA) */
+export type Extras = Record<string, string[]>
+export type Value = string | boolean | string[] | Row[] | Extras
 export type Answers = Record<string, Value>
+/** v1.19.0: the answers key that holds the paragraphs added from the library, by section */
+export const EXTRA = '_extra'
+export const extrasOf = (a: Answers): Extras => {
+  const x = a[EXTRA]
+  return x && typeof x === 'object' && !Array.isArray(x) ? x as Extras : {}
+}
 
 const money = (v: unknown): string => {
   const t = String(v ?? '').replace(/[$,\s]/g, '')
@@ -197,7 +205,35 @@ export function cleanAnswers(form: FormDef, raw: unknown): Answers {
       }
     }
   }
+  // v1.19.0: paragraphs from the library, only for sections on this form, up to 12 a section
+  const ex = r[EXTRA] && typeof r[EXTRA] === 'object' && !Array.isArray(r[EXTRA]) ? r[EXTRA] as Record<string, unknown> : {}
+  const extras: Extras = {}
+  for (const sec of form.sections) {
+    const list = (Array.isArray(ex[sec.id]) ? ex[sec.id] as unknown[] : []).map((x) => s(x, 4000)).filter(Boolean).slice(0, 12)
+    if (list.length) extras[sec.id] = list
+  }
+  if (Object.keys(extras).length) out[EXTRA] = extras
   return out
+}
+
+/**
+ * v1.19.0: answers reused for another patient.
+ *  - 'template': a plan saved as a template keeps everything except dates (a template is the practice's own wording,
+ *    which she can edit on the Templates screen).
+ *  - 'previous': starting from an earlier plan keeps only the choices, the tick boxes and the paragraphs added from the
+ *    library. Everything typed for that patient (text, notes, dates, numbers, amounts and table rows) is cleared.
+ */
+export function reuseAnswers(form: FormDef, a: Answers, mode: 'template' | 'previous'): Answers {
+  const out: Answers = {}
+  for (const sec of form.sections) for (const it of sec.items) {
+    if (!isField(it.type) || a[it.id] === undefined) continue
+    if (it.type === 'date') continue
+    if (mode === 'previous' && it.type !== 'choice' && it.type !== 'checkbox') continue
+    out[it.id] = a[it.id]
+  }
+  const ex = extrasOf(a)
+  if (Object.keys(ex).length) out[EXTRA] = ex
+  return cleanAnswers(form, out)
 }
 
 const filled = (v: Value | undefined) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length) && v !== false
@@ -219,7 +255,57 @@ export function rowsTotal(it: Item, rows: Row[] | undefined): number | null {
 
 export const fmtMoney = (n: number | string) => `$${Number(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 export const fmtDayLong = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(Date.UTC(y, m - 1, d))) }
-/** Fixed wording with the patient's first name filled in. */
-export const fillText = (t: string, firstName: string) => String(t || '').split('{first_name}').join(firstName || 'there')
+/** v1.19.0: what the merge fields in fixed wording and library paragraphs are filled with, from the booking and settings */
+export type MergeContext = { firstName: string; appointmentDate?: string; dentist?: string }
+export const MERGE_FIELDS = [
+  { key: '{first_name}', label: "the patient's first name" },
+  { key: '{appointment_date}', label: 'the appointment date' },
+  { key: '{dentist}', label: 'the clinician on the plan' },
+]
+/** Fixed wording with the patient's first name (and, from v1.19.0, the appointment date and the dentist) filled in. */
+export const fillText = (t: string, ctx: string | MergeContext) => {
+  const c: MergeContext = typeof ctx === 'string' ? { firstName: ctx } : ctx
+  return String(t || '')
+    .split('{first_name}').join(c.firstName || 'there')
+    .split('{appointment_date}').join(c.appointmentDate || 'your appointment')
+    .split('{dentist}').join(c.dentist || 'your dentist')
+}
+
+// ---------------------------------------------------------------- v1.19.0: the wording checks before a plan is finalised
+// (the words themselves are in ./phrases.ts, the one file the build's wording check skips because it names them)
+
+/** All the wording on a plan as the patient reads it: fixed wording, chosen options, ticked boxes and everything typed. */
+export function planContext(form: FormDef, a: Answers): string {
+  const out: string[] = []
+  const ex = extrasOf(a)
+  for (const sec of form.sections) {
+    out.push(sec.heading)
+    for (const it of sec.items) {
+      if (!isField(it.type)) { out.push(it.label, it.text || ''); continue }
+      const v = a[it.id]
+      if (typeof v === 'string') out.push(v)
+      else if (v === true) out.push(it.label)
+      else if (Array.isArray(v)) out.push(...(v as (string | Row)[]).map((x) => (typeof x === 'string' ? x : Object.values(x).join(' '))))
+    }
+    out.push(...(ex[sec.id] || []))
+  }
+  return out.join('\n')
+}
+/** Every piece of text typed or added for this plan, with where it is (fixed form wording was approved with the form). */
+export function planTexts(form: FormDef, a: Answers): { where: string; text: string }[] {
+  const out: { where: string; text: string }[] = []
+  const ex = extrasOf(a)
+  for (const sec of form.sections) {
+    for (const it of sec.items) {
+      if (!isField(it.type)) continue
+      const v = a[it.id]
+      if (typeof v === 'string' && (it.type === 'text' || it.type === 'textarea')) out.push({ where: it.label, text: v })
+      if (it.type === 'rows' && Array.isArray(v)) (v as Row[]).forEach((r, n) => out.push({ where: `${it.label}, row ${n + 1}`, text: Object.values(r).join(' ') }))
+    }
+    ;(ex[sec.id] || []).forEach((p, n) => out.push({ where: `${sec.heading || 'Section'}, added paragraph ${n + 1}`, text: p }))
+  }
+  return out
+}
+
 /** The one line printed under a totalled table. */
 export const ESTIMATE_LINE = 'This total is an estimate for your treatment as planned today, not an advertised price. It may change if your treatment changes.'

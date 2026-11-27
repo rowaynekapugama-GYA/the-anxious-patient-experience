@@ -125,13 +125,13 @@ export const Users: CollectionConfig = {
       access: { create: adminFieldOnly, update: adminFieldOnly },
     },
     {
-      // v1.18.0: treatment plans. Off for everyone, GYA administrators included; the practice owner (or GYA on her
-      // word) ticks it on the dashboard's Users screen. Read fresh from the database on every plan request.
+      // v1.18.0: treatment plans. v1.19.0: on for every login, new ones included (Lorna, 27 Nov 2026); the practice
+      // owner (or GYA) can untick it on the dashboard's Users screen. Read fresh from the database on every plan request.
       name: 'canTreatmentPlans',
       type: 'checkbox',
-      defaultValue: false,
+      defaultValue: true,
       label: 'Can create and view treatment plans',
-      admin: { description: 'Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard\'s Users screen, and every change is logged.' },
+      admin: { description: 'On for every login, new ones included, as the practice owner asked. Anyone with it can read patients\' treatment plans. The practice owner (or GYA) can untick it on the dashboard\'s Users screen, and every change is logged.' },
       access: { create: adminFieldOnly, update: adminFieldOnly },
     },
     {

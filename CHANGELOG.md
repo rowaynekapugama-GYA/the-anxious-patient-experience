@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.19.0 (27 Nov 2026): Lorna's answers: secure link, practice copies, everyone, practice details, templates
+
+Update to the existing repo, on top of 1.18.1 (GitHub main `b1099d4`, tree `ce89c1ea`). From Dr Lorna Gladwin's reply
+of 27 Nov 2026.
+
+- **Sending:** a secure link that asks for the date of birth. The build sets this once. **Revoke access** on a plan
+  stops its link at once.
+- **Her approval of the form:** recorded once by the build from her email of 27 Nov 2026 ("Ok looks great"), only if
+  form version 2 is still the one GYA loaded.
+- **Download PDF (practice copy):**
+  - For signed-in people with the permission only. A refused attempt is logged.
+  - Named surname, first name, "treatment plan", the plan date and the version. Nothing clinical.
+  - Says "Practice copy, downloaded <date> by <name>". Print says "printed".
+  - Every download is in the audit log.
+  - The patient still gets the secure link, never an attachment.
+- **Practice details:**
+  - A new block in Treatment plans > Settings, printed at the bottom of every plan: the link page, the PDF and the
+    print.
+  - Filled once from Site Settings: The Anxious Patient Experience and its email; The Cronulla Dentists, 13 Cronulla
+    Street, Cronulla NSW 2230, and its reception email.
+- **Everyone can create and view plans:**
+  - Every existing login is given the permission once (release step).
+  - New logins have it by default (migration `20261127_090000_v1190_plans_for_all_users`).
+  - The Users screen says that adding a user is a clinical access decision.
+- **Templates and paragraphs** (new screen):
+  - Templates can be saved from a finished plan or made there, edited, renamed and retired.
+  - A paragraph library, started from the form's own wording, adds paragraphs to any section or long-text box.
+  - "Start from" (a template, or an earlier plan with everything typed for that patient cleared) on New plan from a
+    booking and on the booking.
+  - Merge fields `{first_name}`, `{appointment_date}` and `{dentist}`.
+  - Templates are encrypted like plans.
+- **Wording check** (`src/plans/phrases.ts`):
+  - Runs before any plan is finalised (typed plans included, which had no check before) and before a template or
+    paragraph is saved.
+  - Uses the AHPRA word list and checks for long dashes.
+  - Sedation wording needs the risks line somewhere on the plan.
+  - Shown live in the editor.
+- **Audit log:** shows the person's name and the patient's name.
+- **Docs:** `docs/HOW-TO-USE-TREATMENT-PLANS.md` (client guide) and `docs/AI-PLAN-DRAFTING-OPTIONS.md` (the AI
+  question, written up, not built).
+- `npm run test:plans`: 125 checks.
+
 ## 1.18.1 (25 Nov 2026): treatment plan form, privacy section and email line published
 
 Update to the existing repo, on top of 1.18.0 (local commit `214d883`, never pushed on its own; `deploy.sh` carries both

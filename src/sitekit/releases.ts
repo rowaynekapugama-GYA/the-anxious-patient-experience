@@ -30,6 +30,9 @@ const plainRows = (rows: FieldDoc[]) => rows.map((c) => ({ ...c, image: relId(c.
 
 export type Update = { id: string; describe: string; apply: (payload: Payload) => Promise<string> }
 
+/** v1.19.0: who the release's treatment plan changes are logged as. */
+const GYA_1190 = { id: 0, email: 'GYA (release v1.19.0)', role: 'admin', practiceOwner: false, canPlans: false }
+
 /**
  * v1.15.0: the Tag Manager container ID goes into Site Settings > Tracking, so GYA sees it in the dashboard.
  * Only a blank field is filled. A different ID typed in the dashboard, or "off", is kept. Returns one line for the
@@ -442,6 +445,76 @@ export const UPDATES: Update[] = [
       if (s.privacyLine) return 'already has a line, left alone'
       await plans.saveSettings({ id: 0, email: 'GYA (release v1.18.1)', role: 'admin', practiceOwner: false, canPlans: false }, { privacyLine: plans.PRIVACY_LINE })
       return 'set'
+    },
+  },
+  {
+    id: 'v1.19.0-plan-form-approved',
+    describe: "Treatment plans: Lorna's written approval of form version 2 (her email of 27 Nov 2026), if it is still the one GYA loaded and not yet approved",
+    async apply() {
+      const plans = await import('@/plans/store')
+      const cur = await plans.currentForm()
+      if (cur.approvedAt) return `form version ${cur.version} is already approved, left alone`
+      if (cur.placeholder || cur.createdBy !== 'GYA (release v1.18.1)') return `form version ${cur.version} is not the one GYA loaded, left alone (record the approval on Treatment plans > Form)`
+      await plans.approveForm(GYA_1190, cur.version, 'Dr Lorna Gladwin, email of 27 Nov 2026 ("Ok looks great")')
+      return `form version ${cur.version} approved`
+    },
+  },
+  {
+    id: 'v1.19.0-plan-link-dob',
+    describe: 'Treatment plans: sent by secure link that asks for the date of birth (Lorna, 27 Nov 2026)',
+    async apply() {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.19.0-plan-link-dob', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const plans = await import('@/plans/store')
+      await plans.saveSettings(GYA_1190, { sendMode: 'link', askDob: true })
+      return 'set: secure link, date of birth asked'
+    },
+  },
+  {
+    id: 'v1.19.0-plan-practice-details',
+    describe: 'Treatment plans: the practice details at the bottom of every plan, from Site Settings, if they are blank',
+    async apply() {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.19.0-plan-practice-details', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const plans = await import('@/plans/store')
+      const cur = await plans.readSettings()
+      if (plans.practiceLines(cur.practice).length) return 'already has practice details, left alone'
+      const { getSettings } = await import('@/lib/site')
+      const s = getSettings() as unknown as { practiceName?: string; apeEmail?: string; receptionEmail?: string; clinic?: { name?: string; street?: string; suburb?: string; state?: string; postcode?: string } }
+      const c = s.clinic || {}
+      const practice = {
+        apeName: String(s.practiceName || ''), apeEmail: String(s.apeEmail || ''),
+        clinicName: String(c.name || ''), clinicAddress: [c.street, [c.suburb, c.state, c.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', '), clinicEmail: String(s.receptionEmail || ''),
+      }
+      await plans.saveSettings(GYA_1190, { practice })
+      return `set from Site Settings: ${plans.practiceLines((await plans.readSettings()).practice).join(' / ')}`
+    },
+  },
+  {
+    id: 'v1.19.0-plan-permission-all',
+    describe: 'Treatment plans: "Can create and view treatment plans" for every login (Lorna, 27 Nov 2026: "All users can create and view plans")',
+    async apply() {
+      const core = await import('@/booking/core')
+      const d = core.db()
+      if (!d) return 'no database'
+      await core.ensureSchema(d, core.loadConfig())
+      // once only: anyone the practice later takes the permission away from keeps it off
+      const first = await d.query(`INSERT INTO ape_meta (key, value) VALUES ('release:v1.19.0-plan-permission-all', $1) ON CONFLICT DO NOTHING RETURNING key`, [new Date().toISOString()])
+      if (!first.length) return 'already applied'
+      const r = await d.query<{ email: string }>(`UPDATE users SET can_treatment_plans = true WHERE coalesce(can_treatment_plans, false) = false RETURNING email`)
+      const { logAccess } = await import('@/lib/access')
+      for (const x of r) await logAccess({ by: GYA_1190.email, for: x.email, change: 'treatment plans: given', note: 'all users, at the practice owner\'s request (27 Nov 2026)' })
+      const plans = await import('@/plans/store')
+      await plans.logPlan({ by: GYA_1190.email, action: 'access given to all users', note: `${r.length} login${r.length === 1 ? '' : 's'}, at the practice owner's request (27 Nov 2026)` })
+      return `given to ${r.length} login${r.length === 1 ? '' : 's'}`
     },
   },
 ]

@@ -33,6 +33,8 @@ const initials = (u: U) => {
 type LogEntry = { at: string; by: string; for: string; change: string; note: string }
 
 export const ACCESS_LINE = 'Only people ticked here can open patient questionnaires. Having a login is not enough.'
+/** v1.19.0: treatment plans are on for every login (Lorna, 27 Nov 2026), so adding a login gives this access too. */
+export const PLANS_LINE = 'Anyone with "Can create and view treatment plans" can read patients\' treatment plans, and every new login has it from the start. Adding a user is a clinical access decision.'
 
 export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] }: { initial: U[]; me: string | number; mode?: 'admin' | 'owner'; log?: LogEntry[] }) {
   const toast = useToast()
@@ -118,6 +120,7 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
   return (
     <>
       <div className="notice info access-line" role="note" id="access-line">{Icon.info()}<div className="grow"><p><b>{ACCESS_LINE}</b> {admin ? 'The practice owner (Lorna) chooses who has it, and GYA can too. Every change is logged and the person given access gets an email.' : 'Tick a person to let them open questionnaires, or untick to stop them. You can tick yourself. Every change is logged and the person given access gets an email.'}</p></div></div>
+      <div className="notice warn plans-line" role="note" id="plans-line" data-plans-line>{Icon.info()}<div className="grow"><p><b>{PLANS_LINE}</b> Untick it for anyone who should not see plans. Every view, edit, send and download is in the treatment plan audit log.</p></div></div>
       {admin ? (
         <div className="actions" style={{ marginBottom: 12 }}>
           <span className="help">Editors (practice staff) can change content and publish. Administrators (GYA) can also manage accounts, redirects and tracking.</span>
@@ -147,7 +150,7 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
                     <span className={`chip ${u.role === 'admin' ? 'grey' : 'blue'}`}>{u.role === 'admin' ? 'Administrator (GYA)' : 'Editor (practice)'}</span>
                     {u.practiceOwner ? <span className="chip blue">Practice owner</span> : null}
                     {u.canViewQuestionnaires ? <span className="chip good">Can view questionnaires</span> : null}
-                    {u.canTreatmentPlans ? <span className="chip good">Treatment plans</span> : null}
+                    {u.canTreatmentPlans ? <span className="chip good">Can see treatment plans</span> : <span className="chip grey">No treatment plans</span>}
                   </div>
                 </div>
               </div>
@@ -183,8 +186,8 @@ export function UsersEditor({ initial, me, mode = 'admin', log: initialLog = [] 
                   <span className="track" aria-hidden="true" />
                   <span>Can view patient questionnaires</span>
                 </label>
-                <label className="toggle user-toggle" title="Off for everyone until the practice owner ticks it, GYA included.">
-                  <input type="checkbox" checked={!!u.canTreatmentPlans} onChange={(e) => setPlans(u, e.target.checked)} />
+                <label className="toggle user-toggle" title="On for every login unless the practice owner unticks it. Anyone with it can read patients' treatment plans.">
+                  <input type="checkbox" checked={!!u.canTreatmentPlans} onChange={(e) => setPlans(u, e.target.checked)} aria-describedby="plans-line" data-plans-toggle />
                   <span className="track" aria-hidden="true" />
                   <span>Can create and view treatment plans</span>
                 </label>

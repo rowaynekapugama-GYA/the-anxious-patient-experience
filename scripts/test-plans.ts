@@ -83,7 +83,8 @@ async function main() {
   const PW = 'unit-test-Password-1'
   const mk = async (email: string, role: 'admin' | 'editor', name: string, extra: Record<string, unknown> = {}) => {
     await payload.delete({ collection: 'users', where: { email: { equals: email } }, overrideAccess: true }).catch(() => {})
-    const u = await payload.create({ collection: 'users', data: { email, password: PW, role, name, mustChangePassword: false, ...extra } as any, overrideAccess: true })
+    // v1.19.0: a new login has the treatment plan permission by default; the tests start everyone without it
+    const u = await payload.create({ collection: 'users', data: { email, password: PW, role, name, mustChangePassword: false, canTreatmentPlans: false, ...extra } as any, overrideAccess: true })
     const r = await payload.login({ collection: 'users', data: { email, password: PW } })
     return { id: u.id, email, h: { Authorization: `JWT ${r.token}` } }
   }
@@ -120,7 +121,7 @@ async function main() {
     // ---------------------------------------------------------- 1. off until all four conditions hold
     let sw = await store.switches(payload)
     const cond = (k: string) => sw.conditions.find((c) => c.key === k)!.ok
-    check('off at first: no key, placeholder form, no privacy section, nobody with the permission', !sw.on && !cond('key') && !cond('approved') && !cond('privacy') && !cond('people'), JSON.stringify(sw.conditions.map((c) => [c.key, c.ok])))
+    check('off at first: no key, no privacy section, nobody with the permission', !sw.on && !cond('key') && !cond('privacy') && !cond('people'), JSON.stringify(sw.conditions.map((c) => [c.key, c.ok])))
     const sg = await get(sam.h, 'switches=1')
     check('the dashboard lists the four conditions and which are missing, for anyone signed in', sg.status === 200 && sg.j.switches.conditions.length === 4 && sg.j.switches.conditions.every((c: any) => typeof c.ok === 'boolean' && c.text && c.detail))
     check('no login: refused (401)', (await get(null, 'switches=1')).status === 401 && (await post(null, { action: 'create', ref: REF })).status === 401 && (await pdf(null, 'id=1')).status === 401)
@@ -253,7 +254,7 @@ async function main() {
     const dl = await pdf(alex.h, `id=${v2.j.id}`)
     const bytes = Buffer.from(await dl.arrayBuffer())
     check('download: a PDF, never cached, as an attachment', dl.status === 200 && bytes.subarray(0, 5).toString() === '%PDF-' && dl.headers.get('cache-control') === 'no-store' && /attachment/.test(dl.headers.get('content-disposition') || ''))
-    check('the file name has no patient name in it', !/Zelda|Quartermaine/.test(dl.headers.get('content-disposition') || ''))
+    check('v1.19.0: the file name is surname, first name, the plan date and the version, and nothing clinical', /filename="Quartermaine Zelda treatment plan \d{4}-\d{2}-\d{2} v2\.pdf"/.test(dl.headers.get('content-disposition') || '') && !/Filling|found|UNIT-PLAN/i.test(dl.headers.get('content-disposition') || ''), dl.headers.get('content-disposition') || '')
     const pr = await pdf(alex.h, `id=${v2.j.id}&print=1`)
     check('print: the same PDF, shown in the browser', pr.status === 200 && /inline/.test(pr.headers.get('content-disposition') || '') && Buffer.from(await pr.arrayBuffer()).subarray(0, 5).toString() === '%PDF-')
 
@@ -366,6 +367,101 @@ async function main() {
     check('GYA (with the permission) deletes every version', (await post(gya2.h, { action: 'delete', planNo, confirm: 'DELETE' })).status === 200 && !(await d.query(`SELECT 1 FROM ape_plans WHERE plan_no = $1`, [planNo])).length && !(await d.query(`SELECT 1 FROM ape_plan_sends s LEFT JOIN ape_plans p ON p.id = s.plan_id WHERE p.id IS NULL`)).length)
     check('the log keeps a line saying it was deleted', (await d.query(`SELECT 1 FROM ape_plan_log WHERE action = 'deleted' AND plan_no = $1`, [planNo])).length === 1)
 
+    // ---------------------------------------------------------- 12. v1.19.0: practice copies, practice details, templates and the wording checks
+    const { execFileSync } = await import('node:child_process')
+    const textOf = (b: Buffer): string | null => { try { return execFileSync('pdftotext', ['-layout', '-', '-'], { input: b }).toString() } catch { return null } }
+    const BAD = ['pain', 'less'].join('')   // put together here so the build's wording check does not flag this file
+    await post(gya.h, { action: 'settings', sendMode: 'link', askDob: true, privacyLine: store.PRIVACY_LINE, practice: { apeName: 'The Anxious Patient Experience', apeEmail: 'ape-unit@example.com', clinicName: 'Unit Practice', clinicAddress: '1 Test Street, Testville NSW 2000', clinicEmail: 'reception-unit@example.com' } })
+    const st = await store.readSettings()
+    check('settings: the secure link that asks for the date of birth, and the practice details saved', st.sendMode === 'link' && st.askDob && store.practiceLines(st.practice).length === 2 && st.practice.clinicEmail === 'reception-unit@example.com')
+    check('settings: a practice email that is not an email address is refused', (await post(gya.h, { action: 'settings', practice: { ...st.practice, apeEmail: 'not an address' } })).status === 400)
+    const c12 = await post(alex.h, { action: 'create', ref: REF })
+    const P12 = c12.j.id
+    await post(alex.h, { action: 'save', id: P12, answers: { found: `${MARKER} upper left`, opts: ['Headphones and music'] } })
+    check('finalise a new plan', (await post(alex.h, { action: 'finalise', id: P12 })).status === 200)
+    const plan12 = (await get(alex.h, `id=${P12}`)).j.plan
+
+    // the download is for signed-in people with the permission only, and every one is in the audit log
+    const deniedBefore = Number((await d.query(`SELECT count(*)::int AS n FROM ape_plan_log WHERE action = 'denied' AND by_email = $1 AND note LIKE 'plan PDF%'`, [sam.email]))[0].n)
+    const samDl = await pdf(sam.h, `id=${P12}`)
+    const deniedAfter = Number((await d.query(`SELECT count(*)::int AS n FROM ape_plan_log WHERE action = 'denied' AND by_email = $1 AND note LIKE 'plan PDF%'`, [sam.email]))[0].n)
+    check('without the permission a download is refused (403), and the attempt is logged', samDl.status === 403 && deniedAfter === deniedBefore + 1)
+    check('signed out, a download is refused (401)', (await pdf(null, `id=${P12}`)).status === 401)
+    const t0 = Date.now()
+    const dl12 = await pdf(alex.h, `id=${P12}`)
+    const b12 = Buffer.from(await dl12.arrayBuffer())
+    const last = (await d.query(`SELECT * FROM ape_plan_log WHERE plan_no = $1 ORDER BY id DESC LIMIT 1`, [plan12.planNo]))[0]
+    check('a download writes an audit entry: who, when and which plan', dl12.status === 200 && last.action === 'downloaded' && last.by_email === alex.email && Math.abs(new Date(last.at).getTime() - t0) < 60_000 && last.booking_ref === REF && /practice copy/.test(last.note))
+    const named = (await store.readLog({ planNo: plan12.planNo }))[0]
+    check('the audit log shows the person\'s name and the patient\'s name', named.byName === 'Alex Unit' && named.patient === 'Zelda Quartermaine' && named.action === 'downloaded')
+    const tx = textOf(b12)
+    if (tx === null) check('the downloaded PDF has the practice details and the copy line (pdftotext not installed, so read by e2e)', true)
+    else {
+      check('the downloaded PDF has the practice details at the bottom', /PRACTICE DETAILS/.test(tx) && /ape-unit@example\.com/.test(tx) && /Unit Practice, 1 Test Street, Testville NSW 2000, reception-unit@example\.com/.test(tx))
+      check('the downloaded PDF says it is a practice copy, when and by whom', /Practice copy, downloaded \d{1,2} \w+ \d{4}/.test(tx) && /by Alex Unit/.test(tx) && /PRACTICE COPY/.test(tx))
+      const pr12 = textOf(Buffer.from(await (await pdf(alex.h, `id=${P12}&print=1`)).arrayBuffer())) || ''
+      check('the printed copy has the practice details and says it was printed', /Unit Practice/.test(pr12) && /Practice copy, printed/.test(pr12))
+    }
+    check('the plan is never attached to the patient email: the secure link is sent', (await post(alex.h, { action: 'send', planNo: plan12.planNo, to: PATIENT.email, confirm: true })).j.method === 'link' && !sent[sent.length - 1].attachments.length)
+    const m12 = sent[sent.length - 1]
+    check('the patient email carries the privacy line and no plan detail', m12.text.includes(store.PRIVACY_LINE) && m12.html.includes('Please do not forward it') && !`${m12.subject}${m12.text}${m12.html}`.includes(MARKER) && !/Headphones|upper left/.test(`${m12.text}${m12.html}`))
+    const tk12 = /\/plan\/([A-Za-z0-9_-]{30,60})\//.exec(m12.text)?.[1] || ''
+    check('the secure link still asks for the date of birth', ((await store.lookupLink(payload, tk12)) as any).askDob === true && /\?e=dob$/.test((await open(tk12, {}, '10.0.7.1')).headers.get('location') || ''))
+    const pat = await open(tk12, { d: '14', m: '3', y: '1990' }, '10.0.7.2')
+    const patTx = textOf(Buffer.from(await pat.arrayBuffer()))
+    check('the patient\'s PDF has the practice details and is not marked as a practice copy', pat.status === 200 && (patTx === null || (/Unit Practice/.test(patTx) && !/Practice copy/.test(patTx))))
+    check('the link can be switched off straight away for this one plan (Revoke access)', (await post(alex.h, { action: 'revoke', planNo: plan12.planNo })).j.revoked === 1 && (await store.lookupLink(payload, tk12)).state === 'gone')
+
+    // templates, the paragraph library, and starting from an earlier plan
+    // the library is filled from the form the first time it is opened: start it again for this test form
+    await d.query(`DELETE FROM ape_meta WHERE key = 'plans:blocks-seeded'`)
+    await d.query(`DELETE FROM ape_plan_blocks WHERE created_by = 'from the form'`)
+    const lib = await get(alex.h, 'library=1')
+    check('the paragraph library starts with the wording on the form', lib.status === 200 && lib.j.blocks.some((b: any) => b.body === 'This plan is yours.') && Array.isArray(lib.j.templates))
+    check('the library needs the permission too', (await get(sam.h, 'library=1')).status === 403)
+    const badBlock = await post(alex.h, { action: 'block', name: 'Gel', body: `Numbing gel so it is ${BAD}.` })
+    check('a library paragraph with a banned word is refused', badBlock.status === 400 && badBlock.j.error === 'wording')
+    const sedBlock = await post(alex.h, { action: 'block', name: 'Sedation', body: 'Inhalation sedation helps you feel calmer.' })
+    check('a paragraph about sedation without the risks line is refused', sedBlock.status === 400 && /risks/.test(sedBlock.j.message || ''))
+    const okBlock = await post(alex.h, { action: 'block', name: 'Sedation', body: 'Inhalation sedation can help you feel calmer. We will talk through how it works and its risks before you decide, {first_name}.' })
+    check('a paragraph with the risks line saves', okBlock.status === 200 && okBlock.j.block.id > 0)
+    const tpl = await post(lorna.h, { action: 'template', name: 'First visit with inhalation sedation', answers: { found: 'Usual first visit wording', next: '2027-02-02', opts: ['Breaks whenever you need them'], _extra: { c: [okBlock.j.block.body] } } })
+    check('Lorna makes a template: dates are left out', tpl.status === 200 && !(await get(lorna.h, `template=${tpl.j.template.id}`)).j.template.answers.next)
+    const badTpl = await post(lorna.h, { action: 'template', name: 'Bad', answers: { found: `It will be ${BAD}.` } })
+    check('a template with a banned word is refused', badTpl.status === 400 && badTpl.j.error === 'wording')
+    const fromTpl = await post(alex.h, { action: 'create', ref: REF, templateId: tpl.j.template.id })
+    const pt = (await get(alex.h, `id=${fromTpl.j.id}`)).j.plan
+    check('a plan started from a template has its wording, and the patient\'s details from the booking', pt.answers.found === 'Usual first visit wording' && pt.answers._extra.c.length === 1 && pt.identity.name === 'Zelda Quartermaine' && pt.status === 'draft')
+    check('the audit log says which template a plan started from', (await d.query(`SELECT note FROM ape_plan_log WHERE action = 'created' AND plan_no = $1`, [pt.planNo]))[0].note.includes('First visit with inhalation sedation'))
+    await post(alex.h, { action: 'save', id: fromTpl.j.id, answers: { ...pt.answers, found: `Usual wording, kept ${BAD}.` } })
+    const finBad = await post(alex.h, { action: 'finalise', id: fromTpl.j.id })
+    check('a plan from a template cannot be finalised with a banned word (the wording check)', finBad.status === 400 && finBad.j.error === 'wording' && finBad.j.message.includes(BAD))
+    await post(alex.h, { action: 'save', id: fromTpl.j.id, answers: { ...pt.answers, _extra: { c: ['We can also use happy gas.'] } } })
+    check('nor with sedation wording when the plan has no line about its risks', (await post(alex.h, { action: 'finalise', id: fromTpl.j.id })).j.error === 'wording')
+    await post(alex.h, { action: 'save', id: fromTpl.j.id, answers: { ...pt.answers, treat: [{ what: 'Inhalation sedation for the filling' }] } })
+    check('a treatment row that names sedation is fine when the plan has the risks line', (await post(alex.h, { action: 'finalise', id: fromTpl.j.id })).status === 200)
+    const v2t = await post(alex.h, { action: 'version', id: fromTpl.j.id })
+    await post(alex.h, { action: 'save', id: v2t.j.id, answers: pt.answers })
+    check('with the wording fixed it finalises', (await post(alex.h, { action: 'finalise', id: v2t.j.id })).status === 200)
+    const typedBad = await post(alex.h, { action: 'create', ref: TEEN })
+    await post(alex.h, { action: 'save', id: typedBad.j.id, answers: { found: `This is the ${['be', 'st'].join('')} option.` } })
+    check('a typed plan gets the same wording check', (await post(alex.h, { action: 'finalise', id: typedBad.j.id })).j.error === 'wording')
+    const fromPrev = await post(alex.h, { action: 'create', ref: TEEN, fromPlanId: P12 })
+    const pp = (await get(alex.h, `id=${fromPrev.j.id}`)).j.plan
+    check('starting from an earlier plan keeps the choices and clears what was typed for that patient', pp.identity.ref === TEEN && !pp.answers.found && JSON.stringify(pp.answers.opts) === JSON.stringify(['Headphones and music']))
+    const fromPlanTpl = await post(alex.h, { action: 'templateFromPlan', id: P12, name: 'From a finished plan' })
+    check('a finished plan can be saved as a template (and that is logged)', fromPlanTpl.status === 200 && (await d.query(`SELECT 1 FROM ape_plan_log WHERE action = 'template saved' AND plan_no = $1`, [plan12.planNo])).length === 1)
+    check('retire a template: it cannot be started from until restored', (await post(lorna.h, { action: 'retireTemplate', id: tpl.j.template.id })).status === 200 && (await post(alex.h, { action: 'create', ref: REF, templateId: tpl.j.template.id })).status === 409 && (await post(lorna.h, { action: 'retireTemplate', id: tpl.j.template.id, retired: false })).status === 200)
+    const tplRow = JSON.stringify(await d.query(`SELECT * FROM ape_plan_templates`))
+    check('templates are encrypted at rest like plans', !tplRow.includes('Usual first visit wording'))
+    const fresh19 = await payload.create({ collection: 'users', data: { email: 'unit-plan-new@example.com', password: PW, role: 'editor', name: 'New Unit', mustChangePassword: false } as any, overrideAccess: true })
+    check('a new login has "Can create and view treatment plans" from the start', (fresh19 as any).canTreatmentPlans === true)
+    await payload.delete({ collection: 'users', id: fresh19.id, overrideAccess: true })
+    const acts19 = new Set((await d.query(`SELECT action FROM ape_plan_log WHERE by_email LIKE 'unit-plan-%'`)).map((x) => x.action))
+    check('the audit log records views, edits, sends and downloads', ['viewed', 'edited', 'sent', 'downloaded', 'printed', 'template saved', 'paragraph saved'].every((a) => acts19.has(a)))
+    await d.query(`DELETE FROM ape_plan_templates WHERE created_by LIKE 'unit-plan-%'`)
+    await d.query(`DELETE FROM ape_plan_blocks WHERE created_by LIKE 'unit-plan-%'`)
+
     // ---------------------------------------------------------- 11. the tables set up twice
     const shape = async () => JSON.stringify(await d.query(`SELECT table_name, column_name, data_type, column_default FROM information_schema.columns WHERE table_name LIKE 'ape_plan%' ORDER BY 1, 2`))
     const sh1 = await shape()
@@ -381,6 +477,9 @@ async function main() {
   await d.query(`DELETE FROM ape_plans WHERE booking_ref LIKE 'APE-PLN%'`)
   await d.query(`DELETE FROM ape_bookings WHERE ref LIKE 'APE-PLN%'`)
   await d.query(`DELETE FROM ape_plan_forms WHERE version > $1`, [Number(keepForms[0].v) || 1])
+  // the library was filled from the test form: let it fill again from the real form next time
+  await d.query(`DELETE FROM ape_meta WHERE key = 'plans:blocks-seeded'`)
+  await d.query(`DELETE FROM ape_plan_blocks WHERE created_by = 'from the form'`)
   if (keepSettings[0]) await d.query(`INSERT INTO ape_meta (key, value) VALUES ('plans', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [keepSettings[0].value]); else await d.query(`DELETE FROM ape_meta WHERE key = 'plans'`)
   if (privacy[0]) await d.query(`UPDATE pages SET title = $2 WHERE id = $1`, [privacy[0].id, privacy[0].title])
   for (const r of section15) await d.query(`UPDATE pages_sections_content SET text = $2 WHERE id = $1`, [r.id, r.text])

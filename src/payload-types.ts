@@ -384,7 +384,7 @@ export interface User {
    */
   canViewQuestionnaires?: boolean | null;
   /**
-   * Off for everyone until given, GYA administrators included. The practice owner (or GYA) ticks it on the dashboard's Users screen, and every change is logged.
+   * On for every login, new ones included, as the practice owner asked. Anyone with it can read patients' treatment plans. The practice owner (or GYA) can untick it on the dashboard's Users screen, and every change is logged.
    */
   canTreatmentPlans?: boolean | null;
   mustChangePassword?: boolean | null;

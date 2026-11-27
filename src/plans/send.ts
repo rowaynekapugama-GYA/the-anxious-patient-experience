@@ -84,7 +84,7 @@ export async function sendPlan(payload: Payload, u: store.PlanUser, planNo: numb
     msg = planEmail({ mode: 'link', firstName: c.identity.firstName, link, expiresAt, askDob: s.askDob && !!c.identity.dob, privacyLine: s.privacyLine })
   } else {
     if (s.sendMode === 'password') password = store.newPdfPassword()
-    const pdf = await renderPlanPdf({ form: c.form, answers: c.answers, identity: c.identity, version: fin.version, finalisedAt: c.plan.finalised_at ? new Date(c.plan.finalised_at).toISOString() : null, clinician: s.clinician, password })
+    const pdf = await renderPlanPdf({ form: c.form, answers: c.answers, identity: c.identity, version: fin.version, finalisedAt: c.plan.finalised_at ? new Date(c.plan.finalised_at).toISOString() : null, clinician: s.clinician, practice: store.practiceLines(s.practice), password })
     attachments = [{ filename, content: pdf, mimetype: 'application/pdf' }]
     msg = planEmail({ mode: s.sendMode, firstName: c.identity.firstName, privacyLine: s.privacyLine })
   }

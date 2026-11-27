@@ -694,3 +694,14 @@ body.pe-full .pd-main { padding-bottom: 16px; padding-top: calc(var(--pd-top) + 
   .plan-actions { justify-content: flex-start; }
   .plan-actions .btn { flex: 1 1 auto; }
 }
+
+/* v1.19.0: treatment plan templates, the paragraph library and the practice details */
+.plan-extras { display: grid; gap: 10px; margin-top: 12px; }
+.plan-extra { display: grid; gap: 6px; padding: 10px; border: 1px dashed var(--pd-line, #d9d0c3); border-radius: 10px; }
+.plan-extra .actions, .plan-extras > .actions { margin: 0; flex-wrap: wrap; }
+.plan-library li { align-items: flex-start; gap: 10px; }
+.plan-lib-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.plan-practice-fields { border: 0; padding: 0; margin: 18px 0 0; }
+.plan-on-booking .actions { margin-top: 8px; flex-wrap: wrap; gap: 8px; }
+.select.small { min-height: 34px; padding: 4px 30px 4px 10px; font-size: 14px; max-width: 100%; }
+@media (max-width: 640px) { .plan-library li { flex-wrap: wrap; } }

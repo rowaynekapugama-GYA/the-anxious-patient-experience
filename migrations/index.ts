@@ -7,6 +7,7 @@ import * as migration_20261117_010000_v1100_terms_owner from './20261117_010000_
 import * as migration_20261124_010000_v1150_gtm from './20261124_010000_v1150_gtm';
 import * as migration_20261124_090000_v1160_profile_link from './20261124_090000_v1160_profile_link';
 import * as migration_20261125_090000_v1180_treatment_plans from './20261125_090000_v1180_treatment_plans';
+import * as migration_20261127_090000_v1190_plans_for_all_users from './20261127_090000_v1190_plans_for_all_users';
 
 export const migrations = [
   {
@@ -53,5 +54,10 @@ export const migrations = [
     up: migration_20261125_090000_v1180_treatment_plans.up,
     down: migration_20261125_090000_v1180_treatment_plans.down,
     name: '20261125_090000_v1180_treatment_plans',
+  },
+  {
+    up: migration_20261127_090000_v1190_plans_for_all_users.up,
+    down: migration_20261127_090000_v1190_plans_for_all_users.down,
+    name: '20261127_090000_v1190_plans_for_all_users',
   },
 ];

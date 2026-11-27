@@ -8,9 +8,13 @@
  *   GET ?id=                 one plan version, decrypted (logged as viewed)
  *   GET ?form=1              the current form and its history (permission, practice owner or GYA)
  *   GET ?log=1               the audit log (administrators)
+ *   GET ?library=1           v1.19.0: the templates and the paragraph library (permission and the feature on)
+ *   GET ?template=ID         v1.19.0: one template, with the current form
  *   POST {action:'create', ref} | {action:'save', id, answers} | {action:'finalise', id} | {action:'version', id}
  *        {action:'send', planNo, to} | {action:'revoke', planNo} | {action:'delete', planNo, confirm:'DELETE'}
  *        {action:'form', form} | {action:'approve', version, by} | {action:'settings', ...}
+ *        v1.19.0: create takes templateId or fromPlanId; {action:'template', id?, name, answers} | {action:'templateFromPlan', id, name}
+ *        {action:'retireTemplate', id, retired} | {action:'block', id?, name, body} | {action:'retireBlock', id, retired}
  */
 import { routeUser, json } from '@/dashboard/lib/routeAuth'
 import * as store from '@/plans/store'
@@ -49,6 +53,9 @@ export async function GET(req: Request) {
       return json(200, { ok: true, current: await store.currentForm(), history: await store.formHistory() })
     }
     await store.guard(payload, u, 'list or open plans')
+    if (url.searchParams.get('library') === '1') return json(200, { ok: true, templates: await store.listTemplates(), blocks: await store.listBlocks() })
+    const tid = Number(url.searchParams.get('template'))
+    if (tid) return json(200, { ok: true, template: await store.getTemplate(tid) })
     const id = Number(url.searchParams.get('id'))
     if (id) return json(200, { ok: true, plan: await store.openPlan(u, id), settings: await store.readSettings() })
     const ref = String(url.searchParams.get('ref') || '').trim().toUpperCase()
@@ -77,7 +84,12 @@ export async function POST(req: Request) {
     }
     await store.guard(payload, u, `plan action: ${action || 'none'}`)
     switch (action) {
-      case 'create': return json(200, { ok: true, id: await store.createPlan(u, String(b.ref || '')) })
+      case 'create': return json(200, { ok: true, id: await store.createPlan(u, String(b.ref || ''), { templateId: Number(b.templateId) || undefined, fromPlanId: Number(b.fromPlanId) || undefined }) })
+      case 'template': return json(200, { ok: true, template: await store.saveTemplate(u, { id: Number(b.id) || undefined, name: b.name, answers: b.answers }) })
+      case 'templateFromPlan': return json(200, { ok: true, template: await store.templateFromPlan(u, Number(b.id), b.name) })
+      case 'retireTemplate': await store.retireTemplate(u, Number(b.id), b.retired !== false); return json(200, { ok: true })
+      case 'block': return json(200, { ok: true, block: await store.saveBlock(u, { id: Number(b.id) || undefined, name: b.name, body: b.body }) })
+      case 'retireBlock': await store.retireBlock(u, Number(b.id), b.retired !== false); return json(200, { ok: true })
       case 'save': return json(200, { ok: true, ...(await store.saveDraft(u, Number(b.id), b.answers)) })
       case 'finalise': await store.finalise(u, Number(b.id)); return json(200, { ok: true })
       case 'version': return json(200, { ok: true, id: await store.newVersion(u, Number(b.id)) })
